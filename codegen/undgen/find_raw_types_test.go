@@ -14,6 +14,7 @@ import (
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/hiter/iterable"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
+	_ "github.com/ngicks/und"
 	"golang.org/x/tools/go/packages"
 	"gotest.tools/v3/assert"
 )
@@ -53,7 +54,7 @@ func Test_isImplementor(t *testing.T) {
 	var foo, fooPlain, bar, nonCyclic *types.Named
 
 	for _, pkg := range testdataPackages {
-		if pkg.PkgPath != "github.com/ngicks/und/internal/undgen/testdata/targettypes/sub" {
+		if pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub" {
 			continue
 		}
 		for _, def := range pkg.TypesInfo.Defs {
@@ -96,10 +97,10 @@ P:
 	for _, p := range testdataPackages {
 		for _, f := range p.Syntax {
 			fPath := p.Fset.Position(f.FileStart)
-			if strings.HasSuffix(fPath.Filename, "internal/undgen/testdata/targettypes/ty1.go") {
+			if strings.HasSuffix(fPath.Filename, "undgen/testdata/targettypes/ty1.go") {
 				file1 = f
 			}
-			if strings.HasSuffix(fPath.Filename, "internal/undgen/testdata/targettypes/ty2.go") {
+			if strings.HasSuffix(fPath.Filename, "undgen/testdata/targettypes/ty2.go") {
 				file2 = f
 			}
 			if file1 != nil && file2 != nil {
@@ -165,6 +166,7 @@ func TestFindTargetType_error(t *testing.T) {
 }
 
 func deepEqualRawMatchedType(t *testing.T, i, j []hiter.KeyValue[int, RawMatchedType]) {
+	t.Helper()
 	assert.DeepEqual(
 		t,
 		i, j,
@@ -180,7 +182,7 @@ func TestFindTargetType(t *testing.T) {
 	result, err := FindRawTypes(
 		slices.Collect(
 			xiter.Filter(func(pkg *packages.Package) bool {
-				return pkg.PkgPath != "github.com/ngicks/und/internal/undgen/testdata/targettypes/erroneous"
+				return pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/erroneous"
 			},
 				slices.Values(testdataPackages),
 			),
@@ -195,8 +197,8 @@ func TestFindTargetType(t *testing.T) {
 		panic(err)
 	}
 
-	pkg := result["github.com/ngicks/und/internal/undgen/testdata/targettypes"]
-	if pkg.Pkg.PkgPath != "github.com/ngicks/und/internal/undgen/testdata/targettypes" {
+	pkg := result["github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes"]
+	if pkg.Pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes" {
 		t.Errorf("wrong path: %s", pkg.Pkg.PkgPath)
 	}
 
@@ -433,8 +435,8 @@ func TestFindTargetType(t *testing.T) {
 		types,
 	)
 
-	sub := result["github.com/ngicks/und/internal/undgen/testdata/targettypes/sub"]
-	if sub.Pkg.PkgPath != "github.com/ngicks/und/internal/undgen/testdata/targettypes/sub" {
+	sub := result["github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub"]
+	if sub.Pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub" {
 		t.Errorf("wrong path: %s", sub.Pkg.PkgPath)
 	}
 

@@ -16,7 +16,7 @@ import (
 func Test_generatePatcher(t *testing.T) {
 	var pkg *packages.Package
 	for _, p := range testdataPackages {
-		if p.PkgPath == "github.com/ngicks/und/internal/undgen/testdata/targettypes" {
+		if p.PkgPath == "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes" {
 			pkg = p
 			break
 		}

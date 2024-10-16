@@ -1,9 +1,9 @@
 package targettypes
 
 import (
+	"github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/elastic"
-	"github.com/ngicks/und/internal/undgen/testdata/targettypes/sub"
 	"github.com/ngicks/und/option"
 	"github.com/ngicks/und/sliceund"
 	sliceElastic "github.com/ngicks/und/sliceund/elastic"
