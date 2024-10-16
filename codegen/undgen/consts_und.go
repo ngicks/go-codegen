@@ -37,16 +37,16 @@ var ConstUnd = ConstSet{
 var (
 	UndTargetTypes = []TargetType{
 		UndTargetTypeOption,
-		UndTargetTypesUnd,
+		UndTargetTypeUnd,
 		UndTargetTypeElastic,
-		UndTargetTypesSliceUnd,
-		UndTargetTypesSliceElastic,
+		UndTargetTypeSliceUnd,
+		UndTargetTypeSliceElastic,
 	}
 	UndTargetTypeOption = TargetType{
 		ImportPath: "github.com/ngicks/und/option",
 		Name:       "Option",
 	}
-	UndTargetTypesUnd = TargetType{
+	UndTargetTypeUnd = TargetType{
 		ImportPath: "github.com/ngicks/und",
 		Name:       "Und",
 	}
@@ -54,11 +54,11 @@ var (
 		ImportPath: "github.com/ngicks/und/elastic",
 		Name:       "Elastic",
 	}
-	UndTargetTypesSliceUnd = TargetType{
+	UndTargetTypeSliceUnd = TargetType{
 		ImportPath: "github.com/ngicks/und/sliceund",
 		Name:       "Und",
 	}
-	UndTargetTypesSliceElastic = TargetType{
+	UndTargetTypeSliceElastic = TargetType{
 		ImportPath: "github.com/ngicks/und/sliceund/elastic",
 		Name:       "Elastic",
 	}

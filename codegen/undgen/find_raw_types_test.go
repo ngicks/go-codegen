@@ -10,11 +10,18 @@ import (
 	"strings"
 	"testing"
 
+	// This _ import is needed since packages under ./testdata/targettypes import this module.
+	// Files under the directory named "testdata" is totally ignored by go tools;
+	// `go mod tidy` would not add the module to the go.mod.
+	// and also, packages.Load relies on go tools.
+	// All packages loaded are derived from dependency graph of the module where the packages.Load is invoked on.
+	// Keep this import and keep the module noted in go.mod.
+	_ "github.com/ngicks/und"
+
 	gocmp "github.com/google/go-cmp/cmp"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/hiter/iterable"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
-	_ "github.com/ngicks/und"
 	"golang.org/x/tools/go/packages"
 	"gotest.tools/v3/assert"
 )
@@ -117,7 +124,7 @@ P:
 			"elastic":  ConstUnd.Imports[2],
 			"sliceund": ConstUnd.Imports[3],
 		},
-		fallback: map[string]TargetImport{
+		missingImports: map[string]TargetImport{
 			"elastic_1": ConstUnd.Imports[4],
 		},
 	}
@@ -128,8 +135,8 @@ P:
 	)
 	assert.DeepEqual(
 		t,
-		expected.fallback,
-		importMap.fallback,
+		expected.missingImports,
+		importMap.missingImports,
 	)
 
 	importMap = parseImports(file2.Imports, ConstUnd.Imports)
@@ -141,7 +148,7 @@ P:
 			"sliceund":     ConstUnd.Imports[3],
 			"sliceElastic": ConstUnd.Imports[4],
 		},
-		fallback: map[string]TargetImport{},
+		missingImports: map[string]TargetImport{},
 	}
 	assert.DeepEqual(
 		t,
@@ -150,8 +157,8 @@ P:
 	)
 	assert.DeepEqual(
 		t,
-		expected.fallback,
-		importMap.fallback,
+		expected.missingImports,
+		importMap.missingImports,
 	)
 }
 
@@ -214,52 +221,52 @@ func TestFindTargetType(t *testing.T) {
 					Name:    "All",
 					Variant: MatchedAsStruct,
 					Field: []MatchedField{
-						{Name: "UntouchedOpt", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Name: "UntouchedUnd", As: MatchedAsDirect, Type: UndTargetTypesUnd},
-						{Name: "UntouchedSliceUnd", As: MatchedAsDirect, Type: UndTargetTypesSliceUnd},
-						{Name: "OptRequired", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Name: "OptNullish", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Name: "OptDef", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Name: "OptNull", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Name: "OptUnd", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Name: "OptDefOrUnd", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Name: "OptDefOrNull", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Name: "OptNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Name: "OptDefOrNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Name: "UndRequired", As: MatchedAsDirect, Type: UndTargetTypesUnd},
-						{Name: "UndNullish", As: MatchedAsDirect, Type: UndTargetTypesUnd},
-						{Name: "UndDef", As: MatchedAsDirect, Type: UndTargetTypesUnd},
-						{Name: "UndNull", As: MatchedAsDirect, Type: UndTargetTypesUnd},
-						{Name: "UndUnd", As: MatchedAsDirect, Type: UndTargetTypesUnd},
-						{Name: "UndDefOrUnd", As: MatchedAsDirect, Type: UndTargetTypesUnd},
-						{Name: "UndDefOrNull", As: MatchedAsDirect, Type: UndTargetTypesUnd},
-						{Name: "UndNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypesUnd},
-						{Name: "UndDefOrNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypesUnd},
-						{Name: "ElaRequired", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaNullish", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaDef", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaDefOrUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaDefOrNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaDefOrNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaEqEq", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaGr", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaGrEq", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaLe", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaLeEq", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaEqEquRequired", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaEqEquNullish", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaEqEquDef", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaEqEquNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaEqEquUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaEqEqNonNullSlice", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaEqEqNonNullNullSlice", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaEqEqNonNullSingle", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaEqEqNonNullNullSingle", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaEqEqNonNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Name: "ElaEqEqNonNullNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 4, Name: "UntouchedOpt", As: MatchedAsDirect, Type: UndTargetTypeOption},
+						{Pos: 5, Name: "UntouchedUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd},
+						{Pos: 6, Name: "UntouchedSliceUnd", As: MatchedAsDirect, Type: UndTargetTypeSliceUnd},
+						{Pos: 7, Name: "OptRequired", As: MatchedAsDirect, Type: UndTargetTypeOption},
+						{Pos: 8, Name: "OptNullish", As: MatchedAsDirect, Type: UndTargetTypeOption},
+						{Pos: 9, Name: "OptDef", As: MatchedAsDirect, Type: UndTargetTypeOption},
+						{Pos: 10, Name: "OptNull", As: MatchedAsDirect, Type: UndTargetTypeOption},
+						{Pos: 11, Name: "OptUnd", As: MatchedAsDirect, Type: UndTargetTypeOption},
+						{Pos: 12, Name: "OptDefOrUnd", As: MatchedAsDirect, Type: UndTargetTypeOption},
+						{Pos: 13, Name: "OptDefOrNull", As: MatchedAsDirect, Type: UndTargetTypeOption},
+						{Pos: 14, Name: "OptNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeOption},
+						{Pos: 15, Name: "OptDefOrNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeOption},
+						{Pos: 16, Name: "UndRequired", As: MatchedAsDirect, Type: UndTargetTypeUnd},
+						{Pos: 17, Name: "UndNullish", As: MatchedAsDirect, Type: UndTargetTypeUnd},
+						{Pos: 18, Name: "UndDef", As: MatchedAsDirect, Type: UndTargetTypeUnd},
+						{Pos: 19, Name: "UndNull", As: MatchedAsDirect, Type: UndTargetTypeUnd},
+						{Pos: 20, Name: "UndUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd},
+						{Pos: 21, Name: "UndDefOrUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd},
+						{Pos: 22, Name: "UndDefOrNull", As: MatchedAsDirect, Type: UndTargetTypeUnd},
+						{Pos: 23, Name: "UndNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd},
+						{Pos: 24, Name: "UndDefOrNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd},
+						{Pos: 25, Name: "ElaRequired", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 26, Name: "ElaNullish", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 27, Name: "ElaDef", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 28, Name: "ElaNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 29, Name: "ElaUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 30, Name: "ElaDefOrUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 31, Name: "ElaDefOrNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 32, Name: "ElaNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 33, Name: "ElaDefOrNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 34, Name: "ElaEqEq", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 35, Name: "ElaGr", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 36, Name: "ElaGrEq", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 37, Name: "ElaLe", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 38, Name: "ElaLeEq", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 39, Name: "ElaEqEquRequired", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 40, Name: "ElaEqEquNullish", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 41, Name: "ElaEqEquDef", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 42, Name: "ElaEqEquNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 43, Name: "ElaEqEquUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 44, Name: "ElaEqEqNonNullSlice", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 45, Name: "ElaEqEqNonNullNullSlice", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 46, Name: "ElaEqEqNonNullSingle", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 47, Name: "ElaEqEqNonNullNullSingle", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 48, Name: "ElaEqEqNonNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 49, Name: "ElaEqEqNonNullNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
 					},
 				},
 			},
@@ -271,6 +278,7 @@ func TestFindTargetType(t *testing.T) {
 					Variant: "struct",
 					Field: []MatchedField{
 						{
+							Pos:  2,
 							Name: "Baz",
 							As:   MatchedAsDirect,
 							Type: UndTargetTypeOption,
@@ -309,7 +317,7 @@ func TestFindTargetType(t *testing.T) {
 						{
 							Name: "B",
 							As:   MatchedAsDirect,
-							Type: UndTargetTypesUnd,
+							Type: UndTargetTypeUnd,
 						},
 					},
 				},
@@ -337,7 +345,7 @@ func TestFindTargetType(t *testing.T) {
 					Field: []MatchedField{
 						{
 							As:   MatchedAsDirect,
-							Type: UndTargetTypesSliceUnd,
+							Type: UndTargetTypeSliceUnd,
 						},
 					},
 				},
@@ -351,7 +359,7 @@ func TestFindTargetType(t *testing.T) {
 					Field: []MatchedField{
 						{
 							As:   MatchedAsDirect,
-							Type: UndTargetTypesSliceElastic,
+							Type: UndTargetTypeSliceElastic,
 						},
 					},
 				},

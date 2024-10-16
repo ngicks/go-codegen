@@ -134,6 +134,7 @@ type RawMatchedType struct {
 }
 
 type MatchedField struct {
+	Pos  int
 	Name string
 	As   MatchedAs
 	// Empty if As is "implementor".
@@ -225,6 +226,7 @@ func parseUndType(
 			if !matchedAs.IsValid() {
 				continue
 			}
+			matchedAs.Pos = i
 			matchedAs.Name = f.Name()
 			matched = append(matched, matchedAs)
 		}

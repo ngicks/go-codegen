@@ -1,14 +1,11 @@
 package undgen
 
 import (
-	"go/ast"
-	"go/printer"
-	"go/token"
-	"os"
+	"maps"
 	"slices"
 	"testing"
 
-	"github.com/dave/dst/decorator"
+	"github.com/ngicks/go-codegen/codegen/suffixprinter"
 	"golang.org/x/tools/go/packages"
 	"gotest.tools/v3/assert"
 )
@@ -22,35 +19,17 @@ func Test_generatePatcher(t *testing.T) {
 		}
 	}
 
-	for data, err := range generatePatcher(
+	testPrinter := suffixprinter.NewTestPrinter("yay")
+	err := GeneratePatcher(
+		testPrinter.Printer,
 		pkg,
 		ConstUnd.Imports,
-		"WithTypeParam", "A", "B", "IncludesSubTarget",
-	) {
-		assert.NilError(t, err)
-		res := decorator.NewRestorer()
-		afile, err := res.RestoreFile(data.df)
-		assert.NilError(t, err)
-
-		for _, dec := range afile.Decls {
-			genDecl, ok := dec.(*ast.GenDecl)
-			if !ok {
-				continue
-			}
-			if genDecl.Tok != token.TYPE {
-				continue
-			}
-
-			for _, spec := range genDecl.Specs {
-				ts := spec.(*ast.TypeSpec)
-				if !slices.Contains(data.typeNames, ts.Name.Name) {
-					continue
-				}
-				os.Stdout.Write([]byte("\n"))
-				printer.Fprint(os.Stdout, res.Fset, ts)
-				os.Stdout.Write([]byte("\n"))
-			}
-		}
+		"All", "WithTypeParam", "A", "B", "IncludesSubTarget",
+	)
+	assert.NilError(t, err)
+	results := testPrinter.Results()
+	for _, k := range slices.Sorted(maps.Keys(results)) {
+		result := results[k]
+		t.Logf("%q:\n%s", k, result)
 	}
-
 }

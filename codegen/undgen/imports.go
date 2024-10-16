@@ -1,14 +1,18 @@
 package undgen
 
 import (
+	"cmp"
 	"fmt"
 	"go/ast"
+	"iter"
+	"maps"
 	"path"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/dave/dst"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
 
@@ -19,8 +23,8 @@ type TargetType struct {
 
 // importDecls maps idents (PackageNames) to TargetImport
 type importDecls struct {
-	identToImport map[string]TargetImport
-	fallback      map[string]TargetImport
+	identToImport  map[string]TargetImport
+	missingImports map[string]TargetImport // keys = unique ident names
 }
 
 // parseImports relates ident (PackageName) to TargetImport.
@@ -37,8 +41,8 @@ func parseImports(importSpecs []*ast.ImportSpec, imports []TargetImport) importD
 	)
 
 	id := importDecls{
-		identToImport: map[string]TargetImport{},
-		fallback:      map[string]TargetImport{},
+		identToImport:  map[string]TargetImport{},
+		missingImports: map[string]TargetImport{},
 	}
 
 	for _, is := range importSpecs {
@@ -60,14 +64,14 @@ func parseImports(importSpecs []*ast.ImportSpec, imports []TargetImport) importD
 	for _, i := range imports {
 		name := importPathToIdent(i.ImportPath)
 		for i := 1; ; i++ {
-			_, ok := id.fallback[name]
+			_, ok := id.missingImports[name]
 			if !ok && !slices.Contains(importSpecNames, name) {
 				break
 			}
 			name = name + "_" + strconv.FormatInt(int64(i), 10)
 			continue
 		}
-		id.fallback[name] = i
+		id.missingImports[name] = i
 	}
 	return id
 }
@@ -117,7 +121,7 @@ func (id importDecls) matchIdentToImport(pkgPath, name string) (string, TargetIm
 }
 
 func (id importDecls) matchFallback(pkgPath, name string) (string, TargetImport) {
-	for k, v := range id.fallback {
+	for k, v := range id.missingImports {
 		if v.ImportPath == pkgPath && slices.Contains(v.Types, name) {
 			return k, v
 		}
@@ -148,13 +152,37 @@ func (id importDecls) DstExpr(pkgPath, name string) *dst.SelectorExpr {
 	}
 }
 
-func (id importDecls) Len() int {
-	return len(id.identToImport)
+func (id importDecls) Ident(path string) (string, bool) {
+	for k, v := range id.identToImport {
+		if v.ImportPath == path {
+			return k, true
+		}
+	}
+
+	for k, v := range id.missingImports {
+		if v.ImportPath == path {
+			return k, true
+		}
+	}
+
+	return "", false
 }
 
-func (id importDecls) HasSelector(left, right string) bool {
-	ti, ok := id.identToImport[left]
-	return ok && slices.Contains(ti.Types, right)
+func (id importDecls) MissingImports() iter.Seq2[string, string] {
+	sorted := slices.SortedFunc(
+		hiter.ToKeyValue(
+			xiter.Map2(
+				func(ident string, ti TargetImport) (string, string) {
+					return ident, ti.ImportPath
+				},
+				maps.All(id.missingImports),
+			),
+		),
+		func(i, j hiter.KeyValue[string, string]) int {
+			return cmp.Compare(i.V, j.V)
+		},
+	)
+	return hiter.Values2(sorted)
 }
 
 func (i importDecls) MatchTy(path string, name string) (TargetType, bool) {
