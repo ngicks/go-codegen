@@ -23,13 +23,15 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+//go:generate go run ../ undgen patch --pkg ./testdata/patchtarget All Ignored Hmm NameOverlapping
+
 func GeneratePatcher(
 	sourcePrinter *suffixprinter.Printer,
 	pkg *packages.Package,
 	imports []TargetImport,
 	targetTypeNames ...string,
 ) error {
-	for data, err := range generatePatcher(pkg, imports, targetTypeNames...) {
+	for data, err := range generatePatcherType(pkg, imports, targetTypeNames...) {
 		if err != nil {
 			return err
 		}
@@ -122,7 +124,7 @@ type patchTypesGenerationData struct {
 	typeNames []string
 }
 
-func generatePatcher(pkg *packages.Package, imports []TargetImport, targetTypeNames ...string) iter.Seq2[patchTypesGenerationData, error] {
+func generatePatcherType(pkg *packages.Package, imports []TargetImport, targetTypeNames ...string) iter.Seq2[patchTypesGenerationData, error] {
 	return func(yield func(patchTypesGenerationData, error) bool) {
 		for pkg, seq := range FindTypes(pkg, targetTypeNames...) {
 			for file, seq := range seq {
@@ -231,6 +233,9 @@ func replaceNonUndTypes(
 				default:
 					return true
 				case *dst.Field:
+					if len(field.Names) == 0 {
+						return false
+					}
 					if f, ok := target.Field(field.Names[0].Name); ok && slices.Contains(UndTargetTypes, f.Type) {
 						switch f.Type {
 						case UndTargetTypeOption:
@@ -268,6 +273,8 @@ func replaceNonUndTypes(
 		)
 		specs = append(specs, ts)
 		filtered = append(filtered, target)
+
+		// TODO: edit json struct tag here.
 	}
 
 	return df, specs, filtered, nil
