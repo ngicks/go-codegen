@@ -1,8 +1,6 @@
 package undgen
 
 import (
-	"fmt"
-
 	"golang.org/x/tools/go/packages"
 )
 
@@ -26,10 +24,10 @@ func init() {
 			packages.NeedModule |
 			packages.NeedEmbedFiles |
 			packages.NeedEmbedPatterns,
-		Logf: func(format string, args ...interface{}) {
-			fmt.Printf("log: "+format, args...)
-			fmt.Println()
-		},
+		// Logf: func(format string, args ...interface{}) {
+		// 	fmt.Printf("log: "+format, args...)
+		// 	fmt.Println()
+		// },
 	}
 	var err error
 	testdataPackages, err = packages.Load(cfg, "./testdata/targettypes/...")
