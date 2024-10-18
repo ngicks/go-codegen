@@ -91,6 +91,6 @@ func init() {
 	fset := undgenPatchCmd.Flags()
 	fset.StringP("dir", "d", "", "directory under which target package is located. If empty cwd will be used.")
 	fset.StringP("pkg", "p", "", "target package name. relative to dir. only single package will be used so if should not be ./...")
-	undgenPatchCmd.MarkFlagRequired("pkg")
+	_ = undgenPatchCmd.MarkFlagRequired("pkg")
 	undgenCmd.AddCommand(undgenPatchCmd)
 }
