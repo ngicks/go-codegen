@@ -1,7 +1,8 @@
 package patchtarget
 
 import (
-	// intentionally overlapping name to sliceund.
+	// intentionally overlapping name to sliceund
+	// to see if it can handle name overlap correctly
 	sliceund "github.com/ngicks/und"
 )
 
