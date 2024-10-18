@@ -10,12 +10,12 @@ import (
 
 type All struct {
 	Foo string
-	Bar *int
-	Baz *struct{}
+	Bar *int      `json:",omitempty"`
+	Baz *struct{} `json:"baz,omitempty"`
 	Qux []string
 
-	Opt          option.Option[string]
-	Und          und.Und[string]
+	Opt          option.Option[string] `json:"opt,omitzero"`
+	Und          und.Und[string]       `json:"und"`
 	Elastic      elastic.Elastic[string]
 	SliceUnd     sliceund.Und[string]
 	SliceElastic sliceelastic.Elastic[string]

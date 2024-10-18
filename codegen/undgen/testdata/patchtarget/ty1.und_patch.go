@@ -10,16 +10,16 @@ import (
 
 //undgen:generated
 type AllPatch struct {
-	Foo sliceund.Und[string]
-	Bar sliceund.Und[*int]
-	Baz sliceund.Und[*struct{}]
-	Qux sliceund.Und[[]string]
+	Foo sliceund.Und[string]    `json:",omitempty"`
+	Bar sliceund.Und[*int]      `json:",omitempty"`
+	Baz sliceund.Und[*struct{}] `json:"baz,omitempty"`
+	Qux sliceund.Und[[]string]  `json:",omitempty"`
 
-	Opt          sliceund.Und[string]
-	Und          und.Und[string]
-	Elastic      elastic.Elastic[string]
-	SliceUnd     sliceund.Und[string]
-	SliceElastic sliceelastic.Elastic[string]
+	Opt          sliceund.Und[string]         `json:"opt,omitempty"`
+	Und          und.Und[string]              `json:"und,omitzero"`
+	Elastic      elastic.Elastic[string]      `json:",omitzero"`
+	SliceUnd     sliceund.Und[string]         `json:",omitempty"`
+	SliceElastic sliceelastic.Elastic[string] `json:",omitempty"`
 }
 
 //undgen:generated
@@ -80,7 +80,7 @@ func (p AllPatch) ApplyPatch(v All) All {
 
 //undgen:generated
 type HmmPatch struct {
-	Ah sliceund.Und[Ignored]
+	Ah sliceund.Und[Ignored] `json:",omitempty"`
 }
 
 //undgen:generated

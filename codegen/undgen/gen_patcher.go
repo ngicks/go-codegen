@@ -11,6 +11,7 @@ import (
 	"go/types"
 	"io"
 	"iter"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,12 +19,16 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/dave/dst/dstutil"
+	"github.com/ngicks/go-codegen/codegen/structtag"
 	"github.com/ngicks/go-codegen/codegen/suffixprinter"
+	"github.com/ngicks/go-iterator-helper/hiter"
+	"github.com/ngicks/go-iterator-helper/hiter/iterable"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 )
 
 //go:generate go run ../ undgen patch --pkg ./testdata/patchtarget All Ignored Hmm NameOverlapping
+//go:generate go run ../ undgen patch --pkg ./testdata/targettypes "All" "WithTypeParam" "A" "B" "IncludesSubTarget"
 
 func GeneratePatcher(
 	sourcePrinter *suffixprinter.Printer,
@@ -224,6 +229,7 @@ func replaceNonUndTypes(
 		if !ok {
 			continue
 		}
+		fieldName := ts.Name.Name
 		ts.Name.Name = ts.Name.Name + "Patch"
 		dstutil.Apply(
 			ts.Type,
@@ -236,6 +242,16 @@ func replaceNonUndTypes(
 					if len(field.Names) == 0 {
 						return false
 					}
+
+					// later mutated
+					// We need allocate one since field.Tag is nil when no tag is set.
+					tag := &dst.BasicLit{}
+					if field.Tag != nil {
+						tag = field.Tag
+					}
+					field.Tag = tag
+
+					isSliceType := true
 					if f, ok := target.Field(field.Names[0].Name); ok && slices.Contains(UndTargetTypes, f.Type) {
 						switch f.Type {
 						case UndTargetTypeOption:
@@ -248,10 +264,9 @@ func replaceNonUndTypes(
 								Tag:  field.Tag,
 								Decs: field.Decs,
 							})
-						case UndTargetTypeUnd:
-						case UndTargetTypeElastic:
-						case UndTargetTypeSliceUnd:
-						case UndTargetTypeSliceElastic:
+						case UndTargetTypeUnd, UndTargetTypeElastic:
+							isSliceType = false
+						case UndTargetTypeSliceUnd, UndTargetTypeSliceElastic:
 						}
 					} else {
 						c.Replace(
@@ -266,6 +281,25 @@ func replaceNonUndTypes(
 							},
 						)
 					}
+					if tag != nil {
+						tagOpt, err := structtag.ParseStructTag(
+							reflect.StructTag(unquoteBasicLitString(tag.Value)),
+						)
+						if err != nil {
+							panic(fmt.Errorf(
+								"malformed struct tag on field %s of type %q: %w",
+								concatFieldNames(field), fieldName, err,
+							))
+						}
+						tagOpt, _ = tagOpt.DeleteOption("json", "omitempty")
+						tagOpt, _ = tagOpt.DeleteOption("json", "omitzero")
+						omitOpt := "omitempty"
+						if !isSliceType {
+							omitOpt = "omitzero"
+						}
+						tagOpt, _ = tagOpt.AddOption("json", omitOpt, "")
+						tag.Value = "`" + string(tagOpt.StructTag()) + "`"
+					}
 					return false
 				}
 			},
@@ -278,6 +312,23 @@ func replaceNonUndTypes(
 	}
 
 	return df, specs, filtered, nil
+}
+
+func concatFieldNames(field *dst.Field) string {
+	return hiter.StringsCollect(
+		0,
+		hiter.SkipLast(
+			1,
+			hiter.Decorate(
+				nil,
+				iterable.Repeatable[string]{V: ",", N: -1},
+				xiter.Map(
+					func(i *dst.Ident) string { return strconv.Quote(i.Name) },
+					slices.Values(field.Names),
+				),
+			),
+		),
+	)
 }
 
 func addMissingImports(df *dst.File, imports importDecls) {

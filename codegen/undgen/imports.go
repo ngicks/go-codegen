@@ -78,14 +78,23 @@ func parseImports(importSpecs []*ast.ImportSpec, imports []TargetImport) importD
 
 // strips " or ` from import spec path.
 func unquoteImportSpecPath(is *ast.ImportSpec) string {
-	if is.Path.Value[0] == '"' {
-		pkgPath, err := strconv.Unquote(is.Path.Value)
+	return unquoteBasicLitString(is.Path.Value)
+}
+
+// strips " or ` from basic lit string.
+func unquoteBasicLitString(s string) string {
+	if len(s) == 0 {
+		// impossible. just avoiding panic. or should we panic?
+		return s
+	}
+	if s[0] == '"' {
+		pkgPath, err := strconv.Unquote(s)
 		if err != nil {
 			panic(fmt.Errorf("malformed import: %w", err))
 		}
 		return pkgPath
 	} else {
-		return is.Path.Value[1 : len(is.Path.Value)-1]
+		return s[1 : len(s)-1]
 	}
 }
 

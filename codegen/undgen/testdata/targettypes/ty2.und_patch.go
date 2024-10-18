@@ -9,7 +9,7 @@ import (
 
 //undgen:generated
 type APatch struct {
-	A sliceund.Und[string]
+	A sliceund.Und[string] `json:",omitempty"`
 }
 
 //undgen:generated
@@ -46,7 +46,7 @@ func (p APatch) ApplyPatch(v A) A {
 
 //undgen:generated
 type BPatch struct {
-	B und.Und[int]
+	B und.Und[int] `json:",omitzero"`
 }
 
 //undgen:generated
@@ -83,7 +83,7 @@ func (p BPatch) ApplyPatch(v B) B {
 
 //undgen:generated
 type IncludesSubTargetPatch struct {
-	Foo sliceund.Und[sub.Baz[string]]
+	Foo sliceund.Und[sub.Baz[string]] `json:",omitempty"`
 }
 
 //undgen:generated

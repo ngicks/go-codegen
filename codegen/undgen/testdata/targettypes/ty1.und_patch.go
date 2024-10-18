@@ -9,24 +9,24 @@ import (
 
 //undgen:generated
 type AllPatch struct {
-	Foo sliceund.Und[string]
-	Bar sliceund.Und[*string]
-	Baz sliceund.Und[*struct{}]
-	Qux sliceund.Und[[]string]
+	Foo sliceund.Und[string]    `json:",omitempty"`
+	Bar sliceund.Und[*string]   `json:",omitempty"`
+	Baz sliceund.Und[*struct{}] `json:",omitempty"`
+	Qux sliceund.Und[[]string]  `json:",omitempty"`
 
-	UntouchedOpt      sliceund.Und[int] `json:",omitzero"`
+	UntouchedOpt      sliceund.Und[int] `json:",omitempty"`
 	UntouchedUnd      und.Und[int]      `json:",omitzero"`
-	UntouchedSliceUnd sliceund.Und[int] `json:",omitzero"`
+	UntouchedSliceUnd sliceund.Und[int] `json:",omitempty"`
 
-	OptRequired       sliceund.Und[string] `json:"opt_required,omitzero" und:"required"`
-	OptNullish        sliceund.Und[string] `json:",omitzero" und:"nullish"`
-	OptDef            sliceund.Und[string] `json:",omitzero" und:"def"`
-	OptNull           sliceund.Und[string] `json:",omitzero" und:"null"`
-	OptUnd            sliceund.Und[string] `json:",omitzero" und:"und"`
-	OptDefOrUnd       sliceund.Und[string] `json:",omitzero" und:"def,und"`
-	OptDefOrNull      sliceund.Und[string] `json:",omitzero" und:"def,null"`
-	OptNullOrUnd      sliceund.Und[string] `json:",omitzero" und:"null,und"`
-	OptDefOrNullOrUnd sliceund.Und[string] `json:",omitzero" und:"def,null,und"`
+	OptRequired       sliceund.Und[string] `json:"opt_required,omitempty" und:"required"`
+	OptNullish        sliceund.Und[string] `json:",omitempty" und:"nullish"`
+	OptDef            sliceund.Und[string] `json:",omitempty" und:"def"`
+	OptNull           sliceund.Und[string] `json:",omitempty" und:"null"`
+	OptUnd            sliceund.Und[string] `json:",omitempty" und:"und"`
+	OptDefOrUnd       sliceund.Und[string] `json:",omitempty" und:"def,und"`
+	OptDefOrNull      sliceund.Und[string] `json:",omitempty" und:"def,null"`
+	OptNullOrUnd      sliceund.Und[string] `json:",omitempty" und:"null,und"`
+	OptDefOrNullOrUnd sliceund.Und[string] `json:",omitempty" und:"def,null,und"`
 
 	UndRequired       und.Und[string] `json:",omitzero" und:"required"`
 	UndNullish        und.Und[string] `json:",omitzero" und:"nullish"`
@@ -249,9 +249,9 @@ func (p AllPatch) ApplyPatch(v All) All {
 
 //undgen:generated
 type WithTypeParamPatch[T any] struct {
-	Foo sliceund.Und[string]
-	Bar sliceund.Und[T]
-	Baz sliceund.Und[T] `json:",omitzero" und:"required"`
+	Foo sliceund.Und[string] `json:",omitempty"`
+	Bar sliceund.Und[T]      `json:",omitempty"`
+	Baz sliceund.Und[T]      `json:",omitempty" und:"required"`
 }
 
 //undgen:generated

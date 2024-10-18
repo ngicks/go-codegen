@@ -7,8 +7,8 @@ import (
 
 //undgen:generated
 type NameOverlappingPatch struct {
-	AHHH  sliceund.Und[int]
-	OOOHH sliceund_1.Und[string]
+	AHHH  sliceund.Und[int]      `json:",omitzero"`
+	OOOHH sliceund_1.Und[string] `json:",omitempty"`
 }
 
 //undgen:generated
