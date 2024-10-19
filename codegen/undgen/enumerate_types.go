@@ -8,6 +8,9 @@ import (
 	"iter"
 	"slices"
 
+	"github.com/dave/dst"
+	"github.com/dave/dst/decorator"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -116,7 +119,7 @@ func enumerateTypeSpec(pkgs []*packages.Package) iter.Seq2[*packages.Package, it
 	}
 }
 
-func FindTypes(pkg *packages.Package, typeNames ...string) iter.Seq2[*packages.Package, iter.Seq2[*ast.File, iter.Seq[TypeSpecInfo]]] {
+func findTypes(pkg *packages.Package, typeNames ...string) iter.Seq2[*packages.Package, iter.Seq2[*ast.File, iter.Seq[TypeSpecInfo]]] {
 	return filterEnumerateTypeSpec(
 		[]*packages.Package{pkg},
 		nil,
@@ -158,6 +161,96 @@ func filterEnumerateTypeSpec(
 				}
 			}) {
 				return
+			}
+		}
+	}
+}
+
+type replaceData struct {
+	filename    string
+	af          *ast.File
+	dec         *decorator.Decorator
+	df          *dst.File
+	importMap   importDecls
+	perTypeData []replacerPerTypeData
+	typeNames   []string
+	typeSpecs   []*dst.TypeSpec
+}
+
+type replacerPerTypeData struct {
+	tsi TypeSpecInfo
+	mt  RawMatchedType
+	ok  bool
+}
+
+func (p replacerPerTypeData) Field(fieldName string) (MatchedField, bool) {
+	if !p.ok {
+		return MatchedField{}, false
+	}
+	idx := slices.IndexFunc(p.mt.Field, func(mf MatchedField) bool { return mf.Name == fieldName })
+	if idx < 0 {
+		return MatchedField{}, false
+	}
+	return p.mt.Field[idx], true
+}
+
+func generatorSeq(pkg *packages.Package, imports []TargetImport, targetTypeNames ...string) iter.Seq2[replaceData, error] {
+	return func(yield func(replaceData, error) bool) {
+		for pkg, seq := range findTypes(pkg, targetTypeNames...) {
+			for file, seq := range seq {
+				dec := decorator.NewDecorator(pkg.Fset)
+				df, err := dec.DecorateFile(file)
+				if err != nil {
+					if !yield(replaceData{}, err) {
+						return
+					}
+					continue
+				}
+
+				importMap := parseImports(file.Imports, imports)
+				var (
+					perTypeData []replacerPerTypeData
+					typeNames   []string
+					typeSpecs   []*dst.TypeSpec
+				)
+				err = hiter.TryForEach(
+					func(tsi TypeSpecInfo) {
+						mt, ok := parseUndType(tsi.TypeInfo, nil, importMap, ConversionMethodsSet{})
+						perTypeData = append(perTypeData, replacerPerTypeData{tsi, mt, ok})
+						typeNames = append(typeNames, mt.Name)
+						typeSpecs = append(typeSpecs, dec.Dst.Nodes[tsi.TypeSpec].(*dst.TypeSpec))
+					},
+					hiter.Divide(
+						func(tsi TypeSpecInfo) (TypeSpecInfo, error) {
+							return tsi, tsi.Err
+						},
+						seq,
+					),
+				)
+				if err != nil {
+					if !yield(replaceData{}, err) {
+						return
+					}
+					continue
+				}
+
+				addMissingImports(df, importMap)
+
+				if !yield(
+					replaceData{
+						filename:    pkg.Fset.Position(file.FileStart).Filename,
+						af:          file,
+						dec:         dec,
+						df:          df,
+						importMap:   importMap,
+						perTypeData: perTypeData,
+						typeNames:   typeNames,
+						typeSpecs:   typeSpecs,
+					},
+					nil,
+				) {
+					return
+				}
 			}
 		}
 	}

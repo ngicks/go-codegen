@@ -11,6 +11,7 @@ import (
 	"go/types"
 	"io"
 	"iter"
+	"log/slog"
 	"reflect"
 	"slices"
 	"strconv"
@@ -28,7 +29,7 @@ import (
 )
 
 //go:generate go run ../ undgen patch --pkg ./testdata/patchtarget All Ignored Hmm NameOverlapping
-//go:generate go run ../ undgen patch --pkg ./testdata/targettypes "All" "WithTypeParam" "A" "B" "IncludesSubTarget"
+//go:generate go run ../ undgen patch --pkg ./testdata/targettypes All WithTypeParam A B IncludesSubTarget
 
 func GeneratePatcher(
 	sourcePrinter *suffixwriter.Writer,
@@ -75,7 +76,7 @@ func GeneratePatcher(
 			buf.WriteString("\n\n")
 		}
 
-		for i, spec := range data.spec {
+		for i, spec := range data.typeSpecs {
 			astSpec, ok := res.Ast.Nodes[spec]
 			if !ok {
 				panic(fmt.Errorf("implementation error: restored file does not contain type spec corresponding to %q", spec.Name.Name))
@@ -95,21 +96,36 @@ func GeneratePatcher(
 			}
 			buf.WriteString("\n\n")
 
-			err = generateFromValue(buf, spec, data.filtered[i].tsi.TypeInfo, data.filtered[i].mt, data.importMap, "Patch")
-			if err != nil {
-				return fmt.Errorf("generating FromValue for type %s in file %q: %w", data.filename, ts.Name.Name, err)
-			}
-			err = generateToValue(buf, spec, data.filtered[i].tsi.TypeInfo, data.filtered[i].mt, data.importMap, "Patch")
-			if err != nil {
-				return fmt.Errorf("generating ToValue for type %s in file %q: %w", data.filename, ts.Name.Name, err)
-			}
-			err = generateMerge(buf, spec, data.filtered[i].tsi.TypeInfo, data.filtered[i].mt, data.importMap, "Patch")
-			if err != nil {
-				return fmt.Errorf("generating Merge for type %s in file %q: %w", data.filename, ts.Name.Name, err)
-			}
-			err = generateApplyPatch(buf, spec, data.filtered[i].tsi.TypeInfo, data.filtered[i].mt, data.importMap, "Patch")
-			if err != nil {
-				return fmt.Errorf("generating ApplyPatch for type %s in file %q: %w", data.filename, ts.Name.Name, err)
+			for _, gen := range []methodGenSet{
+				{
+					generateFromValue,
+					func() error {
+						return fmt.Errorf("generating FromValue for type %s in file %q: %w", data.filename, ts.Name.Name, err)
+					},
+				},
+				{
+					generateToValue,
+					func() error {
+						return fmt.Errorf("generating ToValue for type %s in file %q: %w", data.filename, ts.Name.Name, err)
+					},
+				},
+				{
+					generateMerge,
+					func() error {
+						return fmt.Errorf("generating Merge for type %s in file %q: %w", data.filename, ts.Name.Name, err)
+					},
+				},
+				{
+					generateApplyPatch,
+					func() error {
+						return fmt.Errorf("generating ApplyPatch for type %s in file %q: %w", data.filename, ts.Name.Name, err)
+					},
+				},
+			} {
+				err = gen.fn(buf, spec, data.perTypeData[i].tsi.TypeInfo, data.perTypeData[i].mt, data.importMap, "Patch")
+				if err != nil {
+					return gen.errFunc()
+				}
 			}
 		}
 		err = sourcePrinter.Write(context.Background(), data.filename, buf.Bytes())
@@ -120,198 +136,111 @@ func GeneratePatcher(
 	return nil
 }
 
-type patchTypesGenerationData struct {
-	df        *dst.File
-	importMap importDecls
-	spec      []*dst.TypeSpec
-	filtered  []patchReplacerData
-	filename  string
-	typeNames []string
+type methodGenSet struct {
+	fn      methodGenFunc
+	errFunc func() error
 }
 
-func generatePatcherType(pkg *packages.Package, imports []TargetImport, targetTypeNames ...string) iter.Seq2[patchTypesGenerationData, error] {
-	return func(yield func(patchTypesGenerationData, error) bool) {
-		for pkg, seq := range FindTypes(pkg, targetTypeNames...) {
-			for file, seq := range seq {
-				importMap := parseImports(file.Imports, imports)
+type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, typeInfo types.Object, matchedFields RawMatchedType, imports importDecls, patcherTypeSuffix string) error
 
-				var firstErr error
-				replaceData := slices.Collect(
-					xiter.Map(
-						func(tsi TypeSpecInfo) patchReplacerData {
-							if tsi.Err != nil && firstErr == nil {
-								firstErr = tsi.Err
-							}
-							mt, ok := parseUndType(tsi.TypeInfo, nil, importMap, ConversionMethodsSet{})
-							return patchReplacerData{tsi, mt, ok}
-						},
-						seq,
-					),
-				)
-				if firstErr != nil {
-					if !yield(patchTypesGenerationData{}, firstErr) {
-						return
-					}
-					continue
-				}
-
-				df, specs, filtered, err := replaceNonUndTypes(
-					file,
-					pkg.Fset,
-					importMap,
-					replaceData,
-				)
-				if err != nil {
-					if !yield(patchTypesGenerationData{}, firstErr) {
-						return
-					}
-					// skip this file
-					continue
-				}
-
-				addMissingImports(df, importMap)
-
-				if !yield(patchTypesGenerationData{
-					df:        df,
-					importMap: importMap,
-					spec:      specs,
-					filtered:  filtered,
-					filename:  pkg.Fset.Position(file.FileStart).Filename,
-					typeNames: slices.Collect(
-						xiter.Map(
-							func(data patchReplacerData) string { return data.mt.Name },
-							slices.Values(replaceData),
-						),
-					),
-				}, nil) {
+func generatePatcherType(pkg *packages.Package, imports []TargetImport, targetTypeNames ...string) iter.Seq2[replaceData, error] {
+	return func(yield func(replaceData, error) bool) {
+		for data, err := range generatorSeq(pkg, imports, targetTypeNames...) {
+			if err != nil {
+				if !yield(data, err) {
 					return
 				}
+				continue
+			}
+			for i, ts := range data.typeSpecs {
+				replaceNonUndTypes(ts, data.perTypeData[i], data.importMap)
+			}
+			addMissingImports(data.df, data.importMap)
 
+			if !yield(data, nil) {
+				return
 			}
 		}
 	}
 }
 
-type patchReplacerData struct {
-	tsi TypeSpecInfo
-	mt  RawMatchedType
-	ok  bool
-}
-
-func (p patchReplacerData) Field(fieldName string) (MatchedField, bool) {
-	if !p.ok {
-		return MatchedField{}, false
-	}
-	idx := slices.IndexFunc(p.mt.Field, func(mf MatchedField) bool { return mf.Name == fieldName })
-	if idx < 0 {
-		return MatchedField{}, false
-	}
-	return p.mt.Field[idx], true
-}
-
-func replaceNonUndTypes(
-	f *ast.File,
-	fset *token.FileSet,
-	imports importDecls,
-	targets []patchReplacerData,
-) (df *dst.File, specs []*dst.TypeSpec, filtered []patchReplacerData, err error) {
-	dec := decorator.NewDecorator(fset)
-	df, err = dec.DecorateFile(f)
-	if err != nil {
-		return
-	}
-	for _, target := range targets {
-		ts, ok := dec.Dst.Nodes[target.tsi.TypeSpec].(*dst.TypeSpec)
-		if !ok {
-			continue
-		}
-		_, ok = ts.Type.(*dst.StructType)
-		if !ok {
-			continue
-		}
-		fieldName := ts.Name.Name
-		ts.Name.Name = ts.Name.Name + "Patch"
-		dstutil.Apply(
-			ts.Type,
-			func(c *dstutil.Cursor) bool {
-				node := c.Node()
-				switch field := node.(type) {
-				default:
-					return true
-				case *dst.Field:
-					if len(field.Names) == 0 {
-						return false
-					}
-
-					// later mutated
-					// We need allocate one since field.Tag is nil when no tag is set.
-					tag := &dst.BasicLit{}
-					if field.Tag != nil {
-						tag = field.Tag
-					}
-					field.Tag = tag
-
-					isSliceType := true
-					if f, ok := target.Field(field.Names[0].Name); ok && slices.Contains(UndTargetTypes, f.Type) {
-						switch f.Type {
-						case UndTargetTypeOption:
-							c.Replace(&dst.Field{
-								Names: field.Names,
-								Type: &dst.IndexExpr{
-									X:     imports.DstExpr(UndTargetTypeSliceUnd.ImportPath, UndTargetTypeSliceUnd.Name),
-									Index: field.Type.(*dst.IndexExpr).Index,
-								},
-								Tag:  field.Tag,
-								Decs: field.Decs,
-							})
-						case UndTargetTypeUnd, UndTargetTypeElastic:
-							isSliceType = false
-						case UndTargetTypeSliceUnd, UndTargetTypeSliceElastic:
-						}
-					} else {
-						c.Replace(
-							&dst.Field{
-								Names: field.Names,
-								Type: &dst.IndexExpr{
-									X:     imports.DstExpr(UndTargetTypeSliceUnd.ImportPath, UndTargetTypeSliceUnd.Name),
-									Index: field.Type,
-								},
-								Tag:  field.Tag,
-								Decs: field.Decs,
-							},
-						)
-					}
-					if tag != nil {
-						tagOpt, err := structtag.ParseStructTag(
-							reflect.StructTag(unquoteBasicLitString(tag.Value)),
-						)
-						if err != nil {
-							panic(fmt.Errorf(
-								"malformed struct tag on field %s of type %q: %w",
-								concatFieldNames(field), fieldName, err,
-							))
-						}
-						tagOpt, _ = tagOpt.DeleteOption("json", "omitempty")
-						tagOpt, _ = tagOpt.DeleteOption("json", "omitzero")
-						omitOpt := "omitempty"
-						if !isSliceType {
-							omitOpt = "omitzero"
-						}
-						tagOpt, _ = tagOpt.AddOption("json", omitOpt, "")
-						tag.Value = "`" + string(tagOpt.StructTag()) + "`"
-					}
+func replaceNonUndTypes(ts *dst.TypeSpec, target replacerPerTypeData, importMap importDecls) {
+	fieldName := ts.Name.Name
+	ts.Name.Name = ts.Name.Name + "Patch"
+	dstutil.Apply(
+		ts.Type,
+		func(c *dstutil.Cursor) bool {
+			node := c.Node()
+			switch field := node.(type) {
+			default:
+				return true
+			case *dst.Field:
+				if len(field.Names) == 0 {
 					return false
 				}
-			},
-			nil,
-		)
-		specs = append(specs, ts)
-		filtered = append(filtered, target)
 
-		// TODO: edit json struct tag here.
-	}
+				// later mutated
+				// We need allocate one since field.Tag is nil when no tag is set.
+				tag := &dst.BasicLit{}
+				if field.Tag != nil {
+					tag = field.Tag
+				}
+				field.Tag = tag
 
-	return df, specs, filtered, nil
+				isSliceType := true
+				if f, ok := target.Field(field.Names[0].Name); ok && slices.Contains(UndTargetTypes, f.Type) {
+					switch f.Type {
+					case UndTargetTypeOption:
+						c.Replace(&dst.Field{
+							Names: field.Names,
+							Type: &dst.IndexExpr{
+								X:     importMap.DstExpr(UndTargetTypeSliceUnd.ImportPath, UndTargetTypeSliceUnd.Name),
+								Index: field.Type.(*dst.IndexExpr).Index,
+							},
+							Tag:  field.Tag,
+							Decs: field.Decs,
+						})
+					case UndTargetTypeUnd, UndTargetTypeElastic:
+						isSliceType = false
+					case UndTargetTypeSliceUnd, UndTargetTypeSliceElastic:
+					}
+				} else {
+					c.Replace(
+						&dst.Field{
+							Names: field.Names,
+							Type: &dst.IndexExpr{
+								X:     importMap.DstExpr(UndTargetTypeSliceUnd.ImportPath, UndTargetTypeSliceUnd.Name),
+								Index: field.Type,
+							},
+							Tag:  field.Tag,
+							Decs: field.Decs,
+						},
+					)
+				}
+				if tag != nil {
+					tagOpt, err := structtag.ParseStructTag(
+						reflect.StructTag(unquoteBasicLitString(tag.Value)),
+					)
+					if err != nil {
+						panic(fmt.Errorf(
+							"malformed struct tag on field %s of type %q: %w",
+							concatFieldNames(field), fieldName, err,
+						))
+					}
+					tagOpt, _ = tagOpt.DeleteOption("json", "omitempty")
+					tagOpt, _ = tagOpt.DeleteOption("json", "omitzero")
+					omitOpt := "omitempty"
+					if !isSliceType {
+						omitOpt = "omitzero"
+					}
+					tagOpt, _ = tagOpt.AddOption("json", omitOpt, "")
+					tag.Value = "`" + string(tagOpt.StructTag()) + "`"
+				}
+				return false
+			}
+		},
+		nil,
+	)
 }
 
 func concatFieldNames(field *dst.Field) string {
@@ -331,6 +260,8 @@ func concatFieldNames(field *dst.Field) string {
 	)
 }
 
+// addMissingImports adds missing imports from imports to df,
+// both [*dst.File.Imports] and tge first import decl in [*dst.File.Decls].
 func addMissingImports(df *dst.File, imports importDecls) {
 	var replaced bool
 	dstutil.Apply(
