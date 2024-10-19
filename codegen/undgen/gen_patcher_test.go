@@ -1,7 +1,9 @@
 package undgen
 
 import (
+	"log/slog"
 	"maps"
+	"os"
 	"slices"
 	"testing"
 
@@ -22,6 +24,7 @@ func Test_generatePatcher(t *testing.T) {
 	testPrinter := suffixwriter.NewTestWriter("yay")
 	err := GeneratePatcher(
 		testPrinter.Writer,
+		true,
 		pkg,
 		ConstUnd.Imports,
 		"All", "WithTypeParam", "A", "B", "IncludesSubTarget",
@@ -32,4 +35,26 @@ func Test_generatePatcher(t *testing.T) {
 		result := results[k]
 		t.Logf("%q:\n%s", k, result)
 	}
+}
+
+func Test_generatePatcher_write(t *testing.T) {
+	var pkg *packages.Package
+	for _, p := range patchtargetPackages {
+		if p.PkgPath == "github.com/ngicks/go-codegen/codegen/undgen/testdata/patchtarget" {
+			pkg = p
+			break
+		}
+	}
+
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
+
+	writer := suffixwriter.New(".und_patch")
+	err := GeneratePatcher(
+		writer,
+		true,
+		pkg,
+		ConstUnd.Imports,
+		"All", "Ignored", "Hmm", "NameOverlapping",
+	)
+	assert.NilError(t, err)
 }

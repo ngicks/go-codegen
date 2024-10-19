@@ -13,12 +13,12 @@ type TestWriter struct {
 	results map[string][]byte
 }
 
-func NewTestWriter(suffix string) *TestWriter {
+func NewTestWriter(suffix string, opts ...Option) *TestWriter {
 	p := &TestWriter{
 		results: make(map[string][]byte),
 	}
-	p.Writer = New(
-		suffix,
+	opts = append(
+		opts,
 		WithFileFactory(func(name string) (io.WriteCloser, error) {
 			return &testPrinterWriter{
 				p:    p,
@@ -26,6 +26,10 @@ func NewTestWriter(suffix string) *TestWriter {
 				buf:  new(bytes.Buffer),
 			}, nil
 		}),
+	)
+	p.Writer = New(
+		suffix,
+		opts...,
 	)
 	return p
 }

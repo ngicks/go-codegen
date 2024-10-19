@@ -5,7 +5,11 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
+	"maps"
+	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/undgen"
@@ -45,6 +49,16 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 			return err
 		}
 
+		verbose, err := fset.GetBool("verbose")
+		if err != nil {
+			return err
+		}
+
+		test, err := fset.GetBool("test")
+		if err != nil {
+			return err
+		}
+
 		types := fset.Args()
 		if len(types) == 0 {
 			return fmt.Errorf("no types are specified")
@@ -61,6 +75,12 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 			Dir:     dir,
 		}
 
+		if verbose {
+			cfg.Logf = func(format string, args ...interface{}) {
+				fmt.Printf(format, args...)
+			}
+		}
+
 		targetPkg, err := packages.Load(cfg, pkg)
 		if err != nil {
 			return err
@@ -73,8 +93,48 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 			return fmt.Errorf("2 or more packages are loaded: must be only one")
 		}
 
-		writer := suffixwriter.New(".und_patch", suffixwriter.WithCwd(dir))
-		return undgen.GeneratePatcher(writer, targetPkg[0], undgen.ConstUnd.Imports, types...)
+		writerOpts := []suffixwriter.Option{
+			suffixwriter.WithCwd(dir),
+		}
+		if verbose {
+			slog.SetDefault(
+				slog.New(
+					slog.NewTextHandler(
+						os.Stdout,
+						&slog.HandlerOptions{
+							Level: slog.LevelDebug,
+						},
+					),
+				),
+			)
+			fmt.Printf("\n\n")
+			fmt.Printf("matched packages: len(pkgs) == %d\n", len(targetPkg))
+			for _, pkg := range targetPkg {
+				fmt.Printf("path=%s\n", pkg.PkgPath)
+			}
+			fmt.Printf("generating for: %#v\n", types)
+			writerOpts = append(
+				writerOpts,
+				suffixwriter.WithLogf(
+					func(format string, args ...any) {
+						fmt.Printf(format, args...)
+					},
+				),
+			)
+		}
+		writer := suffixwriter.New(".und_patch", writerOpts...)
+		if test {
+			testWriter := suffixwriter.NewTestWriter(".und_patch", writerOpts...)
+			writer = testWriter.Writer
+			defer func() {
+				results := testWriter.Results()
+				for _, k := range slices.Sorted(maps.Keys(results)) {
+					result := results[k]
+					fmt.Printf("%q:\n%s\n\n", k, result)
+				}
+			}()
+		}
+		return undgen.GeneratePatcher(writer, verbose, targetPkg[0], undgen.ConstUnd.Imports, types...)
 	},
 }
 
@@ -82,6 +142,8 @@ func init() {
 	fset := undgenPatchCmd.Flags()
 	fset.StringP("dir", "d", "", "directory under which target package is located. If empty cwd will be used.")
 	fset.StringP("pkg", "p", "", "target package name. relative to dir. only single package will be used so if should not be ./...")
+	fset.BoolP("verbose", "v", false, "verbose logs")
+	fset.Bool("test", false, "only writes test")
 	_ = undgenPatchCmd.MarkFlagRequired("pkg")
 	undgenCmd.AddCommand(undgenPatchCmd)
 }

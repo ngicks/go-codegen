@@ -33,6 +33,7 @@ import (
 
 func GeneratePatcher(
 	sourcePrinter *suffixwriter.Writer,
+	verbose bool,
 	pkg *packages.Package,
 	imports []TargetImport,
 	targetTypeNames ...string,
@@ -42,8 +43,11 @@ func GeneratePatcher(
 			return err
 		}
 
-		if len(data.filtered) == 0 {
+		if len(data.typeNames) == 0 {
 			continue
+		}
+		if verbose {
+			slog.Debug("found", slog.String("filename", data.filename), slog.Any("typesNames", data.typeNames))
 		}
 
 		res := decorator.NewRestorer()

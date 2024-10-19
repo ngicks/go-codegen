@@ -17,6 +17,7 @@ type Writer struct {
 	fileFactory func(name string) (io.WriteCloser, error)
 	preProcess  PreProcess
 	postProcess PostProcess
+	logf        func(format string, args ...any)
 }
 
 type PreProcess func(name string) error
@@ -34,6 +35,7 @@ func New(suffix string, opts ...Option) *Writer {
 		},
 		preProcess:  func(name string) error { return checkGoimportsOnce() },
 		postProcess: ApplyGoimports,
+		logf:        func(format string, args ...any) {},
 	}
 	for _, opt := range opts {
 		opt(p)
@@ -67,6 +69,12 @@ func WithPostProcess(postProcess PostProcess) Option {
 	}
 }
 
+func WithLogf(logf func(format string, args ...any)) Option {
+	return func(p *Writer) {
+		p.logf = logf
+	}
+}
+
 // openFile opens name suffixed with p.suffix.
 // It returns an error if name is not under cwd.
 func (p *Writer) openFile(name string) (w io.WriteCloser, filename string, err error) {
@@ -87,6 +95,7 @@ func (p *Writer) openFile(name string) (w io.WriteCloser, filename string, err e
 
 	filename = suffixFilename(rel, p.suffix)
 
+	p.logf("open: %s\n", filename)
 	w, err = p.fileFactory(filename)
 	return
 }
