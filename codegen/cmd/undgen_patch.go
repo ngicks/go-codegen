@@ -68,6 +68,7 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 
 		cfg := &packages.Config{
 			Mode: packages.NeedName |
+				packages.NeedTypes |
 				packages.NeedSyntax |
 				packages.NeedTypesInfo |
 				packages.NeedTypesSizes,
