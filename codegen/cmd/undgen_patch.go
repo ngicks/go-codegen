@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/ngicks/go-codegen/codegen/suffixprinter"
+	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/undgen"
 	"github.com/spf13/cobra"
 	"golang.org/x/tools/go/packages"
@@ -82,7 +82,7 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 			return fmt.Errorf("2 or more packages are loaded: must be only one")
 		}
 
-		writer := suffixprinter.New(".und_patch", suffixprinter.WithCwd(dir))
+		writer := suffixwriter.New(".und_patch", suffixwriter.WithCwd(dir))
 		return undgen.GeneratePatcher(writer, targetPkg[0], undgen.ConstUnd.Imports, types...)
 	},
 }

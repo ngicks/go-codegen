@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	gocmp "github.com/google/go-cmp/cmp"
-	"github.com/ngicks/go-codegen/codegen/suffixprinter"
+	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/undgen/testdata/patchtarget"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/elastic"
@@ -26,9 +26,9 @@ func Test_generatePatcher(t *testing.T) {
 		}
 	}
 
-	testPrinter := suffixprinter.NewTestPrinter("yay")
+	testPrinter := suffixwriter.NewTestWriter("yay")
 	err := GeneratePatcher(
-		testPrinter.Printer,
+		testPrinter.Writer,
 		pkg,
 		ConstUnd.Imports,
 		"All", "WithTypeParam", "A", "B", "IncludesSubTarget",
@@ -44,8 +44,6 @@ func Test_generatePatcher(t *testing.T) {
 func ptr[T any](t T) *T {
 	return &t
 }
-
-// tests fro generated code.
 
 func Test_patcher_ApplyPatch(t *testing.T) {
 	all := patchtarget.All{

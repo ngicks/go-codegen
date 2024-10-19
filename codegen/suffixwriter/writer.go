@@ -1,4 +1,4 @@
-package suffixprinter
+package suffixwriter
 
 import (
 	"context"
@@ -10,7 +10,8 @@ import (
 	"sync"
 )
 
-type Printer struct {
+// Writer writes data to suffixed file.
+type Writer struct {
 	cwd         string
 	suffix      string
 	fileFactory func(name string) (io.WriteCloser, error)
@@ -24,8 +25,8 @@ type PostProcess func(ctx context.Context, src []byte) ([]byte, error)
 
 var checkGoimportsOnce = sync.OnceValue(CheckGoimports)
 
-func New(suffix string, opts ...Option) *Printer {
-	p := &Printer{
+func New(suffix string, opts ...Option) *Writer {
+	p := &Writer{
 		cwd:    "", // where the command is invoked
 		suffix: suffix,
 		fileFactory: func(name string) (io.WriteCloser, error) {
@@ -40,35 +41,35 @@ func New(suffix string, opts ...Option) *Printer {
 	return p
 }
 
-type Option func(p *Printer)
+type Option func(p *Writer)
 
 func WithCwd(cwd string) Option {
-	return func(p *Printer) {
+	return func(p *Writer) {
 		p.cwd = cwd
 	}
 }
 
 func WithFileFactory(fileFactory func(name string) (io.WriteCloser, error)) Option {
-	return func(p *Printer) {
+	return func(p *Writer) {
 		p.fileFactory = fileFactory
 	}
 }
 
 func WithPreProcess(preProcess PreProcess) Option {
-	return func(p *Printer) {
+	return func(p *Writer) {
 		p.preProcess = preProcess
 	}
 }
 
 func WithPostProcess(postProcess PostProcess) Option {
-	return func(p *Printer) {
+	return func(p *Writer) {
 		p.postProcess = postProcess
 	}
 }
 
 // openFile opens name suffixed with p.suffix.
 // It returns an error if name is not under cwd.
-func (p *Printer) openFile(name string) (w io.WriteCloser, filename string, err error) {
+func (p *Writer) openFile(name string) (w io.WriteCloser, filename string, err error) {
 	if p.cwd == "" {
 		p.cwd, err = os.Getwd()
 		if err != nil {
@@ -96,7 +97,8 @@ func suffixFilename(f, suffix string) string {
 	return f + suffix + ext
 }
 
-func (p *Printer) Print(ctx context.Context, name string, b []byte) error {
+// Write write b into name but suffixed.
+func (p *Writer) Write(ctx context.Context, name string, b []byte) error {
 	err := p.preProcess(name)
 	if err != nil {
 		return fmt.Errorf("preprocessing %q: %w", name, err)

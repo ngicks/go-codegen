@@ -20,7 +20,7 @@ import (
 	"github.com/dave/dst/decorator"
 	"github.com/dave/dst/dstutil"
 	"github.com/ngicks/go-codegen/codegen/structtag"
-	"github.com/ngicks/go-codegen/codegen/suffixprinter"
+	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/hiter/iterable"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
@@ -31,7 +31,7 @@ import (
 //go:generate go run ../ undgen patch --pkg ./testdata/targettypes "All" "WithTypeParam" "A" "B" "IncludesSubTarget"
 
 func GeneratePatcher(
-	sourcePrinter *suffixprinter.Printer,
+	sourcePrinter *suffixwriter.Writer,
 	pkg *packages.Package,
 	imports []TargetImport,
 	targetTypeNames ...string,
@@ -112,7 +112,7 @@ func GeneratePatcher(
 				return fmt.Errorf("generating ApplyPatch for type %s in file %q: %w", data.filename, ts.Name.Name, err)
 			}
 		}
-		err = sourcePrinter.Print(context.Background(), data.filename, buf.Bytes())
+		err = sourcePrinter.Write(context.Background(), data.filename, buf.Bytes())
 		if err != nil {
 			return err
 		}

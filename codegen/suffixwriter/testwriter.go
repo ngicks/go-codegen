@@ -1,4 +1,4 @@
-package suffixprinter
+package suffixwriter
 
 import (
 	"bytes"
@@ -7,17 +7,17 @@ import (
 	"sync"
 )
 
-type TestPrinter struct {
-	*Printer
+type TestWriter struct {
+	*Writer
 	mu      sync.Mutex
 	results map[string][]byte
 }
 
-func NewTestPrinter(suffix string) *TestPrinter {
-	p := &TestPrinter{
+func NewTestWriter(suffix string) *TestWriter {
+	p := &TestWriter{
 		results: make(map[string][]byte),
 	}
-	p.Printer = New(
+	p.Writer = New(
 		suffix,
 		WithFileFactory(func(name string) (io.WriteCloser, error) {
 			return &testPrinterWriter{
@@ -31,7 +31,7 @@ func NewTestPrinter(suffix string) *TestPrinter {
 }
 
 type testPrinterWriter struct {
-	p    *TestPrinter
+	p    *TestWriter
 	name string
 	buf  *bytes.Buffer
 }
@@ -47,7 +47,7 @@ func (w *testPrinterWriter) Close() error {
 	return nil
 }
 
-func (p *TestPrinter) Results() map[string][]byte {
+func (p *TestWriter) Results() map[string][]byte {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return maps.Clone(p.results)

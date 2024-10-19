@@ -1,4 +1,4 @@
-package suffixprinter
+package suffixwriter
 
 import (
 	"bytes"
