@@ -11,8 +11,12 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-iterator-helper/hiter"
+	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
+	"github.com/ngicks/und/option"
 	"golang.org/x/tools/go/packages"
 )
+
+type enumTypeSeq iter.Seq2[*packages.Package, iter.Seq2[*ast.File, iter.Seq[TypeSpecInfo]]]
 
 type TypeSpecInfo struct {
 	Pos      int
@@ -25,7 +29,7 @@ type TypeSpecInfo struct {
 }
 
 // enumerateTypeSpec returns an iterator over every *ast.TypeSpec and corresponding types.Object.
-func enumerateTypeSpec(pkgs []*packages.Package) iter.Seq2[*packages.Package, iter.Seq2[*ast.File, iter.Seq[TypeSpecInfo]]] {
+func enumerateTypeSpec(pkgs []*packages.Package) enumTypeSeq {
 	return func(yield func(*packages.Package, iter.Seq2[*ast.File, iter.Seq[TypeSpecInfo]]) bool) {
 		for _, pkg := range pkgs {
 			if !yield(pkg, func(yield func(*ast.File, iter.Seq[TypeSpecInfo]) bool) {
@@ -119,7 +123,7 @@ func enumerateTypeSpec(pkgs []*packages.Package) iter.Seq2[*packages.Package, it
 	}
 }
 
-func findTypes(pkg *packages.Package, typeNames ...string) iter.Seq2[*packages.Package, iter.Seq2[*ast.File, iter.Seq[TypeSpecInfo]]] {
+func findTypes(pkg *packages.Package, typeNames ...string) enumTypeSeq {
 	return filterEnumerateTypeSpec(
 		[]*packages.Package{pkg},
 		nil,
@@ -135,7 +139,7 @@ func filterEnumerateTypeSpec(
 	pkgFilter func(*packages.Package) bool,
 	fileFilter func(*ast.File) bool,
 	elemFilter func(TypeSpecInfo) bool,
-) iter.Seq2[*packages.Package, iter.Seq2[*ast.File, iter.Seq[TypeSpecInfo]]] {
+) enumTypeSeq {
 	return func(yield func(*packages.Package, iter.Seq2[*ast.File, iter.Seq[TypeSpecInfo]]) bool) {
 		for pkg, seq := range enumerateTypeSpec(pkgs) {
 			if pkgFilter != nil && !pkgFilter(pkg) {
@@ -167,36 +171,61 @@ func filterEnumerateTypeSpec(
 }
 
 type replaceData struct {
-	filename    string
-	af          *ast.File
-	dec         *decorator.Decorator
-	df          *dst.File
-	importMap   importDecls
-	perTypeData []replacerPerTypeData
-	typeNames   []string
-	typeSpecs   []*dst.TypeSpec
+	filename  string
+	af        *ast.File
+	dec       *decorator.Decorator
+	df        *dst.File
+	importMap importDecls
+	targets   replacerTargets
+}
+
+type replacerTargets []replacerTarget
+
+func (t replacerTargets) typeNames() iter.Seq[string] {
+	return func(yield func(string) bool) {
+		for _, tt := range t {
+			if !yield(tt.typeName) {
+				return
+			}
+		}
+	}
+}
+
+func (t replacerTargets) typeSpecs() iter.Seq[*dst.TypeSpec] {
+	return func(yield func(*dst.TypeSpec) bool) {
+		for _, tt := range t {
+			if !yield(tt.typeSpec) {
+				return
+			}
+		}
+	}
+}
+
+type replacerTarget struct {
+	replacerPerTypeData
+	typeSpec *dst.TypeSpec
 }
 
 type replacerPerTypeData struct {
-	tsi TypeSpecInfo
-	mt  RawMatchedType
-	ok  bool
+	tsi      TypeSpecInfo
+	mt       option.Option[RawMatchedType]
+	typeName string
 }
 
 func (p replacerPerTypeData) Field(fieldName string) (MatchedField, bool) {
-	if !p.ok {
+	if p.mt.IsNone() {
 		return MatchedField{}, false
 	}
-	idx := slices.IndexFunc(p.mt.Field, func(mf MatchedField) bool { return mf.Name == fieldName })
+	idx := slices.IndexFunc(p.mt.Value().Field, func(mf MatchedField) bool { return mf.Name == fieldName })
 	if idx < 0 {
 		return MatchedField{}, false
 	}
-	return p.mt.Field[idx], true
+	return p.mt.Value().Field[idx], true
 }
 
-func generatorSeq(pkg *packages.Package, imports []TargetImport, targetTypeNames ...string) iter.Seq2[replaceData, error] {
+func generatorIter(imports []TargetImport, seq enumTypeSeq) iter.Seq2[replaceData, error] {
 	return func(yield func(replaceData, error) bool) {
-		for pkg, seq := range findTypes(pkg, targetTypeNames...) {
+		for pkg, seq := range seq {
 			for file, seq := range seq {
 				dec := decorator.NewDecorator(pkg.Fset)
 				df, err := dec.DecorateFile(file)
@@ -208,23 +237,30 @@ func generatorSeq(pkg *packages.Package, imports []TargetImport, targetTypeNames
 				}
 
 				importMap := parseImports(file.Imports, imports)
-				var (
-					perTypeData []replacerPerTypeData
-					typeNames   []string
-					typeSpecs   []*dst.TypeSpec
-				)
-				err = hiter.TryForEach(
-					func(tsi TypeSpecInfo) {
-						mt, ok := parseUndType(tsi.TypeInfo, nil, importMap, ConversionMethodsSet{})
-						perTypeData = append(perTypeData, replacerPerTypeData{tsi, mt, ok})
-						typeNames = append(typeNames, mt.Name)
-						typeSpecs = append(typeSpecs, dec.Dst.Nodes[tsi.TypeSpec].(*dst.TypeSpec))
-					},
-					hiter.Divide(
-						func(tsi TypeSpecInfo) (TypeSpecInfo, error) {
-							return tsi, tsi.Err
+
+				var targets replacerTargets
+				targets, err = hiter.TryCollect(
+					xiter.Map2(
+						func(tsi TypeSpecInfo, err error) (replacerTarget, error) {
+							if err != nil {
+								return replacerTarget{}, err
+							}
+							mt, ok := parseUndType(tsi.TypeInfo, nil, importMap, ConversionMethodsSet{})
+							return replacerTarget{
+								replacerPerTypeData{
+									tsi,
+									option.FromOk(mt, ok),
+									mt.Name,
+								},
+								dec.Dst.Nodes[tsi.TypeSpec].(*dst.TypeSpec),
+							}, nil
 						},
-						seq,
+						hiter.Divide(
+							func(tsi TypeSpecInfo) (TypeSpecInfo, error) {
+								return tsi, tsi.Err
+							},
+							seq,
+						),
 					),
 				)
 				if err != nil {
@@ -238,14 +274,12 @@ func generatorSeq(pkg *packages.Package, imports []TargetImport, targetTypeNames
 
 				if !yield(
 					replaceData{
-						filename:    pkg.Fset.Position(file.FileStart).Filename,
-						af:          file,
-						dec:         dec,
-						df:          df,
-						importMap:   importMap,
-						perTypeData: perTypeData,
-						typeNames:   typeNames,
-						typeSpecs:   typeSpecs,
+						filename:  pkg.Fset.Position(file.FileStart).Filename,
+						af:        file,
+						dec:       dec,
+						df:        df,
+						importMap: importMap,
+						targets:   targets,
 					},
 					nil,
 				) {
