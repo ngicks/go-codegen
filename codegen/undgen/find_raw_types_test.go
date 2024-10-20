@@ -16,6 +16,8 @@ import (
 	// All packages loaded are derived from dependency graph of the module where the packages.Load is invoked on.
 	// Keep this import and keep the module noted in go.mod.
 	_ "github.com/ngicks/und"
+	"github.com/ngicks/und/option"
+	"github.com/ngicks/und/undtag"
 
 	gocmp "github.com/google/go-cmp/cmp"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -153,6 +155,41 @@ func deepEqualRawMatchedType(t *testing.T, i, j []hiter.KeyValue[int, RawMatched
 	)
 }
 
+func must[V any](v V, err error) V {
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
+var (
+	tagRequired                = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("required"))})
+	tagNullish                 = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("nullish"))})
+	tagDef                     = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("def"))})
+	tagNull                    = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("null"))})
+	tagUnd                     = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("und"))})
+	tagDefUnd                  = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("def,und"))})
+	tagDefNull                 = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("def,null"))})
+	tagNullUnd                 = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("null,und"))})
+	tagDefNullUnd              = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("def,null,und"))})
+	tagLenEq1                  = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("len==1"))})
+	tagLenGt1                  = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("len>1"))})
+	tagLenGte1                 = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("len>=1"))})
+	tagLt1                     = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("len<1"))})
+	tagLte1                    = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("len<=1"))})
+	tagRequiredLenEq2          = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("required,len==2"))})
+	tagNullishLenEq2           = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("nullish,len==2"))})
+	tagDefLenEq2               = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("def,len==2"))})
+	tagNullLenEq2              = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("null,len==2"))})
+	tagUndLenEq2               = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("und,len==2"))})
+	tagValuesNonNull           = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("values:nonnull"))})
+	tagNullValuesNonNull       = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("null,values:nonnull"))})
+	tagValuesNonNullLenEq1     = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("values:nonnull,len==1"))})
+	tagNullValuesNonNullLenEq1 = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("null,values:nonnull,len==1"))})
+	tagValuesNonNullEq3        = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("values:nonnull,len==3"))})
+	tagNullValuesNonNullLenEq3 = option.Some(hiter.KeyValue[undtag.UndOpt, error]{K: must(undtag.ParseOption("null,values:nonnull,len==3"))})
+)
+
 func TestFindTargetType(t *testing.T) {
 	result, err := FindRawTypes(
 		slices.Collect(
@@ -192,49 +229,49 @@ func TestFindTargetType(t *testing.T) {
 						{Pos: 4, Name: "UntouchedOpt", As: MatchedAsDirect, Type: UndTargetTypeOption},
 						{Pos: 5, Name: "UntouchedUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd},
 						{Pos: 6, Name: "UntouchedSliceUnd", As: MatchedAsDirect, Type: UndTargetTypeSliceUnd},
-						{Pos: 7, Name: "OptRequired", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Pos: 8, Name: "OptNullish", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Pos: 9, Name: "OptDef", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Pos: 10, Name: "OptNull", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Pos: 11, Name: "OptUnd", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Pos: 12, Name: "OptDefOrUnd", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Pos: 13, Name: "OptDefOrNull", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Pos: 14, Name: "OptNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Pos: 15, Name: "OptDefOrNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeOption},
-						{Pos: 16, Name: "UndRequired", As: MatchedAsDirect, Type: UndTargetTypeUnd},
-						{Pos: 17, Name: "UndNullish", As: MatchedAsDirect, Type: UndTargetTypeUnd},
-						{Pos: 18, Name: "UndDef", As: MatchedAsDirect, Type: UndTargetTypeUnd},
-						{Pos: 19, Name: "UndNull", As: MatchedAsDirect, Type: UndTargetTypeUnd},
-						{Pos: 20, Name: "UndUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd},
-						{Pos: 21, Name: "UndDefOrUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd},
-						{Pos: 22, Name: "UndDefOrNull", As: MatchedAsDirect, Type: UndTargetTypeUnd},
-						{Pos: 23, Name: "UndNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd},
-						{Pos: 24, Name: "UndDefOrNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd},
-						{Pos: 25, Name: "ElaRequired", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 26, Name: "ElaNullish", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 27, Name: "ElaDef", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 28, Name: "ElaNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 29, Name: "ElaUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 30, Name: "ElaDefOrUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 31, Name: "ElaDefOrNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 32, Name: "ElaNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 33, Name: "ElaDefOrNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 34, Name: "ElaEqEq", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 35, Name: "ElaGr", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 36, Name: "ElaGrEq", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 37, Name: "ElaLe", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 38, Name: "ElaLeEq", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 39, Name: "ElaEqEquRequired", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 40, Name: "ElaEqEquNullish", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 41, Name: "ElaEqEquDef", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 42, Name: "ElaEqEquNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 43, Name: "ElaEqEquUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 44, Name: "ElaEqEqNonNullSlice", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 45, Name: "ElaEqEqNonNullNullSlice", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 46, Name: "ElaEqEqNonNullSingle", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 47, Name: "ElaEqEqNonNullNullSingle", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 48, Name: "ElaEqEqNonNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
-						{Pos: 49, Name: "ElaEqEqNonNullNull", As: MatchedAsDirect, Type: UndTargetTypeElastic},
+						{Pos: 7, Name: "OptRequired", As: MatchedAsDirect, Type: UndTargetTypeOption, Tag: tagRequired},
+						{Pos: 8, Name: "OptNullish", As: MatchedAsDirect, Type: UndTargetTypeOption, Tag: tagNullish},
+						{Pos: 9, Name: "OptDef", As: MatchedAsDirect, Type: UndTargetTypeOption, Tag: tagDef},
+						{Pos: 10, Name: "OptNull", As: MatchedAsDirect, Type: UndTargetTypeOption, Tag: tagNull},
+						{Pos: 11, Name: "OptUnd", As: MatchedAsDirect, Type: UndTargetTypeOption, Tag: tagUnd},
+						{Pos: 12, Name: "OptDefOrUnd", As: MatchedAsDirect, Type: UndTargetTypeOption, Tag: tagDefUnd},
+						{Pos: 13, Name: "OptDefOrNull", As: MatchedAsDirect, Type: UndTargetTypeOption, Tag: tagDefNull},
+						{Pos: 14, Name: "OptNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeOption, Tag: tagNullUnd},
+						{Pos: 15, Name: "OptDefOrNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeOption, Tag: tagDefNullUnd},
+						{Pos: 16, Name: "UndRequired", As: MatchedAsDirect, Type: UndTargetTypeUnd, Tag: tagRequired},
+						{Pos: 17, Name: "UndNullish", As: MatchedAsDirect, Type: UndTargetTypeUnd, Tag: tagNullish},
+						{Pos: 18, Name: "UndDef", As: MatchedAsDirect, Type: UndTargetTypeUnd, Tag: tagDef},
+						{Pos: 19, Name: "UndNull", As: MatchedAsDirect, Type: UndTargetTypeUnd, Tag: tagNull},
+						{Pos: 20, Name: "UndUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd, Tag: tagUnd},
+						{Pos: 21, Name: "UndDefOrUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd, Tag: tagDefUnd},
+						{Pos: 22, Name: "UndDefOrNull", As: MatchedAsDirect, Type: UndTargetTypeUnd, Tag: tagDefNull},
+						{Pos: 23, Name: "UndNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd, Tag: tagNullUnd},
+						{Pos: 24, Name: "UndDefOrNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeUnd, Tag: tagDefNullUnd},
+						{Pos: 25, Name: "ElaRequired", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagRequired},
+						{Pos: 26, Name: "ElaNullish", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagNullish},
+						{Pos: 27, Name: "ElaDef", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagDef},
+						{Pos: 28, Name: "ElaNull", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagNull},
+						{Pos: 29, Name: "ElaUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagUnd},
+						{Pos: 30, Name: "ElaDefOrUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagDefUnd},
+						{Pos: 31, Name: "ElaDefOrNull", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagDefNull},
+						{Pos: 32, Name: "ElaNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagNullUnd},
+						{Pos: 33, Name: "ElaDefOrNullOrUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagDefNullUnd},
+						{Pos: 34, Name: "ElaEqEq", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagLenEq1},
+						{Pos: 35, Name: "ElaGr", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagLenGt1},
+						{Pos: 36, Name: "ElaGrEq", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagLenGte1},
+						{Pos: 37, Name: "ElaLe", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagLt1},
+						{Pos: 38, Name: "ElaLeEq", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagLte1},
+						{Pos: 39, Name: "ElaEqEquRequired", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagRequiredLenEq2},
+						{Pos: 40, Name: "ElaEqEquNullish", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagNullishLenEq2},
+						{Pos: 41, Name: "ElaEqEquDef", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagDefLenEq2},
+						{Pos: 42, Name: "ElaEqEquNull", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagNullLenEq2},
+						{Pos: 43, Name: "ElaEqEquUnd", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagUndLenEq2},
+						{Pos: 44, Name: "ElaEqEqNonNullSlice", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagValuesNonNull},
+						{Pos: 45, Name: "ElaEqEqNonNullNullSlice", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagNullValuesNonNull},
+						{Pos: 46, Name: "ElaEqEqNonNullSingle", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagValuesNonNullLenEq1},
+						{Pos: 47, Name: "ElaEqEqNonNullNullSingle", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagNullValuesNonNullLenEq1},
+						{Pos: 48, Name: "ElaEqEqNonNull", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagValuesNonNullEq3},
+						{Pos: 49, Name: "ElaEqEqNonNullNull", As: MatchedAsDirect, Type: UndTargetTypeElastic, Tag: tagNullValuesNonNullLenEq3},
 					},
 				},
 			},
@@ -250,6 +287,7 @@ func TestFindTargetType(t *testing.T) {
 							Name: "Baz",
 							As:   MatchedAsDirect,
 							Type: UndTargetTypeOption,
+							Tag:  tagRequired,
 						},
 					},
 				},
