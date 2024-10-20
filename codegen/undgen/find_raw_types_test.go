@@ -61,11 +61,11 @@ func Test_isImplementor(t *testing.T) {
 		ToRaw:   "UndRaw",
 		ToPlain: "UndPlain",
 	}
-	assert.Assert(t, isImplementor(foo, mset, false))
-	assert.Assert(t, isImplementor(fooPlain, mset, true))
+	assert.Assert(t, isConversionMethodImplementor(foo, mset, false))
+	assert.Assert(t, isConversionMethodImplementor(fooPlain, mset, true))
 
-	assert.Assert(t, !isImplementor(bar, mset, true))
-	assert.Assert(t, !isImplementor(nonCyclic, mset, true))
+	assert.Assert(t, !isConversionMethodImplementor(bar, mset, true))
+	assert.Assert(t, !isConversionMethodImplementor(nonCyclic, mset, true))
 }
 
 func Test_parseImports(t *testing.T) {
