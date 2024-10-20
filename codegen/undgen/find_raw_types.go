@@ -5,7 +5,6 @@ import (
 	"go/types"
 	"reflect"
 
-	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/option"
 	"github.com/ngicks/und/undtag"
 	"golang.org/x/tools/go/packages"
@@ -146,7 +145,12 @@ type MatchedField struct {
 	// Elem type for "array", "slice", "map".
 	// In that case Type should be "direct".
 	Elem MatchedFieldElem
-	Tag  option.Option[hiter.KeyValue[undtag.UndOpt, error]]
+	Tag  option.Option[UndTagParseResult]
+}
+
+type UndTagParseResult struct {
+	Opt undtag.UndOpt
+	Err error
 }
 
 func (mf MatchedField) IsValid() bool {
@@ -235,9 +239,9 @@ func parseUndType(
 			matchedAs.Name = f.Name()
 			matchedAs.Tag = option.MapOption(
 				option.FromOk(reflect.StructTag(underlying.Tag(i)).Lookup(undtag.TagName)),
-				func(tagLit string) hiter.KeyValue[undtag.UndOpt, error] {
+				func(tagLit string) UndTagParseResult {
 					tag, err := undtag.ParseOption(tagLit)
-					return hiter.KeyValue[undtag.UndOpt, error]{K: tag, V: err}
+					return UndTagParseResult{tag, err}
 				},
 			)
 			matched = append(matched, matchedAs)

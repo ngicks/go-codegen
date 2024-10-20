@@ -7,6 +7,7 @@
         "sliceelastic",
         "sliceund",
         "suffixprinter",
-        "undgen"
+        "undgen",
+        "undtag"
     ]
 }

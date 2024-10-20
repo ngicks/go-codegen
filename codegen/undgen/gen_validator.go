@@ -7,7 +7,6 @@ import (
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
-	"github.com/ngicks/und/undtag"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -49,8 +48,8 @@ func parseStructTag(pkg *packages.Package, imports []TargetImport, targetTypeNam
 							}
 							return hiter.Any(
 								func(f MatchedField) bool {
-									if firstErr == nil && f.Tag.IsSomeAnd(func(kv hiter.KeyValue[undtag.UndOpt, error]) bool { return kv.V != nil }) {
-										firstErr = f.Tag.Value().V
+									if firstErr == nil && f.Tag.IsSomeAnd(func(r UndTagParseResult) bool { return r.Err != nil }) {
+										firstErr = f.Tag.Value().Err
 									}
 									return f.Tag.IsSome()
 								},
