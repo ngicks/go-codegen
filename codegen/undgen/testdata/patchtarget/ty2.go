@@ -7,6 +7,6 @@ import (
 )
 
 type NameOverlapping struct {
-	AHHH  sliceund.Und[int]
+	AHHH  sliceund.Und[int] `und:"required"`
 	OOOHH string
 }

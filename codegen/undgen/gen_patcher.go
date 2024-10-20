@@ -43,11 +43,15 @@ func GeneratePatcher(
 			return err
 		}
 
-		if len(data.typeNames) == 0 {
+		if len(data.targets) == 0 {
 			continue
 		}
 		if verbose {
-			slog.Debug("found", slog.String("filename", data.filename), slog.Any("typesNames", data.typeNames))
+			slog.Debug(
+				"found",
+				slog.String("filename", data.filename),
+				slog.Any("typesNames", slices.Collect(data.targets.typeNames())),
+			)
 		}
 
 		res := decorator.NewRestorer()
@@ -80,7 +84,7 @@ func GeneratePatcher(
 			buf.WriteString("\n\n")
 		}
 
-		for i, spec := range data.typeSpecs {
+		for i, spec := range hiter.Enumerate(data.targets.typeSpecs()) {
 			astSpec, ok := res.Ast.Nodes[spec]
 			if !ok {
 				panic(fmt.Errorf("implementation error: restored file does not contain type spec corresponding to %q", spec.Name.Name))
@@ -126,7 +130,14 @@ func GeneratePatcher(
 					},
 				},
 			} {
-				err = gen.fn(buf, spec, data.perTypeData[i].tsi.TypeInfo, data.perTypeData[i].mt, data.importMap, "Patch")
+				err = gen.fn(
+					buf,
+					spec,
+					data.targets[i].tsi.TypeInfo,
+					data.targets[i].mt.Value(),
+					data.importMap,
+					"Patch",
+				)
 				if err != nil {
 					return gen.errFunc()
 				}
@@ -145,19 +156,22 @@ type methodGenSet struct {
 	errFunc func() error
 }
 
-type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, typeInfo types.Object, matchedFields RawMatchedType, imports importDecls, patcherTypeSuffix string) error
+type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, typeInfo types.Object, matchedFields RawMatchedType, imports importDecls, typeSuffix string) error
 
 func generatePatcherType(pkg *packages.Package, imports []TargetImport, targetTypeNames ...string) iter.Seq2[replaceData, error] {
 	return func(yield func(replaceData, error) bool) {
-		for data, err := range generatorSeq(pkg, imports, targetTypeNames...) {
+		for data, err := range generatorIter(
+			imports,
+			findTypes(pkg, targetTypeNames...),
+		) {
 			if err != nil {
 				if !yield(data, err) {
 					return
 				}
 				continue
 			}
-			for i, ts := range data.typeSpecs {
-				replaceNonUndTypes(ts, data.perTypeData[i], data.importMap)
+			for i, ts := range hiter.Enumerate(data.targets.typeSpecs()) {
+				wrapNonUndFieldsWithSliceUnd(ts, data.targets[i].replacerPerTypeData, data.importMap)
 			}
 			addMissingImports(data.df, data.importMap)
 
@@ -168,7 +182,7 @@ func generatePatcherType(pkg *packages.Package, imports []TargetImport, targetTy
 	}
 }
 
-func replaceNonUndTypes(ts *dst.TypeSpec, target replacerPerTypeData, importMap importDecls) {
+func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, importMap importDecls) {
 	fieldName := ts.Name.Name
 	ts.Name.Name = ts.Name.Name + "Patch"
 	dstutil.Apply(

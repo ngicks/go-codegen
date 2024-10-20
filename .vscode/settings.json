@@ -2,10 +2,12 @@
     "cSpell.words": [
         "Goimports",
         "nolint",
+        "nonnull",
         "omitzero",
         "sliceelastic",
         "sliceund",
         "suffixprinter",
-        "undgen"
+        "undgen",
+        "undtag"
     ]
 }
