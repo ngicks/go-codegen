@@ -7,6 +7,7 @@ import (
 var (
 	testdataPackages    []*packages.Package
 	patchtargetPackages []*packages.Package
+	validatorPackages   []*packages.Package
 )
 
 func init() {
@@ -35,6 +36,10 @@ func init() {
 		panic(err)
 	}
 	patchtargetPackages, err = packages.Load(cfg, "./testdata/patchtarget/...")
+	if err != nil {
+		panic(err)
+	}
+	validatorPackages, err = packages.Load(cfg, "./testdata/validatortarget/...")
 	if err != nil {
 		panic(err)
 	}

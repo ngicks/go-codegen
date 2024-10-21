@@ -96,6 +96,8 @@ P:
 		},
 		missingImports: map[string]TargetImport{
 			"elastic_1": ConstUnd.Imports[4],
+			"undtag":    ConstUnd.Imports[5],
+			"validate":  ConstUnd.Imports[6],
 		},
 	}
 	assert.DeepEqual(
@@ -118,7 +120,10 @@ P:
 			"sliceund":     ConstUnd.Imports[3],
 			"sliceElastic": ConstUnd.Imports[4],
 		},
-		missingImports: map[string]TargetImport{},
+		missingImports: map[string]TargetImport{
+			"undtag":   ConstUnd.Imports[5],
+			"validate": ConstUnd.Imports[6],
+		},
 	}
 	assert.DeepEqual(
 		t,
@@ -395,6 +400,10 @@ func TestFindTargetType(t *testing.T) {
 						{
 							Name: "Foo",
 							As:   MatchedAsImplementor,
+							Type: TargetType{
+								ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub",
+								Name:       "Baz",
+							},
 						},
 					},
 				},
@@ -409,6 +418,10 @@ func TestFindTargetType(t *testing.T) {
 						{
 							Name: "Foo",
 							As:   MatchedAsImplementor,
+							Type: TargetType{
+								ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub",
+								Name:       "IncludesImplementor",
+							},
 						},
 					},
 				},
@@ -441,6 +454,10 @@ func TestFindTargetType(t *testing.T) {
 						{
 							Name: "Foo",
 							As:   MatchedAsImplementor,
+							Type: TargetType{
+								ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub",
+								Name:       "IncludesImplementor",
+							},
 						},
 					},
 				},

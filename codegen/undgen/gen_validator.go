@@ -21,7 +21,8 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen validator -v --pkg ./testdata/targettypes/ --pkg ./testdata/targettypes/sub --pkg ./testdata/targettypes/sub2
+//go:generate go run ../ undgen validator --pkg ./testdata/targettypes/ --pkg ./testdata/targettypes/sub --pkg ./testdata/targettypes/sub2
+//go:generate go run ../ undgen validator --pkg ./testdata/validatortarget/...
 
 func GenerateValidator(
 	sourcePrinter *suffixwriter.Writer,
@@ -104,7 +105,7 @@ func GenerateValidator(
 // generates methods on the patch type
 //
 //	func (v Ty[T, U,...]) UndValidate(v OrgType[T, U,...]) {
-//		if err := undtag.UndOpt{}.Validate(v.Field); err != nil  {
+//		if err := undtag.UndOptExport{}.Into().ValidateOpt(v.Field); err != nil  {
 //			return err
 //		}
 //		return nil
@@ -117,7 +118,7 @@ func generateUndValidate(
 ) error {
 	typeName := ts.Name.Name + printTypeParamVars(ts)
 	undtagImportIdent, _ := imports.Ident(UndPathUndTag)
-	optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
+	validateImportIdent, _ := imports.Ident(UndPathValidate)
 
 	bufw := bufio.NewWriter(w)
 
@@ -129,66 +130,114 @@ func generateUndValidate(
 	printf("func (v %s) UndValidate() error {\n", typeName)
 	switch matchedFields.Variant {
 	case MatchedAsArray, MatchedAsSlice, MatchedAsMap:
-		switch x := matchedFields.Field[0]; x.As {
-		default:
-			// do return an error
-		case MatchedAsArray, MatchedAsSlice, MatchedAsMap:
-			printf("for _, val := range v {\n")
-			switch x.Type {
-			case UndTargetTypeElastic, UndTargetTypeSliceElastic:
-				printf("if !validator.ValidElastic(val)")
-			case UndTargetTypeUnd, UndTargetTypeSliceUnd:
-				printf("if !validator.ValidUnd(val)")
-			case UndTargetTypeOption:
-				printf("if !validator.ValidOpt(val)")
-			}
-			printf("{" +
-				"\treturn fmt.Errorf(\"nay\")\n" +
-				"}")
-			printf("}\n")
+		printf("for i, val := range v {\n")
+		if matchedFields.Field[0].Elem.As == MatchedAsImplementor {
+			printf(`if err := val.UndValidate(); err != nil {
+					return %s.AppendValidationErrorIndex(
+						err, fmt.Sprintf("%%v", i),
+					)
+				}
+					`, validateImportIdent)
 		}
+		// TODO implementor check
+		if ident := importIdent(matchedFields.Field[0].Type, imports); ident != "" {
+			printf(
+				`if err := %s.UndValidate(val); err != nil {
+									return %s.AppendValidationErrorIndex(
+										err,
+										fmt.Sprintf("%%v", i),
+									)
+								}
+							`,
+				ident, validateImportIdent,
+			)
+		}
+		printf("}\n")
 	case MatchedAsStruct:
 		for _, f := range matchedFields.Field {
 			if f.Tag.IsSome() {
 				printf("{\n")
-				printf("validator := %s\n\n", printValidator(undtagImportIdent, optionImportIdent, f.Tag.Value().Opt))
+				printf("validator := %s\n\n", printValidator(undtagImportIdent, f.Tag.Value().Opt))
 				switch f.Type {
 				default:
 					switch f.As {
 					default:
-						// do return an error
+						// TODO: do return an error
 					case MatchedAsArray, MatchedAsSlice, MatchedAsMap:
-						printf("for _, val := range v.%s {\n", f.Name)
+						printf("for i, val := range v.%s {\n", f.Name)
 						switch f.Elem.Type {
 						case UndTargetTypeElastic, UndTargetTypeSliceElastic:
-							printf("if !validator.ValidElastic(val)", f.Name)
+							printf("if !validator.ValidElastic(val)")
 						case UndTargetTypeUnd, UndTargetTypeSliceUnd:
-							printf("if !validator.ValidUnd(val)", f.Name)
+							printf("if !validator.ValidUnd(val)")
 						case UndTargetTypeOption:
-							printf("if !validator.ValidOpt(val)", f.Name)
+							printf("if !validator.ValidOpt(val)")
 						}
-						printf("{" +
-							"\treturn fmt.Errorf(\"nay\")\n" +
-							"}")
+						printf(
+							`{
+								return %s.AppendValidationErrorIndex(
+									fmt.Errorf("%%s", validator),
+									fmt.Sprintf("%%v", i),
+								)
+							}`,
+							validateImportIdent,
+						)
+						// TODO implementor check
+						if ident := importIdent(f.Elem.Type, imports); ident != "" {
+							printf(
+								`
+								if err := %s.UndValidate(val); err != nil {
+									return %s.AppendValidationErrorIndex(
+										err,
+										fmt.Sprintf("%%v", i),
+									)
+								}
+							`,
+								ident, validateImportIdent,
+							)
+						}
 						printf("}\n")
 					}
-				case UndTargetTypeElastic, UndTargetTypeSliceElastic:
-					printf("if !validator.ValidElastic(v.%s)", f.Name)
-				case UndTargetTypeUnd, UndTargetTypeSliceUnd:
-					printf("if !validator.ValidUnd(v.%s)", f.Name)
-				case UndTargetTypeOption:
-					printf("if !validator.ValidOpt(v.%s)", f.Name)
+				case UndTargetTypeElastic, UndTargetTypeSliceElastic, UndTargetTypeUnd, UndTargetTypeSliceUnd, UndTargetTypeOption:
+					switch f.Type {
+					case UndTargetTypeElastic, UndTargetTypeSliceElastic:
+						printf("if !validator.ValidElastic(v.%s)", f.Name)
+					case UndTargetTypeUnd, UndTargetTypeSliceUnd:
+						printf("if !validator.ValidUnd(v.%s)", f.Name)
+					case UndTargetTypeOption:
+						printf("if !validator.ValidOpt(v.%s)", f.Name)
+					}
+					printf("{"+
+						"\treturn %s.AppendValidationErrorDot(\n"+
+						"fmt.Errorf(\"%%s\", validator), \n"+
+						"%q,\n"+
+						")\n"+
+						"}\n", validateImportIdent, f.Name)
+					if f.Elem.As == MatchedAsImplementor {
+						if ident := importIdent(f.Type, imports); ident != "" {
+							printf(
+								`if err := %s.UndValidate(v.%s); err != nil {
+									return %s.AppendValidationErrorIndex(
+										err,
+										%q,
+									)
+								}
+							`,
+								ident, f.Name, validateImportIdent, f.Name,
+							)
+						}
+					}
 				}
-				printf("{\n" +
-					`return fmt.Errorf("yay")` + "\n" +
-					"}\n",
-				)
 				printf("}\n")
 			} else {
 				if f.As == MatchedAsImplementor {
-					printf("if err := v.%s.UndValidate(); err != nil {\n", f.Name)
-					printf("\treturn err\n")
-					printf("}\n")
+					printf(
+						`if err := v.%s.UndValidate(); err != nil {
+							return %s.AppendValidationErrorDot(err,	%q)
+						}
+					`,
+						f.Name, validateImportIdent, f.Name,
+					)
 				}
 			}
 		}
@@ -197,6 +246,27 @@ func generateUndValidate(
 	printf("}")
 
 	return bufw.Flush()
+}
+
+func importIdent(ty TargetType, imports importDecls) string {
+	optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
+	undImportIdent, _ := imports.Ident(UndTargetTypeUnd.ImportPath)
+	sliceUndImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
+	elasticImportIdent, _ := imports.Ident(UndTargetTypeElastic.ImportPath)
+	sliceElasticImportIdent, _ := imports.Ident(UndTargetTypeSliceElastic.ImportPath)
+	switch ty {
+	case UndTargetTypeElastic:
+		return elasticImportIdent
+	case UndTargetTypeSliceElastic:
+		return sliceElasticImportIdent
+	case UndTargetTypeUnd:
+		return undImportIdent
+	case UndTargetTypeSliceUnd:
+		return sliceUndImportIdent
+	case UndTargetTypeOption:
+		return optionImportIdent
+	}
+	return ""
 }
 
 type rawTypeReplacerData struct {
@@ -246,15 +316,37 @@ func generatorRawIter(imports []TargetImport, types RawTypes) iter.Seq2[rawTypeR
 func findValidatableTypes(pkgs []*packages.Package, imports []TargetImport) (RawTypes, error) {
 	validatorMethod := ValidatorMethod{"UndValidate"}
 	// 1st path, find other than implementor
-	matched, err := findRawTypes(pkgs, imports, validatorMethod, nil)
+	matched, err := findRawTypes(pkgs, imports, validatorMethod, nil, false)
 	if err != nil {
 		return matched, err
 	}
+
+	matched = collectRawTypes(
+		filterRawTypes(
+			nil,
+			nil,
+			func(rmt RawMatchedType) bool {
+				if rmt.Variant != MatchedAsStruct {
+					return false
+				}
+				var count int
+				for _, f := range rmt.Field {
+					if f.Tag.IsSome() && f.As != MatchedAsImplementor {
+						count++
+					}
+				}
+				return count > 0
+			},
+			matched.Iter(),
+		),
+	)
+
 	// 2nd path, find including implementor
-	matched, err = findRawTypes(pkgs, imports, validatorMethod, matched)
+	matched, err = findRawTypes(pkgs, imports, validatorMethod, matched, true)
 	if err != nil {
 		return matched, err
 	}
+
 	return matched, nil
 }
 
@@ -291,12 +383,12 @@ func isValidatorImplementor(ty *types.Named, methodName string) bool {
 	return false
 }
 
-func printValidator(undtagImportIdent, optionImportIdent string, tagOpt undtag.UndOpt) string {
+func printValidator(undtagImportIdent string, tagOpt undtag.UndOpt) string {
 	var builder strings.Builder
-	builder.WriteString(undtagImportIdent + ".UndOpt{\n")
-	if tagOpt.States.IsSome() {
-		s := tagOpt.States.Value()
-		builder.WriteString(fmt.Sprintf("\tStates: %s.Some(%s.StateValidator{\n", optionImportIdent, undtagImportIdent))
+	builder.WriteString(undtagImportIdent + ".UndOptExport{\n")
+	if tagOpt.States().IsSome() {
+		s := tagOpt.States().Value()
+		builder.WriteString(fmt.Sprintf("\tStates: &%s.StateValidator{\n", undtagImportIdent))
 		if s.Def {
 			builder.WriteString("\t\tDef: true,\n")
 		}
@@ -306,11 +398,11 @@ func printValidator(undtagImportIdent, optionImportIdent string, tagOpt undtag.U
 		if s.Und {
 			builder.WriteString("\t\tUnd: true,\n")
 		}
-		builder.WriteString("\t}),\n")
+		builder.WriteString("\t},\n")
 	}
-	if tagOpt.Len.IsSome() {
-		l := tagOpt.Len.Value()
-		builder.WriteString(fmt.Sprintf("\tLen: %s.Some(%s.LenValidator{\n", optionImportIdent, undtagImportIdent))
+	if tagOpt.Len().IsSome() {
+		l := tagOpt.Len().Value()
+		builder.WriteString(fmt.Sprintf("\tLen: &%s.LenValidator{\n", undtagImportIdent))
 		builder.WriteString(fmt.Sprintf("\t\tLen: %d,\n", l.Len))
 		op := ""
 		switch l.Op {
@@ -328,16 +420,16 @@ func printValidator(undtagImportIdent, optionImportIdent string, tagOpt undtag.U
 		if op != "" {
 			builder.WriteString(fmt.Sprintf("\t\tOp: %s.%s,\n", undtagImportIdent, op))
 		}
-		builder.WriteString("\t}),\n")
+		builder.WriteString("\t},\n")
 	}
-	if tagOpt.Values.IsSome() {
-		v := tagOpt.Values.Value()
-		builder.WriteString(fmt.Sprintf("\tValues: %s.Some(%s.ValuesValidator{\n", optionImportIdent, undtagImportIdent))
+	if tagOpt.Values().IsSome() {
+		v := tagOpt.Values().Value()
+		builder.WriteString(fmt.Sprintf("\tValues: &%s.ValuesValidator{\n", undtagImportIdent))
 		if v.Nonnull {
 			builder.WriteString("\t\tNonnull: true,\n")
 		}
-		builder.WriteString("\t}),\n")
+		builder.WriteString("\t},\n")
 	}
-	builder.WriteString("}")
+	builder.WriteString("}.Into()")
 	return builder.String()
 }

@@ -1,12 +1,15 @@
 {
     "cSpell.words": [
+        "Corge",
         "Goimports",
+        "Grault",
         "nolint",
         "nonnull",
         "omitzero",
         "sliceelastic",
         "sliceund",
         "suffixprinter",
+        "Tmpl",
         "undgen",
         "undtag"
     ]

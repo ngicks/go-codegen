@@ -11,7 +11,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func Test_generateValidator(t *testing.T) {
+func Test_generateValidator1(t *testing.T) {
 	testPrinter := suffixwriter.NewTestWriter(".und_validator")
 	err := GenerateValidator(
 		testPrinter.Writer,
@@ -23,6 +23,22 @@ func Test_generateValidator(t *testing.T) {
 				slices.Values(testdataPackages),
 			),
 		),
+		ConstUnd.Imports,
+	)
+	assert.NilError(t, err)
+	results := testPrinter.Results()
+	for _, k := range slices.Sorted(maps.Keys(results)) {
+		result := results[k]
+		t.Logf("%q:\n%s", k, result)
+	}
+}
+
+func Test_generateValidator2(t *testing.T) {
+	testPrinter := suffixwriter.NewTestWriter(".und_validator")
+	err := GenerateValidator(
+		testPrinter.Writer,
+		true,
+		validatorPackages,
 		ConstUnd.Imports,
 	)
 	assert.NilError(t, err)

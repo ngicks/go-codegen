@@ -45,12 +45,12 @@ type IsImplementor interface {
 // FindRawTypes ignores types if they have //undgen:ignore or //undgen:generated in the associated doc comments.
 func FindRawTypes(pkgs []*packages.Package, imports []TargetImport, methods ConversionMethodsSet) (RawTypes, error) {
 	// 1st path, find other than implementor
-	matched, err := findRawTypes(pkgs, imports, methods, nil)
+	matched, err := findRawTypes(pkgs, imports, methods, nil, false)
 	if err != nil {
 		return matched, err
 	}
 	// 2nd path, find including implementor
-	matched, err = findRawTypes(pkgs, imports, methods, matched)
+	matched, err = findRawTypes(pkgs, imports, methods, matched, true)
 	if err != nil {
 		return matched, err
 	}
@@ -95,6 +95,61 @@ func (m RawTypes) Iter() iter.Seq2[*packages.Package, iter.Seq2[*ast.File, iter.
 			}
 		}
 	}
+}
+
+func filterRawTypes(
+	pkgFilter func(*packages.Package) bool,
+	fileFilter func(*ast.File) bool,
+	typFilter func(RawMatchedType) bool,
+	seq iter.Seq2[*packages.Package, iter.Seq2[*ast.File, iter.Seq2[int, RawMatchedType]]],
+) iter.Seq2[*packages.Package, iter.Seq2[*ast.File, iter.Seq2[int, RawMatchedType]]] {
+	return func(yield func(*packages.Package, iter.Seq2[*ast.File, iter.Seq2[int, RawMatchedType]]) bool) {
+		for pkg, seq := range seq {
+			if pkgFilter != nil && !pkgFilter(pkg) {
+				continue
+			}
+			if !yield(pkg, func(yield func(*ast.File, iter.Seq2[int, RawMatchedType]) bool) {
+				for file, seq := range seq {
+					if fileFilter != nil && !fileFilter(file) {
+						continue
+					}
+					if !yield(file, func(yield func(int, RawMatchedType) bool) {
+						for idx, rawTyp := range seq {
+							if typFilter != nil && !typFilter(rawTyp) {
+								continue
+							}
+							if !yield(idx, rawTyp) {
+								return
+							}
+						}
+					}) {
+						return
+					}
+				}
+			}) {
+				return
+			}
+		}
+	}
+}
+
+func collectRawTypes(seq iter.Seq2[*packages.Package, iter.Seq2[*ast.File, iter.Seq2[int, RawMatchedType]]]) RawTypes {
+	rawTypes := make(RawTypes)
+	for pkg, seq := range seq {
+		rawPkg := rawTypes[pkg.PkgPath]
+		rawPkg.lazyInit(pkg)
+		for file, seq := range seq {
+			filename := pkg.Fset.Position(file.FileStart).Filename
+			rawFile := rawPkg.Files[filename]
+			rawFile.lazyInit(file, filename)
+			for idx, rawTyp := range seq {
+				rawFile.Types[idx] = rawTyp
+			}
+			rawPkg.Files[filename] = rawFile
+		}
+		rawTypes[pkg.PkgPath] = rawPkg
+	}
+	return rawTypes
 }
 
 type RawMatchedPackage struct {
@@ -203,6 +258,7 @@ func findRawTypes(
 	imports []TargetImport,
 	implementationChecker IsImplementor,
 	matched RawTypes,
+	checkMatched bool,
 ) (RawTypes, error) {
 	if matched == nil {
 		matched = make(RawTypes)
@@ -224,7 +280,16 @@ func findRawTypes(
 					return matched, tsi.Err
 				}
 
-				mt, ok := parseUndType(tsi.TypeInfo, matched, importMap, implementationChecker)
+				var (
+					mt RawMatchedType
+					ok bool
+				)
+				if checkMatched {
+					mt, ok = parseUndType(tsi.TypeInfo, matched, importMap, implementationChecker)
+				} else {
+					mt, ok = parseUndType(tsi.TypeInfo, nil, importMap, implementationChecker)
+				}
+
 				if !ok {
 					continue
 				}
@@ -331,8 +396,9 @@ func isRawType(
 		}
 		_, ok = total.HasTy(pkgPath, name)
 		if ok {
-			return MatchedField{As: MatchedAsImplementor}
+			return MatchedField{As: MatchedAsImplementor, Type: TargetType{pkgPath, name}}
 		}
+		// TODO: do not check implementation when x is within same package... or remove all files that are supposed to have been generated?
 		if implementationChecker.IsImplementor(x) {
 			return MatchedField{As: MatchedAsImplementor}
 		}
