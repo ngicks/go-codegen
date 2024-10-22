@@ -71,7 +71,7 @@ func GenerateValidator(
 				atLeastOne = true
 			}
 			if err != nil {
-				return fmt.Errorf("generating UndValidate for type %s in file %q: %w", data.filename, matchedType.TypeSpec.Name.Name, err)
+				return fmt.Errorf("generating UndValidate for type %s in file %q: %w", matchedType.TypeSpec.Name.Name, data.filename, err)
 			}
 			buf.WriteString("\n\n")
 		}
