@@ -15,6 +15,7 @@ import (
 	// and also, packages.Load relies on go tools.
 	// All packages loaded are derived from dependency graph of the module where the packages.Load is invoked on.
 	// Keep this import and keep the module noted in go.mod.
+	"github.com/ngicks/go-codegen/codegen/structtag"
 	_ "github.com/ngicks/und"
 	"github.com/ngicks/und/option"
 	"github.com/ngicks/und/undtag"
@@ -157,6 +158,7 @@ func deepEqualRawMatchedType(t *testing.T, i, j []hiter.KeyValue[int, RawMatched
 		gocmp.Comparer(func(i, j *ast.GenDecl) bool { return true }),
 		gocmp.Comparer(func(i, j *ast.TypeSpec) bool { return true }),
 		gocmp.Comparer(func(i, j types.Object) bool { return true }),
+		gocmp.Comparer(func(i, j structtag.Tags) bool { return true }),
 	)
 }
 
