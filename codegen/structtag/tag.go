@@ -122,7 +122,24 @@ func (t Tags) mapper(tagName string, option string, fn func(v string, n, m int, 
 	return tt, ErrNotFound
 }
 
-func (t Tags) DeleteOption(tagName string, option string) (Tags, error) {
+func (t Tags) Get(tagName string, option string) (escaped, unescaped string, err error) {
+	for _, tag := range t {
+		if tag.Key != tagName {
+			continue
+		}
+		n, m, unescaped, err := getRange(tag.Value, option)
+		if err != nil {
+			return "", "", err
+		}
+		if unescaped == "" {
+			unescaped = tag.Value[n:m]
+		}
+		return tag.Value[n:m], unescaped, nil
+	}
+	return "", "", ErrNotFound
+}
+
+func (t Tags) Delete(tagName string, option string) (Tags, error) {
 	return t.mapper(tagName, option, func(v string, n, m int, err error) (string, error) {
 		if err != nil {
 			return v, err

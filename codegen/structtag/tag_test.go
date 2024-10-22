@@ -212,3 +212,31 @@ func TestTags_AddOption(t *testing.T) {
 		})
 	}
 }
+
+func TestGet(t *testing.T) {
+	tags, err := ParseStructTag(reflect.StructTag(`json:"'\\xde\\xad\\xbe\\xef',omitzero,format:RFC3339"`))
+	assert.NilError(t, err)
+
+	escaped, unescaped, err := tags.Get("json", "")
+	assert.NilError(t, err)
+	assert.Equal(t, "'\\xde\\xad\\xbe\\xef'", escaped)
+	assert.Equal(t, string([]byte{0xde, 0xad, 0xbe, 0xef}), unescaped)
+
+	escaped, unescaped, err = tags.Get("json", "omitzero")
+	assert.NilError(t, err)
+	assert.Equal(t, "omitzero", escaped)
+	assert.Equal(t, "omitzero", unescaped)
+
+	_, _, err = tags.Get("json", "nay")
+	assert.ErrorIs(t, err, ErrNotFound)
+	_, _, err = tags.Get("wah", "")
+	assert.ErrorIs(t, err, ErrNotFound)
+
+	tags, err = ParseStructTag(reflect.StructTag(`json:"mah,omitzero,format:RFC3339"`))
+	assert.NilError(t, err)
+
+	escaped, unescaped, err = tags.Get("json", "")
+	assert.NilError(t, err)
+	assert.Equal(t, "mah", escaped)
+	assert.Equal(t, "mah", unescaped)
+}
