@@ -245,13 +245,13 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, 
 							concatFieldNames(field), fieldName, err,
 						))
 					}
-					tagOpt, _ = tagOpt.DeleteOption("json", "omitempty")
-					tagOpt, _ = tagOpt.DeleteOption("json", "omitzero")
+					tagOpt, _ = tagOpt.Delete("json", "omitempty")
+					tagOpt, _ = tagOpt.Delete("json", "omitzero")
 					omitOpt := "omitempty"
 					if !isSliceType {
 						omitOpt = "omitzero"
 					}
-					tagOpt, _ = tagOpt.AddOption("json", omitOpt, "")
+					tagOpt, _ = tagOpt.Add("json", omitOpt, "")
 					tag.Value = "`" + string(tagOpt.StructTag()) + "`"
 				}
 				return false

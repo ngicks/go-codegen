@@ -78,7 +78,7 @@ func TestTag(t *testing.T) {
 	} {
 		tags, err := ParseStructTag(tc.input)
 		assert.NilError(t, err)
-		added, err := tags.AddOption(tc.tag, tc.option, tc.value)
+		added, err := tags.Add(tc.tag, tc.option, tc.value)
 		assert.NilError(t, err)
 		assert.Assert(t, cmp.Equal(reflect.StructTag(tc.expected), added.StructTag()))
 	}
@@ -153,7 +153,7 @@ func TestTags_DeleteOption(t *testing.T) {
 		t.Run(tc.opt, func(t *testing.T) {
 			tags, err := ParseStructTag(reflect.StructTag(tag))
 			assert.NilError(t, err)
-			tt, err := tags.DeleteOption("json", tc.opt)
+			tt, err := tags.Delete("json", tc.opt)
 			assert.NilError(t, err)
 			assert.Equal(t, string(tt.StructTag()), tc.output)
 		})
@@ -206,7 +206,7 @@ func TestTags_AddOption(t *testing.T) {
 		t.Run(tc.option+":"+tc.value, func(t *testing.T) {
 			tags, err := ParseStructTag(reflect.StructTag(tc.input))
 			assert.NilError(t, err)
-			tt, err := tags.AddOption("json", tc.option, tc.value)
+			tt, err := tags.Add("json", tc.option, tc.value)
 			assert.NilError(t, err)
 			assert.Equal(t, string(tt.StructTag()), tc.expected)
 		})
