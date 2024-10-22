@@ -167,7 +167,7 @@ func generatePatcherType(pkg *packages.Package, imports []TargetImport, targetTy
 }
 
 func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, importMap importDecls) {
-	fieldName := ts.Name.Name
+	typeName := ts.Name.Name
 	ts.Name.Name = ts.Name.Name + "Patch"
 	dstutil.Apply(
 		ts.Type,
@@ -226,7 +226,7 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, 
 					if err != nil {
 						panic(fmt.Errorf(
 							"malformed struct tag on field %s of type %q: %w",
-							concatFieldNames(field), fieldName, err,
+							concatFieldNames(field), typeName, err,
 						))
 					}
 					tagOpt, _ = tagOpt.Delete("json", "omitempty")
