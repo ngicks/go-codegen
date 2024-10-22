@@ -398,7 +398,7 @@ func isValidatorImplementor(ty *types.Named, methodName string) bool {
 			if !ok {
 				return false
 			}
-			return named.Obj().Name() == "error"
+			return named.Obj().Pkg() == nil && named.Obj().Name() == "error"
 		}
 	}
 	return false
