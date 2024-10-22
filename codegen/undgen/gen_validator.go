@@ -14,6 +14,7 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/undtag"
 	"golang.org/x/tools/go/packages"
 )
@@ -60,7 +61,7 @@ func GenerateValidator(
 		}
 
 		var atLeastOne bool
-		for _, matchedType := range data.targets {
+		for _, matchedType := range hiter.Values2(data.targets) {
 			written, err := generateUndValidate(
 				buf,
 				data.dec.Dst.Nodes[matchedType.TypeSpec].(*dst.TypeSpec),
@@ -278,7 +279,7 @@ type rawTypeReplacerData struct {
 	dec       *decorator.Decorator
 	df        *dst.File
 	importMap importDecls
-	targets   iter.Seq2[int, RawMatchedType]
+	targets   hiter.KeyValues[int, RawMatchedType]
 }
 
 func preprocessRawTypes(imports []TargetImport, types RawTypes) iter.Seq2[rawTypeReplacerData, error] {
@@ -304,7 +305,7 @@ func preprocessRawTypes(imports []TargetImport, types RawTypes) iter.Seq2[rawTyp
 						dec:       dec,
 						df:        df,
 						importMap: importMap,
-						targets:   seq,
+						targets:   hiter.Collect2(seq),
 					},
 					nil,
 				) {
