@@ -33,7 +33,7 @@ func GenerateValidator(
 	if err != nil {
 		return err
 	}
-	for data, err := range generatorRawIter(imports, rawTypes) {
+	for data, err := range preprocessRawTypes(imports, rawTypes) {
 		if err != nil {
 			return err
 		}
@@ -281,7 +281,7 @@ type rawTypeReplacerData struct {
 	targets   iter.Seq2[int, RawMatchedType]
 }
 
-func generatorRawIter(imports []TargetImport, types RawTypes) iter.Seq2[rawTypeReplacerData, error] {
+func preprocessRawTypes(imports []TargetImport, types RawTypes) iter.Seq2[rawTypeReplacerData, error] {
 	return func(yield func(rawTypeReplacerData, error) bool) {
 		for pkg, seq := range types.Iter() {
 			for file, seq := range seq {
