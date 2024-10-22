@@ -138,13 +138,13 @@ func (id importDecls) matchFallback(pkgPath, name string) (string, TargetImport)
 	return "", TargetImport{}
 }
 
-func (id importDecls) DstExpr(pkgPath, name string) *dst.SelectorExpr {
+func (id importDecls) DstExpr(ty TargetType) *dst.SelectorExpr {
 	var (
 		ident string
 	)
-	ident, _ = id.matchIdentToImport(pkgPath, name)
+	ident, _ = id.matchIdentToImport(ty.ImportPath, ty.Name)
 	if ident == "" {
-		ident, _ = id.matchFallback(pkgPath, name)
+		ident, _ = id.matchFallback(ty.ImportPath, ty.Name)
 	}
 
 	if ident == "" {
@@ -156,7 +156,7 @@ func (id importDecls) DstExpr(pkgPath, name string) *dst.SelectorExpr {
 			Name: ident,
 		},
 		Sel: &dst.Ident{
-			Name: name,
+			Name: ty.Name,
 		},
 	}
 }

@@ -196,7 +196,7 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, 
 						c.Replace(&dst.Field{
 							Names: field.Names,
 							Type: &dst.IndexExpr{
-								X:     importMap.DstExpr(UndTargetTypeSliceUnd.ImportPath, UndTargetTypeSliceUnd.Name),
+								X:     importMap.DstExpr(UndTargetTypeSliceUnd),
 								Index: field.Type.(*dst.IndexExpr).Index,
 							},
 							Tag:  field.Tag,
@@ -211,7 +211,7 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, 
 						&dst.Field{
 							Names: field.Names,
 							Type: &dst.IndexExpr{
-								X:     importMap.DstExpr(UndTargetTypeSliceUnd.ImportPath, UndTargetTypeSliceUnd.Name),
+								X:     importMap.DstExpr(UndTargetTypeSliceUnd),
 								Index: field.Type,
 							},
 							Tag:  field.Tag,
