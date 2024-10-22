@@ -11,8 +11,10 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/undgen"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/spf13/cobra"
 	"golang.org/x/tools/go/packages"
 )
@@ -123,9 +125,10 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 				),
 			)
 		}
-		writer := suffixwriter.New(".und_patch", writerOpts...)
+		suffix := ".und_patch"
+		writer := suffixwriter.New(suffix, writerOpts...)
 		if test {
-			testWriter := suffixwriter.NewTestWriter(".und_patch", writerOpts...)
+			testWriter := suffixwriter.NewTestWriter(suffix, writerOpts...)
 			writer = testWriter.Writer
 			defer func() {
 				results := testWriter.Results()
@@ -134,6 +137,17 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 					fmt.Printf("%q:\n%s\n\n", k, result)
 				}
 			}()
+		}
+		err = hiter.TryForEach(
+			func(s string) {
+				if verbose {
+					fmt.Printf("removed %q\n", s)
+				}
+			},
+			pkgsutil.RemoveSuffixedFiles([]*packages.Package{targetPkg[0]}, dir, suffix),
+		)
+		if err != nil {
+			return err
 		}
 		return undgen.GeneratePatcher(writer, verbose, targetPkg[0], undgen.ConstUnd.Imports, types...)
 	},
