@@ -297,17 +297,15 @@ func addMissingImports(df *dst.File, imports importDecls) {
 					return false
 				}
 				for ident, path := range imports.MissingImports() {
-					df.Imports = append(
-						df.Imports,
-						&dst.ImportSpec{
-							Name: dst.NewIdent(ident),
-							Path: &dst.BasicLit{Kind: token.STRING, Value: strconv.Quote(path)},
-						},
-					)
-					x.Specs = append(x.Specs, &dst.ImportSpec{
+					spec := &dst.ImportSpec{
 						Name: dst.NewIdent(ident),
 						Path: &dst.BasicLit{Kind: token.STRING, Value: strconv.Quote(path)},
-					})
+					}
+					if ident == "" {
+						spec.Name = nil
+					}
+					df.Imports = append(df.Imports, spec)
+					x.Specs = append(x.Specs, spec)
 				}
 				replaced = true
 				return false
