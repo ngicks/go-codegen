@@ -11,8 +11,10 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/undgen"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/spf13/cobra"
 	"golang.org/x/tools/go/packages"
 )
@@ -106,9 +108,10 @@ var undgenValidatorCmd = &cobra.Command{
 				),
 			)
 		}
-		writer := suffixwriter.New(".und_validator", writerOpts...)
+		const suffix = ".und_validator"
+		writer := suffixwriter.New(suffix, writerOpts...)
 		if test {
-			testWriter := suffixwriter.NewTestWriter(".und_patch", writerOpts...)
+			testWriter := suffixwriter.NewTestWriter(suffix, writerOpts...)
 			writer = testWriter.Writer
 			defer func() {
 				results := testWriter.Results()
@@ -117,6 +120,17 @@ var undgenValidatorCmd = &cobra.Command{
 					fmt.Printf("%q:\n%s\n\n", k, result)
 				}
 			}()
+		}
+		err = hiter.TryForEach(
+			func(s string) {
+				if verbose {
+					fmt.Printf("removed %q\n", s)
+				}
+			},
+			pkgsutil.RemoveSuffixedFiles(targetPkg, dir, suffix),
+		)
+		if err != nil {
+			return err
 		}
 		return undgen.GenerateValidator(writer, verbose, targetPkg, undgen.ConstUnd.Imports)
 	},
