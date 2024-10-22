@@ -380,7 +380,7 @@ func (method ValidatorMethod) IsImplementor(ty *types.Named) bool {
 }
 
 func isValidatorImplementor(ty *types.Named, methodName string) bool {
-	ms := types.NewMethodSet(ty)
+	ms := types.NewMethodSet(types.NewPointer(ty))
 	for i := range ms.Len() {
 		sel := ms.At(i)
 		if sel.Obj().Name() == methodName {

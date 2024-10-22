@@ -483,7 +483,7 @@ func isConversionMethodImplementor(ty *types.Named, conversionMethod ConversionM
 		toMethod, revMethod = revMethod, toMethod
 	}
 
-	ms := types.NewMethodSet(ty)
+	ms := types.NewMethodSet(types.NewPointer(ty))
 	for i := range ms.Len() {
 		sel := ms.At(i)
 		if sel.Obj().Name() == toMethod {
@@ -502,7 +502,7 @@ func isConversionMethodImplementor(ty *types.Named, conversionMethod ConversionM
 				return false
 			}
 
-			ms := types.NewMethodSet(named)
+			ms := types.NewMethodSet(types.NewPointer(named))
 			for i := range ms.Len() {
 				sel := ms.At(i)
 				if sel.Obj().Name() == revMethod {
