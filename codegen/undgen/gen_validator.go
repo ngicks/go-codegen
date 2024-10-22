@@ -208,11 +208,11 @@ func generateUndValidate(
 						`{
 							return %[1]s.AppendValidationErrorDot(
 								fmt.Errorf("%%s: value is %%s", validator.Describe(), %[1]s.ReportState(v.%[2]s)),
-								%[2]q,
+								%[3]q,
 							)
 						}
 							`,
-						validateImportIdent, f.JsonFieldName(),
+						validateImportIdent, f.Name, f.JsonFieldName(),
 					)
 					if f.Elem != nil && f.Elem.As == MatchedAsImplementor {
 						if ident := importIdent(f.Type, imports); ident != "" {

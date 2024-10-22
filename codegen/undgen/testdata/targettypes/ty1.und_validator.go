@@ -18,7 +18,7 @@ func (v All) UndValidate() error {
 
 		if !validator.ValidOpt(v.OptRequired) {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.opt_required)),
+				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptRequired)),
 				"opt_required",
 			)
 		}
