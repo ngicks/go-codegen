@@ -182,6 +182,9 @@ func (id importDecls) MissingImports() iter.Seq2[string, string] {
 		hiter.ToKeyValue(
 			xiter.Map2(
 				func(ident string, ti TargetImport) (string, string) {
+					if ident == importPathToIdent(ti.ImportPath) {
+						ident = ""
+					}
 					return ident, ti.ImportPath
 				},
 				maps.All(id.missingImports),

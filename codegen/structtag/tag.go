@@ -122,7 +122,24 @@ func (t Tags) mapper(tagName string, option string, fn func(v string, n, m int, 
 	return tt, ErrNotFound
 }
 
-func (t Tags) DeleteOption(tagName string, option string) (Tags, error) {
+func (t Tags) Get(tagName string, option string) (escaped, unescaped string, err error) {
+	for _, tag := range t {
+		if tag.Key != tagName {
+			continue
+		}
+		n, m, unescaped, err := getRange(tag.Value, option)
+		if err != nil {
+			return "", "", err
+		}
+		if unescaped == "" {
+			unescaped = tag.Value[n:m]
+		}
+		return tag.Value[n:m], unescaped, nil
+	}
+	return "", "", ErrNotFound
+}
+
+func (t Tags) Delete(tagName string, option string) (Tags, error) {
 	return t.mapper(tagName, option, func(v string, n, m int, err error) (string, error) {
 		if err != nil {
 			return v, err
@@ -140,7 +157,7 @@ func (t Tags) DeleteOption(tagName string, option string) (Tags, error) {
 	})
 }
 
-func (t Tags) AddOption(tagName string, option, value string) (Tags, error) {
+func (t Tags) Add(tagName string, option, value string) (Tags, error) {
 	tt, err := t.mapper(tagName, option, func(v string, n, m int, err error) (string, error) {
 		if err == nil {
 			return v, nil
@@ -194,17 +211,12 @@ func (t Tags) StructTag() reflect.StructTag {
 func getRange(tag string, targetOption string) (n, m int, unescaped string, err error) {
 	// first, skip name.
 	if len(tag) > 0 && !strings.HasPrefix(tag, ",") {
-		n := len(tag) - len(strings.TrimLeftFunc(tag, func(r rune) bool {
-			return !strings.ContainsRune(",\\'\"`", r) // reserve comma, backslash, and quotes
-		}))
-		if n == 0 {
-			unescaped, n, err = readTagOption(tag)
-			if err != nil {
-				return -1, -1, "", err
-			}
-			if targetOption == "" {
-				return 0, n, unescaped, nil
-			}
+		unescaped, n, err := readName(tag)
+		if err != nil {
+			return -1, -1, "", err
+		}
+		if targetOption == "" {
+			return 0, n, unescaped, nil
 		}
 		m = n
 		tag = tag[n:]
@@ -273,14 +285,9 @@ func AddTagOption(t reflect.StructTag, tag string, option string) (reflect.Struc
 		value := tags[i].Value
 		// first, skip name.
 		if len(value) > 0 && !strings.HasPrefix(value, ",") {
-			n := len(value) - len(strings.TrimLeftFunc(value, func(r rune) bool {
-				return !strings.ContainsRune(",\\'\"`", r) // reserve comma, backslash, and quotes
-			}))
-			if n == 0 {
-				_, n, err = readTagOption(value)
-				if err != nil {
-					return "", err
-				}
+			_, n, err := readName(value)
+			if err != nil {
+				return "", err
 			}
 			value = value[n:]
 		}
@@ -334,6 +341,16 @@ func AddTagOption(t reflect.StructTag, tag string, option string) (reflect.Struc
 	}
 
 	return Of(tags), nil
+}
+
+func readName(value string) (unescaped string, n int, err error) {
+	n = len(value) - len(strings.TrimLeftFunc(value, func(r rune) bool {
+		return !strings.ContainsRune(",\\'\"`", r) // reserve comma, backslash, and quotes
+	}))
+	if n == 0 {
+		unescaped, n, err = readTagOption(value)
+	}
+	return
 }
 
 func readTagOption(s string) (opt string, n int, err error) {

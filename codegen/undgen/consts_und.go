@@ -27,6 +27,14 @@ var ConstUnd = ConstSet{
 			ImportPath: "github.com/ngicks/und/sliceund/elastic",
 			Types:      []string{"Elastic"},
 		},
+		{
+			ImportPath: "github.com/ngicks/und/undtag",
+			Types:      []string{},
+		},
+		{
+			ImportPath: "github.com/ngicks/und/validate",
+			Types:      []string{},
+		},
 	},
 	ConversionMethod: ConversionMethodsSet{
 		ToRaw:   "UndRaw",
@@ -62,4 +70,9 @@ var (
 		ImportPath: "github.com/ngicks/und/sliceund/elastic",
 		Name:       "Elastic",
 	}
+)
+
+const (
+	UndPathUndTag   = "github.com/ngicks/und/undtag"
+	UndPathValidate = "github.com/ngicks/und/validate"
 )
