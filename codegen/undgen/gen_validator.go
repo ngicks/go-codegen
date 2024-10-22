@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
-	"go/printer"
-	"go/token"
 	"go/types"
 	"io"
 	"iter"
@@ -55,27 +53,10 @@ func GenerateValidator(
 
 		buf := new(bytes.Buffer) // pool buf?
 
-		buf.WriteString(token.PACKAGE.String())
-		buf.WriteByte(' ')
-		buf.WriteString(af.Name.Name)
-		buf.WriteString("\n\n")
-
-		// TODO: split these lines to function.
-		for i, dec := range af.Decls {
-			genDecl, ok := dec.(*ast.GenDecl)
-			if !ok {
-				continue
-			}
-			if genDecl.Tok != token.IMPORT {
-				// it's possible that the file has multiple import spec.
-				// but it always starts with import spec.
-				break
-			}
-			err = printer.Fprint(buf, res.Fset, genDecl)
-			if err != nil {
-				return fmt.Errorf("print.Fprint failed printing %dth import spec in file %q: %w", i, data.filename, err)
-			}
-			buf.WriteString("\n\n")
+		_ = printPackage(buf, af)
+		err = printImport(buf, af, res.Fset)
+		if err != nil {
+			return fmt.Errorf("%q: %w", data.filename, err)
 		}
 
 		var atLeastOne bool
