@@ -288,12 +288,13 @@ func findRawTypes(
 	matched RawTypes,
 	checkMatched bool,
 ) (RawTypes, error) {
-	if matched == nil {
-		matched = make(RawTypes)
+	newMatched := collectRawTypes(matched.Iter())
+	if newMatched == nil {
+		newMatched = make(RawTypes)
 	}
 
 	for pkg, seq := range enumerateTypeSpec(pkgs) {
-		matchedPkg := matched[pkg.PkgPath]
+		matchedPkg := newMatched[pkg.PkgPath]
 		matchedPkg.lazyInit(pkg)
 
 		for file, seq := range seq {
@@ -305,7 +306,7 @@ func findRawTypes(
 
 			for tsi := range seq {
 				if tsi.Err != nil {
-					return matched, tsi.Err
+					return newMatched, tsi.Err
 				}
 
 				var (
@@ -332,9 +333,9 @@ func findRawTypes(
 			matchedPkg.Files[filename] = matchedFile
 		}
 
-		matched[pkg.PkgPath] = matchedPkg
+		newMatched[pkg.PkgPath] = matchedPkg
 	}
-	return matched, nil
+	return newMatched, nil
 }
 
 func parseUndType(

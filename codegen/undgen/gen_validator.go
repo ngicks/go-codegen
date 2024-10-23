@@ -334,7 +334,7 @@ func findValidatableTypes(pkgs []*packages.Package, imports []TargetImport) (Raw
 				}
 				var count int
 				for _, f := range rmt.Field {
-					if f.UndTag.IsSome() && f.As != MatchedAsImplementor {
+					if (f.UndTag.IsSome() && f.As != MatchedAsImplementor) || f.As == MatchedAsImplementor {
 						count++
 					}
 				}
@@ -349,6 +349,26 @@ func findValidatableTypes(pkgs []*packages.Package, imports []TargetImport) (Raw
 	if err != nil {
 		return matched, err
 	}
+
+	matched = collectRawTypes(
+		filterRawTypes(
+			nil,
+			nil,
+			func(rmt RawMatchedType) bool {
+				if rmt.Variant != MatchedAsStruct {
+					return true
+				}
+				var count int
+				for _, f := range rmt.Field {
+					if (f.UndTag.IsSome() && f.As != MatchedAsImplementor) || f.As == MatchedAsImplementor {
+						count++
+					}
+				}
+				return count > 0
+			},
+			matched.Iter(),
+		),
+	)
 
 	return matched, nil
 }
