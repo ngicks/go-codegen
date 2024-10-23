@@ -13,16 +13,6 @@ github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/ngicks/go-iterator-helper v0.0.15 h1:rsWzG5X1KCkqXc8MJZ2BQXX3vAcLf6XsW4D6uPAa6Tc=
 github.com/ngicks/go-iterator-helper v0.0.15/go.mod h1:g++KxWVGEkOnIhXVvpNNOdn7ON57aOpfu80ccBvPVHI=
-github.com/ngicks/und v1.0.0-alpha4.0.20241020085928-a67e5fbedb72 h1:PHTn1ET0CZiYZs4vwxjbLtuWS+xWwGA1PZgOUfQC3Dw=
-github.com/ngicks/und v1.0.0-alpha4.0.20241020085928-a67e5fbedb72/go.mod h1:1udS2lIWwVwFA2TvsZs9gz5o01fyTkgR4wsThinKX/g=
-github.com/ngicks/und v1.0.0-alpha4.0.20241021102424-06d9ebf8c5a7 h1:PZ51URExiz2llLPpl3VfULTtmQQVfP1Ld6ectiJtrlY=
-github.com/ngicks/und v1.0.0-alpha4.0.20241021102424-06d9ebf8c5a7/go.mod h1:1udS2lIWwVwFA2TvsZs9gz5o01fyTkgR4wsThinKX/g=
-github.com/ngicks/und v1.0.0-alpha4.0.20241021105703-fdc49bcd3b92 h1:aouP6+6m9oLA7EOH067LAHznzexWsB9c/dVaM42GDRE=
-github.com/ngicks/und v1.0.0-alpha4.0.20241021105703-fdc49bcd3b92/go.mod h1:1udS2lIWwVwFA2TvsZs9gz5o01fyTkgR4wsThinKX/g=
-github.com/ngicks/und v1.0.0-alpha4.0.20241021151451-20b1d12cdc99 h1:zCL+Vv3icB3oJ/tYJCBHsbmzSqDbiw6KHG0EMlMX/gQ=
-github.com/ngicks/und v1.0.0-alpha4.0.20241021151451-20b1d12cdc99/go.mod h1:1udS2lIWwVwFA2TvsZs9gz5o01fyTkgR4wsThinKX/g=
-github.com/ngicks/und v1.0.0-alpha4.0.20241022030507-af13b0599c36 h1:eL7B8YO0y83k7FjdtaVopVLlKXnsS0cHh8bPUto6WIM=
-github.com/ngicks/und v1.0.0-alpha4.0.20241022030507-af13b0599c36/go.mod h1:1udS2lIWwVwFA2TvsZs9gz5o01fyTkgR4wsThinKX/g=
 github.com/ngicks/und v1.0.0-alpha4.0.20241022033400-ced5b33f4388 h1:P6/lfp7L2Cn7RYTTUM0m9lvlV+df4Mj6ySHKr5r4r4U=
 github.com/ngicks/und v1.0.0-alpha4.0.20241022033400-ced5b33f4388/go.mod h1:1udS2lIWwVwFA2TvsZs9gz5o01fyTkgR4wsThinKX/g=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
