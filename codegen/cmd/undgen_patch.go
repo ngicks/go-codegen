@@ -5,18 +5,11 @@ package cmd
 
 import (
 	"fmt"
-	"log/slog"
-	"maps"
-	"os"
-	"path/filepath"
-	"slices"
 
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
-	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/undgen"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/spf13/cobra"
-	"golang.org/x/tools/go/packages"
 )
 
 // undgenPatchCmd represents the patch command
@@ -34,131 +27,45 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fset := cmd.Flags()
-
-		dir, err := fset.GetString("dir")
+		dir, pkg, verbose, dry, err := undCommonOpts(fset, false)
 		if err != nil {
 			return err
 		}
-		if dir != "" {
-			dir, err = filepath.Abs(dir)
-			if err != nil {
-				return err
-			}
-		}
-
-		pkg, err := fset.GetString("pkg")
-		if err != nil {
-			return err
-		}
-
-		verbose, err := fset.GetBool("verbose")
-		if err != nil {
-			return err
-		}
-
-		test, err := fset.GetBool("test")
-		if err != nil {
-			return err
-		}
-
-		types := fset.Args()
-		if len(types) == 0 {
-			return fmt.Errorf("no types are specified")
-		}
+		typeNames := fset.Args()
 
 		ctx := cmd.Context()
 
-		cfg := &packages.Config{
-			Mode: packages.NeedName |
-				packages.NeedTypes |
-				packages.NeedSyntax |
-				packages.NeedTypesInfo |
-				packages.NeedTypesSizes,
-			Context: ctx,
-			Dir:     dir,
-		}
-
-		if verbose {
-			cfg.Logf = func(format string, args ...interface{}) {
-				fmt.Printf(format, args...)
-			}
-		}
-
-		targetPkg, err := packages.Load(cfg, pkg)
+		targetPkgs, err := loadPkgs(ctx, dir, pkg, false, verbose)
 		if err != nil {
 			return err
 		}
 
-		if len(targetPkg) == 0 {
-			return fmt.Errorf("package not loaded: wrong import pattern?")
-		}
-		if len(targetPkg) > 1 {
-			return fmt.Errorf("2 or more packages are loaded: must be only one")
-		}
+		const suffix = ".und_patch"
+		writer, deferred := createWriter(dir, suffix, verbose, dry)
+		defer deferred()
 
-		writerOpts := []suffixwriter.Option{
-			suffixwriter.WithCwd(dir),
-		}
-		if verbose {
-			slog.SetDefault(
-				slog.New(
-					slog.NewTextHandler(
-						os.Stdout,
-						&slog.HandlerOptions{
-							Level: slog.LevelDebug,
-						},
-					),
-				),
-			)
-			fmt.Printf("\n\n")
-			fmt.Printf("matched packages: len(pkgs) == %d\n", len(targetPkg))
-			for _, pkg := range targetPkg {
-				fmt.Printf("path=%s\n", pkg.PkgPath)
-			}
-			fmt.Printf("generating for: %#v\n", types)
-			writerOpts = append(
-				writerOpts,
-				suffixwriter.WithLogf(
-					func(format string, args ...any) {
-						fmt.Printf(format, args...)
-					},
-				),
-			)
-		}
-		suffix := ".und_patch"
-		writer := suffixwriter.New(suffix, writerOpts...)
-		if test {
-			testWriter := suffixwriter.NewTestWriter(suffix, writerOpts...)
-			writer = testWriter.Writer
-			defer func() {
-				results := testWriter.Results()
-				for _, k := range slices.Sorted(maps.Keys(results)) {
-					result := results[k]
-					fmt.Printf("%q:\n%s\n\n", k, result)
-				}
-			}()
-		}
 		err = hiter.TryForEach(
 			func(s string) {
-				if verbose {
-					fmt.Printf("removed %q\n", s)
+				if verbose || dry {
+					if dry {
+						fmt.Printf("\t[DRY]: removed %q\n", s)
+					} else {
+						fmt.Printf("\tremoved %q\n", s)
+					}
 				}
 			},
-			pkgsutil.RemoveSuffixedFiles([]*packages.Package{targetPkg[0]}, dir, suffix),
+			pkgsutil.RemoveSuffixedFiles(targetPkgs, dir, suffix, dry),
 		)
 		if err != nil {
 			return err
 		}
-		return undgen.GeneratePatcher(writer, verbose, targetPkg[0], undgen.ConstUnd.Imports, types...)
+
+		return undgen.GeneratePatcher(writer, verbose, targetPkgs[0], undgen.ConstUnd.Imports, typeNames...)
 	},
 }
 
 func init() {
 	fset := undgenPatchCmd.Flags()
-	fset.StringP("dir", "d", "", "directory under which target package is located. If empty cwd will be used.")
-	fset.StringP("pkg", "p", "", "target package name. relative to dir. only single package will be used so if should not be ./...")
-	fset.BoolP("verbose", "v", false, "verbose logs")
-	fset.Bool("test", false, "only writes test")
-	_ = undgenPatchCmd.MarkFlagRequired("pkg")
+	undCommonFlags(fset, false)
 	undgenCmd.AddCommand(undgenPatchCmd)
 }

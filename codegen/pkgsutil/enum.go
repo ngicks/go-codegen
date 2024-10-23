@@ -29,7 +29,7 @@ func EnumeratePackages(pkgs []*packages.Package) iter.Seq2[*packages.Package, it
 	}
 }
 
-func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string) iter.Seq2[string, error] {
+func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string, dry bool) iter.Seq2[string, error] {
 	return func(yield func(string, error) bool) {
 		if cwd == "" {
 			var err error
@@ -71,15 +71,21 @@ func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string) iter.Seq2
 
 				withoutExt, _ := strings.CutSuffix(rel, filepath.Ext(rel))
 				if strings.HasSuffix(withoutExt, suffix) {
-					err = os.Remove(rel)
-					if errors.Is(err, fs.ErrNotExist) {
-						err = nil
-					}
-					if err != nil {
-						err = fmt.Errorf("remove %q: %w", rel, err)
-					}
-					if !yield(rel, err) {
-						return
+					if dry {
+						if !yield(rel, nil) {
+							return
+						}
+					} else {
+						err = os.Remove(rel)
+						if errors.Is(err, fs.ErrNotExist) {
+							err = nil
+						}
+						if err != nil {
+							err = fmt.Errorf("remove %q: %w", rel, err)
+						}
+						if !yield(rel, err) {
+							return
+						}
 					}
 				}
 			}

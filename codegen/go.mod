@@ -8,6 +8,7 @@ require (
 	github.com/ngicks/go-iterator-helper v0.0.15
 	github.com/ngicks/und v1.0.0-alpha4.0.20241022033400-ced5b33f4388
 	github.com/spf13/cobra v1.8.1
+	github.com/spf13/pflag v1.0.5
 	golang.org/x/tools v0.26.0
 	gotest.tools/v3 v3.5.1
 )
@@ -15,7 +16,6 @@ require (
 require (
 	github.com/go-json-experiment/json v0.0.0-20240815175050-ebd3a8989ca1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
 	golang.org/x/mod v0.21.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 )
