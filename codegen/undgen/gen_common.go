@@ -6,6 +6,8 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+
+	"github.com/dave/dst"
 )
 
 func printPackage(w io.Writer, af *ast.File) error {
@@ -45,4 +47,13 @@ func printImport(w io.Writer, af *ast.File, fset *token.FileSet) error {
 		}
 	}
 	return nil
+}
+
+// returns *struct{}
+func startStructExpr() *dst.StarExpr {
+	return &dst.StarExpr{
+		X: &dst.StructType{
+			Fields: &dst.FieldList{Opening: true, Closing: true},
+		},
+	}
 }

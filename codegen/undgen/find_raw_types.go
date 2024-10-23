@@ -232,6 +232,15 @@ type RawMatchedType struct {
 	Field []MatchedField
 }
 
+func (ty RawMatchedType) FieldByName(name string) (MatchedField, bool) {
+	for _, f := range ty.Field {
+		if f.Name == name {
+			return f, true
+		}
+	}
+	return MatchedField{}, false
+}
+
 type MatchedField struct {
 	Pos  int
 	Name string

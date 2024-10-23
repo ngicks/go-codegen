@@ -205,3 +205,12 @@ func (i importDecls) MatchTy(path string, name string) (TargetType, bool) {
 	}
 	return TargetType{}, false
 }
+
+func (i importDecls) MatchSelector(left, right string) (TargetType, bool) {
+	for ident, ti := range i.identToImport {
+		if ident == left && slices.Contains(ti.Types, right) {
+			return TargetType{ti.ImportPath, right}, true
+		}
+	}
+	return TargetType{}, false
+}
