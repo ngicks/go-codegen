@@ -44,7 +44,13 @@ func GeneratePatcher(
 			slog.Any("names", targetTypeNames),
 		)
 	}
-	for data, err := range generatePatcherType(pkg, imports, targetTypeNames...) {
+	for data, err := range xiter.Map2(
+		wrapNonUndFields,
+		generatorIter(
+			imports,
+			findTypes(pkg, targetTypeNames...),
+		),
+	) {
 		if err != nil {
 			return err
 		}
@@ -148,28 +154,16 @@ type methodGenSet struct {
 
 type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, typeInfo types.Object, matchedFields RawMatchedType, imports importDecls, typeSuffix string) error
 
-func generatePatcherType(pkg *packages.Package, imports []TargetImport, targetTypeNames ...string) iter.Seq2[replaceData, error] {
-	return func(yield func(replaceData, error) bool) {
-		for data, err := range generatorIter(
-			imports,
-			findTypes(pkg, targetTypeNames...),
-		) {
-			if err != nil {
-				if !yield(data, err) {
-					return
-				}
-				continue
-			}
-			for i, ts := range hiter.Enumerate(data.targets.typeSpecs()) {
-				wrapNonUndFieldsWithSliceUnd(ts, data.targets[i].replacerPerTypeData, data.importMap)
-			}
-			addMissingImports(data.df, data.importMap)
-
-			if !yield(data, nil) {
-				return
-			}
-		}
+func wrapNonUndFields(data replaceData, err error) (replaceData, error) {
+	if err != nil {
+		return data, err
 	}
+	for i, ts := range hiter.Enumerate(data.targets.typeSpecs()) {
+		wrapNonUndFieldsWithSliceUnd(ts, data.targets[i].replacerPerTypeData, data.importMap)
+	}
+	addMissingImports(data.df, data.importMap)
+
+	return data, nil
 }
 
 func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, importMap importDecls) {
