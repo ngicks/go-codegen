@@ -38,6 +38,12 @@ func GeneratePatcher(
 	imports []TargetImport,
 	targetTypeNames ...string,
 ) error {
+	if verbose {
+		slog.Debug(
+			"target type names",
+			slog.Any("names", targetTypeNames),
+		)
+	}
 	for data, err := range generatePatcherType(pkg, imports, targetTypeNames...) {
 		if err != nil {
 			return err
