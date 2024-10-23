@@ -403,7 +403,11 @@ func isRawType(
 ) (mf MatchedField) {
 	switch x := ty.(type) {
 	case *types.Named:
-		pkgPath, name := x.Obj().Pkg().Path(), x.Obj().Name()
+		if x.Obj().Pkg() == nil {
+			return MatchedField{}
+		}
+		pkgPath := x.Obj().Pkg().Path()
+		name := x.Obj().Name()
 		targetTy, ok := imports.MatchTy(pkgPath, name)
 		if ok {
 			filed := MatchedField{
