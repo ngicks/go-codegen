@@ -21,6 +21,8 @@ import (
 )
 
 //go:generate go run ../ undgen plain --pkg ./internal/targettypes/ --pkg ./internal/targettypes/sub --pkg ./internal/targettypes/sub2
+//go:generate go run ../ undgen plain --pkg ./internal/patchtarget/...
+//go:generate go run ../ undgen plain --pkg ./internal/validatortarget/...
 
 func GeneratePlain(
 	sourcePrinter *suffixwriter.Writer,
