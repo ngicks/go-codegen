@@ -1,7 +1,6 @@
 package undgen
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -344,15 +343,14 @@ func generateFromValue(
 	matchedFields RawMatchedType,
 	imports importDecls,
 	patcherTypeSuffix string,
-) error {
+) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, patcherTypeSuffix) + printTypeParamVars(ts)
 
-	bufw := bufio.NewWriter(w)
-
-	printf := func(format string, args ...any) {
-		fmt.Fprintf(bufw, format, args...)
-	}
+	printf, flush := bufPrintf(w)
+	defer func() {
+		err = flush()
+	}()
 
 	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
 	printf("func (p *%s) FromValue(v %s) {\n", patchTypeName, orgTypeName)
@@ -397,7 +395,7 @@ func generateFromValue(
 	printf("\t}\n")
 	printf("}\n\n")
 
-	return bufw.Flush()
+	return
 }
 
 // generates methods on the patch type
@@ -415,15 +413,14 @@ func generateToValue(
 	matchedFields RawMatchedType,
 	imports importDecls,
 	patcherTypeSuffix string,
-) error {
+) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, patcherTypeSuffix) + printTypeParamVars(ts)
 
-	bufw := bufio.NewWriter(w)
-
-	printf := func(format string, args ...any) {
-		fmt.Fprintf(bufw, format, args...)
-	}
+	printf, flush := bufPrintf(w)
+	defer func() {
+		err = flush()
+	}()
 
 	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
 	printf("func (p %s) ToValue() %s {\n", patchTypeName, orgTypeName)
@@ -458,7 +455,7 @@ func generateToValue(
 	printf("\t}\n")
 	printf("}\n\n")
 
-	return bufw.Flush()
+	return
 }
 
 // generates methods on the patch type
@@ -476,14 +473,13 @@ func generateMerge(
 	matchedFields RawMatchedType,
 	imports importDecls,
 	_ /*patcherTypeSuffix*/ string,
-) error {
+) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 
-	bufw := bufio.NewWriter(w)
-
-	printf := func(format string, args ...any) {
-		fmt.Fprintf(bufw, format, args...)
-	}
+	printf, flush := bufPrintf(w)
+	defer func() {
+		err = flush()
+	}()
 
 	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
 	printf("func (p %[1]s) Merge(r %[1]s) %[1]s {\n", patchTypeName)
@@ -527,7 +523,7 @@ func generateMerge(
 	printf("\t}\n")
 	printf("}\n\n")
 
-	return bufw.Flush()
+	return
 }
 
 // generates methods on the patch type
@@ -545,15 +541,14 @@ func generateApplyPatch(
 	_ /*matchedFields*/ RawMatchedType,
 	_ /*imports*/ importDecls,
 	patcherTypeSuffix string,
-) error {
+) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, patcherTypeSuffix) + printTypeParamVars(ts)
 
-	bufw := bufio.NewWriter(w)
-
-	printf := func(format string, args ...any) {
-		fmt.Fprintf(bufw, format, args...)
-	}
+	printf, flush := bufPrintf(w)
+	defer func() {
+		err = flush()
+	}()
 
 	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated) // note this is generated method.
 	printf("func (p %[1]s) ApplyPatch(v %[2]s) %[2]s {\n", patchTypeName, orgTypeName)
@@ -563,5 +558,5 @@ func generateApplyPatch(
 	printf("\treturn merged.ToValue()\n")
 	printf("}\n\n")
 
-	return bufw.Flush()
+	return
 }

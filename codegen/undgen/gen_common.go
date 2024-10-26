@@ -1,6 +1,7 @@
 package undgen
 
 import (
+	"bufio"
 	"fmt"
 	"go/ast"
 	"go/printer"
@@ -56,4 +57,13 @@ func startStructExpr() *dst.StarExpr {
 			Fields: &dst.FieldList{Opening: true, Closing: true},
 		},
 	}
+}
+
+func bufPrintf(w io.Writer) (func(format string, args ...any), func() error) {
+	bufw := bufio.NewWriter(w)
+	return func(format string, args ...any) {
+			fmt.Fprintf(bufw, format, args...)
+		}, func() error {
+			return bufw.Flush()
+		}
 }

@@ -107,9 +107,14 @@ func generateUndValidate(
 
 	buf := new(bytes.Buffer)
 
-	printf := func(format string, args ...any) {
-		fmt.Fprintf(buf, format, args...)
-	}
+	printf, flush := bufPrintf(w)
+	defer func() {
+		fErr := flush()
+		if err != nil {
+			return
+		}
+		err = fErr
+	}()
 
 	// true only when validator is meaningful.
 	var shouldPrint bool
