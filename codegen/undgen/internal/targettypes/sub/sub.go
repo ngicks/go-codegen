@@ -1,7 +1,7 @@
 package sub
 
 import (
-	"github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub2"
+	"github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub2"
 	"github.com/ngicks/und/option"
 )
 

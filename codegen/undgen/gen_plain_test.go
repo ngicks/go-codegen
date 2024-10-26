@@ -18,9 +18,9 @@ func TestGenPlain(t *testing.T) {
 		true,
 		slices.Collect(
 			xiter.Filter(func(pkg *packages.Package) bool {
-				return pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/erroneous"
+				return pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/erroneous"
 			},
-				slices.Values(testdataPackages),
+				slices.Values(targettypesPackages),
 			),
 		),
 		ConstUnd.Imports,

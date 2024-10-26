@@ -27,8 +27,8 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen patch --pkg ./testdata/patchtarget All Ignored Hmm NameOverlapping
-//go:generate go run ../ undgen patch --pkg ./testdata/targettypes All WithTypeParam A B IncludesSubTarget
+//go:generate go run ../ undgen patch --pkg ./internal/patchtarget All Ignored Hmm NameOverlapping
+//go:generate go run ../ undgen patch --pkg ./internal/targettypes All WithTypeParam A B IncludesSubTarget
 
 func GeneratePatcher(
 	sourcePrinter *suffixwriter.Writer,

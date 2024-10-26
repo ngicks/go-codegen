@@ -9,21 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	// This _ import is needed since packages under ./testdata/targettypes import this module.
-	// Files under the directory named "testdata" is totally ignored by go tools;
-	// `go mod tidy` would not add the module to the go.mod.
-	// and also, packages.Load relies on go tools.
-	// All packages loaded are derived from dependency graph of the module where the packages.Load is invoked on.
-	// Keep this import and keep the module noted in go.mod.
-	"github.com/ngicks/go-codegen/codegen/structtag"
-	_ "github.com/ngicks/und"
-	"github.com/ngicks/und/option"
-	"github.com/ngicks/und/undtag"
-
 	gocmp "github.com/google/go-cmp/cmp"
+	"github.com/ngicks/go-codegen/codegen/structtag"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/hiter/iterable"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
+	"github.com/ngicks/und/option"
+	"github.com/ngicks/und/undtag"
 	"golang.org/x/tools/go/packages"
 	"gotest.tools/v3/assert"
 )
@@ -31,8 +23,8 @@ import (
 func Test_isImplementor(t *testing.T) {
 	var foo, fooPlain, bar, nonCyclic *types.Named
 
-	for _, pkg := range testdataPackages {
-		if pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub" {
+	for _, pkg := range targettypesPackages {
+		if pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub" {
 			continue
 		}
 		for _, def := range pkg.TypesInfo.Defs {
@@ -72,13 +64,13 @@ func Test_isImplementor(t *testing.T) {
 func Test_parseImports(t *testing.T) {
 	var file1, file2 *ast.File
 P:
-	for _, p := range testdataPackages {
+	for _, p := range targettypesPackages {
 		for _, f := range p.Syntax {
 			fPath := p.Fset.Position(f.FileStart)
-			if strings.HasSuffix(fPath.Filename, "undgen/testdata/targettypes/ty1.go") {
+			if strings.HasSuffix(fPath.Filename, "undgen/internal/targettypes/ty1.go") {
 				file1 = f
 			}
-			if strings.HasSuffix(fPath.Filename, "undgen/testdata/targettypes/ty2.go") {
+			if strings.HasSuffix(fPath.Filename, "undgen/internal/targettypes/ty2.go") {
 				file2 = f
 			}
 			if file1 != nil && file2 != nil {
@@ -142,7 +134,7 @@ P:
 
 func TestFindTargetType_error(t *testing.T) {
 	result, err := FindRawTypes(
-		testdataPackages,
+		targettypesPackages,
 		ConstUnd.Imports,
 		ConstUnd.ConversionMethod,
 	)
@@ -203,9 +195,9 @@ func TestFindTargetType(t *testing.T) {
 	result, err := FindRawTypes(
 		slices.Collect(
 			xiter.Filter(func(pkg *packages.Package) bool {
-				return pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/erroneous"
+				return pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/erroneous"
 			},
-				slices.Values(testdataPackages),
+				slices.Values(targettypesPackages),
 			),
 		),
 		ConstUnd.Imports,
@@ -218,12 +210,12 @@ func TestFindTargetType(t *testing.T) {
 		panic(err)
 	}
 
-	pkg := result["github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes"]
-	if pkg.Pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes" {
+	pkg := result["github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes"]
+	if pkg.Pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes" {
 		t.Errorf("wrong path: %s", pkg.Pkg.PkgPath)
 	}
 
-	f := pkg.Files[filepath.Join(cwd, filepath.FromSlash("testdata/targettypes/ty1.go"))]
+	f := pkg.Files[filepath.Join(cwd, filepath.FromSlash("internal/targettypes/ty1.go"))]
 	types := hiter.Collect2(iterable.MapSorted[int, RawMatchedType](f.Types).Iter2())
 	deepEqualRawMatchedType(
 		t,
@@ -305,7 +297,7 @@ func TestFindTargetType(t *testing.T) {
 		types,
 	)
 
-	f = pkg.Files[filepath.Join(cwd, filepath.FromSlash("testdata/targettypes/ty2.go"))]
+	f = pkg.Files[filepath.Join(cwd, filepath.FromSlash("internal/targettypes/ty2.go"))]
 	types = hiter.Collect2(iterable.MapSorted[int, RawMatchedType](f.Types).Iter2())
 
 	deepEqualRawMatchedType(
@@ -405,7 +397,7 @@ func TestFindTargetType(t *testing.T) {
 							Name: "Foo",
 							As:   MatchedAsImplementor,
 							Type: TargetType{
-								ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub",
+								ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub",
 								Name:       "Baz",
 							},
 						},
@@ -423,7 +415,7 @@ func TestFindTargetType(t *testing.T) {
 							Name: "Foo",
 							As:   MatchedAsImplementor,
 							Type: TargetType{
-								ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub",
+								ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub",
 								Name:       "Foo",
 							},
 						},
@@ -444,7 +436,7 @@ func TestFindTargetType(t *testing.T) {
 							Elem: &MatchedField{
 								As: MatchedAsImplementor,
 								Type: TargetType{
-									ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub",
+									ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub",
 									Name:       "Foo",
 								},
 							},
@@ -463,7 +455,7 @@ func TestFindTargetType(t *testing.T) {
 							Name: "Foo",
 							As:   MatchedAsImplementor,
 							Type: TargetType{
-								ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub",
+								ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub",
 								Name:       "IncludesImplementor",
 							},
 						},
@@ -474,12 +466,12 @@ func TestFindTargetType(t *testing.T) {
 		types,
 	)
 
-	sub := result["github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub"]
-	if sub.Pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub" {
+	sub := result["github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub"]
+	if sub.Pkg.PkgPath != "github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub" {
 		t.Errorf("wrong path: %s", sub.Pkg.PkgPath)
 	}
 
-	f = sub.Files[filepath.Join(cwd, filepath.FromSlash("testdata/targettypes/sub/sub.go"))]
+	f = sub.Files[filepath.Join(cwd, filepath.FromSlash("internal/targettypes/sub/sub.go"))]
 	types = hiter.Collect2(iterable.MapSorted[int, RawMatchedType](f.Types).Iter2())
 
 	deepEqualRawMatchedType(
@@ -511,7 +503,7 @@ func TestFindTargetType(t *testing.T) {
 							Name: "Foo",
 							As:   MatchedAsImplementor,
 							Type: TargetType{
-								ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub2",
+								ImportPath: "github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub2",
 								Name:       "Foo",
 							},
 						},

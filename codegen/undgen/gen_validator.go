@@ -19,8 +19,8 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen validator --pkg ./testdata/targettypes/ --pkg ./testdata/targettypes/sub --pkg ./testdata/targettypes/sub2
-//go:generate go run ../ undgen validator --pkg ./testdata/validatortarget/...
+//go:generate go run ../ undgen validator --pkg ./internal/targettypes/ --pkg ./internal/targettypes/sub --pkg ./internal/targettypes/sub2
+//go:generate go run ../ undgen validator --pkg ./internal/validatortarget/...
 
 func GenerateValidator(
 	sourcePrinter *suffixwriter.Writer,

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	gocmp "github.com/google/go-cmp/cmp"
-	"github.com/ngicks/go-codegen/codegen/undgen/testdata/patchtarget"
+	"github.com/ngicks/go-codegen/codegen/undgen/internal/patchtarget"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/elastic"
 	"github.com/ngicks/und/option"

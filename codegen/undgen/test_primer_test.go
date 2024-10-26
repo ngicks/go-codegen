@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	testdataPackages    []*packages.Package
+	targettypesPackages []*packages.Package
 	patchtargetPackages []*packages.Package
 	validatorPackages   []*packages.Package
 )
@@ -31,15 +31,15 @@ func init() {
 		// },
 	}
 	var err error
-	testdataPackages, err = packages.Load(cfg, "./testdata/targettypes/...")
+	targettypesPackages, err = packages.Load(cfg, "./internal/targettypes/...")
 	if err != nil {
 		panic(err)
 	}
-	patchtargetPackages, err = packages.Load(cfg, "./testdata/patchtarget/...")
+	patchtargetPackages, err = packages.Load(cfg, "./internal/patchtarget/...")
 	if err != nil {
 		panic(err)
 	}
-	validatorPackages, err = packages.Load(cfg, "./testdata/validatortarget/...")
+	validatorPackages, err = packages.Load(cfg, "./internal/validatortarget/...")
 	if err != nil {
 		panic(err)
 	}

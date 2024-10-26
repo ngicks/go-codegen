@@ -1,7 +1,7 @@
 package targettypes
 
 import (
-	"github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub"
+	"github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/option"
 	"github.com/ngicks/und/sliceund"
