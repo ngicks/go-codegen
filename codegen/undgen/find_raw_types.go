@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"slices"
 
+	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/structtag"
 	"github.com/ngicks/und/option"
 	"github.com/ngicks/und/undtag"
@@ -294,6 +295,9 @@ func findRawTypes(
 	}
 
 	for pkg, seq := range enumerateTypeSpec(pkgs) {
+		if err := pkgsutil.LoadError(pkg); err != nil {
+			return newMatched, err
+		}
 		matchedPkg := newMatched[pkg.PkgPath]
 		matchedPkg.lazyInit(pkg)
 

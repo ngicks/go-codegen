@@ -8,8 +8,10 @@ import (
 	"iter"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
+	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -40,12 +42,18 @@ func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string, dry bool)
 			}
 		}
 		for pkg, seq := range EnumeratePackages(pkgs) {
+			if err := LoadError(pkg); err != nil {
+				if !yield("", err) {
+					return
+				}
+				continue
+			}
 			for file := range seq {
 				filename := pkg.Fset.Position(file.FileStart).Filename
 
 				rel, err := filepath.Rel(cwd, filename)
 				if err != nil {
-					yield("", err)
+					yield("", fmt.Errorf("cwd = %q, filename = %q: %w", cwd, filename, err))
 					return
 				}
 
@@ -91,4 +99,20 @@ func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string, dry bool)
 			}
 		}
 	}
+}
+
+func LoadError(pkg *packages.Package) error {
+	if len(pkg.Errors) > 0 {
+		format, _ := strings.CutSuffix(strings.Repeat("%w, ", len(pkg.Errors)), ", ")
+		return fmt.Errorf(
+			format,
+			slices.Collect(
+				xiter.Map(
+					func(e packages.Error) any { return e },
+					slices.Values(pkg.Errors),
+				),
+			)...,
+		)
+	}
+	return nil
 }
