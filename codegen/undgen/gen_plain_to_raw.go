@@ -144,7 +144,7 @@ func optionToRaw(undOpt undtag.UndOpt, typeParam string, importMap importDecls) 
 func undToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) func(ident string) string {
 	convertIdent, _ := importMap.Ident(UndPathConversion)
 	undIdent, _ := importMap.Ident(UndTargetTypeUnd.ImportPath)
-	isSlice := mf.Type == UndTargetTypeSliceUnd || mf.Type == UndTargetTypeSliceElastic
+	isSlice := targetTypeIsSlice(mf.Type)
 	if isSlice {
 		undIdent, _ = importMap.Ident(UndTargetTypeSliceUnd.ImportPath)
 	}
@@ -188,7 +188,7 @@ func elasticToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, impor
 	optionIdent, _ := importMap.Ident(UndTargetTypeOption.ImportPath)
 	convertIdent, _ := importMap.Ident(UndPathConversion)
 
-	isSlice := mf.Type == UndTargetTypeSliceElastic
+	isSlice := targetTypeIsSlice(mf.Type)
 
 	elasticIdent, _ := importMap.Ident(UndTargetTypeElastic.ImportPath)
 	if isSlice {

@@ -257,27 +257,6 @@ func generateUndValidate(
 	return
 }
 
-func importIdent(ty TargetType, imports importDecls) string {
-	optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
-	undImportIdent, _ := imports.Ident(UndTargetTypeUnd.ImportPath)
-	sliceUndImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
-	elasticImportIdent, _ := imports.Ident(UndTargetTypeElastic.ImportPath)
-	sliceElasticImportIdent, _ := imports.Ident(UndTargetTypeSliceElastic.ImportPath)
-	switch ty {
-	case UndTargetTypeElastic:
-		return elasticImportIdent
-	case UndTargetTypeSliceElastic:
-		return sliceElasticImportIdent
-	case UndTargetTypeUnd:
-		return undImportIdent
-	case UndTargetTypeSliceUnd:
-		return sliceUndImportIdent
-	case UndTargetTypeOption:
-		return optionImportIdent
-	}
-	return ""
-}
-
 type rawTypeReplacerData struct {
 	filename  string
 	af        *ast.File

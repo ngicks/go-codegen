@@ -164,7 +164,7 @@ func undToPlain(undOpt undtag.UndOpt, importMap importDecls) func(ident string) 
 func elasticToPlain(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) func(ident string) string {
 	optionIdent, _ := importMap.Ident(UndTargetTypeOption.ImportPath)
 	convertIdent, _ := importMap.Ident(UndPathConversion)
-	isSlice := mf.Type == UndTargetTypeSliceElastic || mf.Type == UndTargetTypeSliceUnd
+	isSlice := targetTypeIsSlice(mf.Type)
 	undIdent, _ := importMap.Ident(UndTargetTypeUnd.ImportPath)
 	if isSlice {
 		undIdent, _ = importMap.Ident(UndTargetTypeSliceUnd.ImportPath)

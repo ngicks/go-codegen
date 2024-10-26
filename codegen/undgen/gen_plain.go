@@ -240,7 +240,7 @@ func unwrapUndFieldsDirect(field *dst.Field, mf MatchedField, undOpt undtag.UndO
 			field.Type = startStructExpr()
 		}
 	case UndTargetTypeElastic, UndTargetTypeSliceElastic:
-		isSlice := mf.Type == UndTargetTypeSliceElastic
+		isSlice := targetTypeIsSlice(mf.Type)
 
 		// early return if nothing to change
 		if (undOpt.States().IsSomeAnd(func(s undtag.StateValidator) bool {

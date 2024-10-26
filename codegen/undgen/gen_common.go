@@ -101,3 +101,24 @@ func printTypeParamForField(fset *token.FileSet, ts *ast.TypeSpec, fieldName str
 	}
 	return "", fmt.Errorf("field not found: %q", fieldName)
 }
+
+func importIdent(ty TargetType, imports importDecls) string {
+	optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
+	undImportIdent, _ := imports.Ident(UndTargetTypeUnd.ImportPath)
+	sliceUndImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
+	elasticImportIdent, _ := imports.Ident(UndTargetTypeElastic.ImportPath)
+	sliceElasticImportIdent, _ := imports.Ident(UndTargetTypeSliceElastic.ImportPath)
+	switch ty {
+	case UndTargetTypeElastic:
+		return elasticImportIdent
+	case UndTargetTypeSliceElastic:
+		return sliceElasticImportIdent
+	case UndTargetTypeUnd:
+		return undImportIdent
+	case UndTargetTypeSliceUnd:
+		return sliceUndImportIdent
+	case UndTargetTypeOption:
+		return optionImportIdent
+	}
+	return ""
+}
