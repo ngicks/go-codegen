@@ -158,14 +158,14 @@ func undToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap
 			return fmt.Sprintf(
 				"%s.OptionUnd%s(%t, %s)",
 				convertIdent,
-				orIsSlice("", "Slice", isSlice),
+				sliceSuffix(isSlice),
 				s.Null,
 				ident,
 			)
 		}
 	case s.Null && s.Und:
 		return func(ident string) string {
-			return fmt.Sprintf("%s.NullishUnd%s[%s](%s)", convertIdent, orIsSlice("", "Slice", isSlice), typeParam, ident)
+			return fmt.Sprintf("%s.NullishUnd%s[%s](%s)", convertIdent, sliceSuffix(isSlice), typeParam, ident)
 		}
 	case s.Def:
 		return func(ident string) string {
@@ -238,7 +238,7 @@ func elasticToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, impor
 		switch s := states; {
 		case s.Null && s.Und:
 			return func(ident string) string {
-				return fmt.Sprintf("%s.NullishUnd%s[%s](%s)", convertIdent, orIsSlice("", "Slice", isSlice), typeParam, ident)
+				return fmt.Sprintf("%s.NullishUnd%s[%s](%s)", convertIdent, sliceSuffix(isSlice), typeParam, ident)
 			}
 		case s.Null || s.Und:
 			if s.Null {
@@ -305,7 +305,7 @@ func elasticToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, impor
 				wrappers = append(wrappers, func(val string) string {
 					return fmt.Sprintf(
 						"%s.Nullify%s(%s)",
-						convertIdent, orIsSlice("", "Slice", isSlice), val,
+						convertIdent, sliceSuffix(isSlice), val,
 					)
 				})
 			}
@@ -318,7 +318,7 @@ func elasticToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, impor
 		wrappers = append(wrappers, func(val string) string {
 			return fmt.Sprintf(
 				"%s.WrapLen1%s(%s)",
-				convertIdent, orIsSlice("", "Slice", isSlice), val,
+				convertIdent, sliceSuffix(isSlice), val,
 			)
 		})
 	}

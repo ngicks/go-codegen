@@ -327,13 +327,6 @@ func sliceSuffix(isSlice bool) string {
 	return ""
 }
 
-func orIsSlice[T any](l, r T, isSlice bool) T {
-	if !isSlice {
-		return l
-	}
-	return r
-}
-
 func suffixSlice(s string, isSlice bool) string {
 	if isSlice {
 		s += "Slice"

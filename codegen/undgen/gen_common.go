@@ -85,7 +85,7 @@ func printTypeParamForField(fset *token.FileSet, ts *ast.TypeSpec, fieldName str
 		default:
 			return "", nil
 		case *ast.IndexExpr:
-			node = t // this includes field type itself
+			node = t // this includes field type itself; IndexExpr is X[Index]
 		case *ast.IndexListExpr:
 			node = t
 		}
@@ -95,6 +95,8 @@ func printTypeParamForField(fset *token.FileSet, ts *ast.TypeSpec, fieldName str
 			return "", err
 		}
 		s := buf.String()
+		// Instead of removing non-index part from node(it might interfere with other part of code)
+		// just trim down output string.
 		return s[strings.Index(s, "[")+1 : len(s)-1], nil
 	}
 	return "", fmt.Errorf("field not found: %q", fieldName)

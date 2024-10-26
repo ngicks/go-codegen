@@ -163,10 +163,12 @@ func undToPlain(undOpt undtag.UndOpt, importMap importDecls) func(ident string) 
 
 func elasticToPlain(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) func(ident string) string {
 	optionIdent, _ := importMap.Ident(UndTargetTypeOption.ImportPath)
-	undIdent, _ := importMap.Ident(UndTargetTypeUnd.ImportPath)
-	sliceUndIdent, _ := importMap.Ident(UndTargetTypeSliceUnd.ImportPath)
 	convertIdent, _ := importMap.Ident(UndPathConversion)
 	isSlice := mf.Type == UndTargetTypeSliceElastic
+	undIdent, _ := importMap.Ident(UndTargetTypeUnd.ImportPath)
+	if isSlice {
+		undIdent, _ = importMap.Ident(UndTargetTypeSliceUnd.ImportPath)
+	}
 	// very really simple case.
 	if undOpt.States().IsSome() && undOpt.Len().IsNone() && undOpt.Values().IsNone() {
 		switch s := undOpt.States().Value(); {
@@ -177,7 +179,7 @@ func elasticToPlain(mf MatchedField, undOpt undtag.UndOpt, typeParam string, imp
 		case s.Def && (s.Null || s.Und):
 			return func(ident string) string {
 				return fmt.Sprintf(`%s.UnwrapElastic%s(%s).Unwrap().Value()`,
-					convertIdent, orIsSlice("", "Slice", isSlice), ident,
+					convertIdent, sliceSuffix(isSlice), ident,
 				)
 			}
 		case s.Null && s.Und:
@@ -211,8 +213,8 @@ func elasticToPlain(mf MatchedField, undOpt undtag.UndOpt, typeParam string, imp
 	}
 	// fist, converts Elastic[T] -> Und[[]option.Option[T]]
 	c := func(ident string) string {
-		return fmt.Sprintf(`%s.%s(%s)`,
-			convertIdent, suffixSlice("UnwrapElastic", isSlice), ident,
+		return fmt.Sprintf(`%s.UnwrapElastic%s(%s)`,
+			convertIdent, sliceSuffix(isSlice), ident,
 		)
 	}
 	wrappers := []func(val string) string{}
@@ -234,7 +236,7 @@ func elasticToPlain(mf MatchedField, undOpt undtag.UndOpt, typeParam string, imp
 					 		return out
 						},
 					)`,
-					/*1*/ orIsSlice(undIdent, sliceUndIdent, isSlice),
+					/*1*/ undIdent,
 					/*2*/ val,
 					/*3*/ optionIdent,
 					/*4*/ typeParam,
@@ -267,17 +269,6 @@ func elasticToPlain(mf MatchedField, undOpt undtag.UndOpt, typeParam string, imp
 		switch {
 		case v.Nonnull:
 			if undOpt.Len().IsSomeAnd(func(lv undtag.LenValidator) bool { return lv.Op == undtag.LenOpEqEq }) {
-				/*
-					{{.UndPkg}}.Map(
-						{{.Arg}},
-						func(s [{{.Size}}]{{.OptionPkg}}.Option[{{.TypeParam}}]) (r [{{.Size}}]{{.TypeParam}}) {
-							for i := 0; i < {{.Size}}; i++ {
-								r[i] = s[i].Value()
-							}
-							return
-						},
-					)
-				*/
 				wrappers = append(wrappers, func(val string) string {
 					return fmt.Sprintf(
 						`%[1]s.Map(
@@ -289,7 +280,7 @@ func elasticToPlain(mf MatchedField, undOpt undtag.UndOpt, typeParam string, imp
 								return
 							},
 						)`,
-						/*1*/ orIsSlice(undIdent, sliceUndIdent, isSlice),
+						/*1*/ undIdent,
 						/*2*/ val,
 						/*3*/ undOpt.Len().Value().Len,
 						/*4*/ optionIdent,
@@ -300,7 +291,7 @@ func elasticToPlain(mf MatchedField, undOpt undtag.UndOpt, typeParam string, imp
 				wrappers = append(wrappers, func(val string) string {
 					return fmt.Sprintf(
 						`%s.NonNull%s(%s)`,
-						convertIdent, orIsSlice("", "Slice", isSlice), val,
+						convertIdent, sliceSuffix(isSlice), val,
 					)
 				})
 			}
@@ -311,7 +302,7 @@ func elasticToPlain(mf MatchedField, undOpt undtag.UndOpt, typeParam string, imp
 	// Then when len == 1, convert und.Und[[1]option.Option[T]] or und.Und[[1]T] to und.Und[option.Option[T]], und.Und[T] respectively
 	if undOpt.Len().IsSomeAnd(func(lv undtag.LenValidator) bool { return lv.Op == undtag.LenOpEqEq && lv.Len == 1 }) {
 		wrappers = append(wrappers, func(val string) string {
-			return fmt.Sprintf("%s.UnwrapLen1%s(%s)", convertIdent, orIsSlice("", "Slice", isSlice), val)
+			return fmt.Sprintf("%s.UnwrapLen1%s(%s)", convertIdent, sliceSuffix(isSlice), val)
 		})
 	}
 
