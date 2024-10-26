@@ -366,7 +366,7 @@ func parseUndType(
 				matchedAs.UndTag = option.Some(UndTagParseResult{Err: fmt.Errorf("parsing struct tag for %q: %w", f.Name(), err)})
 			} else {
 				matchedAs.Tags = tags
-				matchedAs.UndTag = option.MapOption(
+				matchedAs.UndTag = option.Map(
 					option.FromOk(reflect.StructTag(underlying.Tag(i)).Lookup(undtag.TagName)),
 					func(tagLit string) UndTagParseResult {
 						tag, err := undtag.ParseOption(tagLit)

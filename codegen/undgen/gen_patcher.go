@@ -379,7 +379,7 @@ func generateFromValue(
 			sliceUndImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
 			optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
 			printf(
-				"%[1]s: %[2]s.MapOrOption("+
+				"%[1]s: %[2]s.MapOr("+
 					"v.%[1]s,"+
 					" %[3]s.Null[%[4]s](),"+
 					"%[3]s.Defined[%[4]s]),\n",
@@ -444,7 +444,7 @@ func generateToValue(
 		case UndTargetTypeOption:
 			// sliceund.Und[T] -> option.Option[T]
 			optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
-			printf("%[1]s: %[2]s.FlattenOption(p.%[1]s.Unwrap()),\n", f.Name(), optionImportIdent)
+			printf("%[1]s: %[2]s.Flatten(p.%[1]s.Unwrap()),\n", f.Name(), optionImportIdent)
 			continue
 		case UndTargetTypeUnd, UndTargetTypeSliceUnd,
 			UndTargetTypeElastic, UndTargetTypeSliceElastic:
