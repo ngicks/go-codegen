@@ -75,26 +75,33 @@ func WithLogf(logf func(format string, args ...any)) Option {
 	}
 }
 
-// openFile opens name suffixed with p.suffix.
-// It returns an error if name is not under cwd.
-func (p *Writer) openFile(name string) (w io.WriteCloser, filename string, err error) {
+func (p *Writer) suffixFilename(name string) (string, error) {
+	var err error
 	if p.cwd == "" {
 		p.cwd, err = os.Getwd()
 		if err != nil {
-			return nil, "", fmt.Errorf("getting cwd: %w", err)
+			return "", fmt.Errorf("getting cwd: %w", err)
 		}
 	}
 	rel, err := filepath.Rel(p.cwd, name)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 
 	if strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
-		return nil, "", fmt.Errorf("generated target file is not under cwd: %s", rel)
+		return "", fmt.Errorf("generated target file is not under cwd: %s", rel)
 	}
 
-	filename = suffixFilename(rel, p.suffix)
+	return suffixFilename(rel, p.suffix), nil
+}
 
+// openFile opens name suffixed with p.suffix.
+// It returns an error if name is not under cwd.
+func (p *Writer) openFile(name string) (w io.WriteCloser, filename string, err error) {
+	filename, err = p.suffixFilename(name)
+	if err != nil {
+		return nil, filename, err
+	}
 	p.logf("open: %s\n", filename)
 	w, err = p.fileFactory(filename)
 	return
@@ -113,6 +120,11 @@ func (p *Writer) Write(ctx context.Context, name string, b []byte) error {
 		return fmt.Errorf("preprocessing %q: %w", name, err)
 	}
 	w, filename, err := p.openFile(name)
+	defer func() {
+		if filename != "" && err != nil {
+			_ = os.Remove(filename)
+		}
+	}()
 	if err != nil {
 		return fmt.Errorf("opening %q(for %q): %w", filename, name, err)
 	}
