@@ -73,7 +73,22 @@ func GeneratePlain(
 			}
 			buf.WriteString("\n\n")
 
-			_, err = generateMethodToPlain(
+			err = generateMethodToPlain(
+				buf,
+				data.dec,
+				dts,
+				ts.Name.Name[:len(ts.Name.Name)-len("Plain")]+printTypeParamVars(dts),
+				ts.Name.Name+printTypeParamVars(dts),
+				s,
+				data.importMap,
+			)
+			if err != nil {
+				return err
+			}
+
+			buf.WriteString("\n\n")
+
+			err = generateMethodToRaw(
 				buf,
 				data.dec,
 				dts,
@@ -303,6 +318,13 @@ func unwrapUndFieldsDirect(field *dst.Field, mf MatchedField, undOpt undtag.UndO
 	}
 
 	return field, modified
+}
+
+func sliceSuffix(isSlice bool) string {
+	if isSlice {
+		return "Slice"
+	}
+	return ""
 }
 
 func orIsSlice[T any](l, r T, isSlice bool) T {
