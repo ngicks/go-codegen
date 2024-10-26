@@ -96,9 +96,10 @@ P:
 			"sliceund": ConstUnd.Imports[3],
 		},
 		missingImports: map[string]TargetImport{
-			"elastic_1": ConstUnd.Imports[4],
-			"undtag":    ConstUnd.Imports[5],
-			"validate":  ConstUnd.Imports[6],
+			"elastic_1":  ConstUnd.Imports[4],
+			"undtag":     ConstUnd.Imports[5],
+			"validate":   ConstUnd.Imports[6],
+			"conversion": ConstUnd.Imports[7],
 		},
 	}
 	assert.DeepEqual(
@@ -122,8 +123,9 @@ P:
 			"sliceElastic": ConstUnd.Imports[4],
 		},
 		missingImports: map[string]TargetImport{
-			"undtag":   ConstUnd.Imports[5],
-			"validate": ConstUnd.Imports[6],
+			"undtag":     ConstUnd.Imports[5],
+			"validate":   ConstUnd.Imports[6],
+			"conversion": ConstUnd.Imports[7],
 		},
 	}
 	assert.DeepEqual(

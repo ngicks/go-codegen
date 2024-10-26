@@ -35,6 +35,10 @@ var ConstUnd = ConstSet{
 			ImportPath: "github.com/ngicks/und/validate",
 			Types:      []string{},
 		},
+		{
+			ImportPath: "github.com/ngicks/und/conversion",
+			Types:      []string{},
+		},
 	},
 	ConversionMethod: ConversionMethodsSet{
 		ToRaw:   "UndRaw",
@@ -73,6 +77,7 @@ var (
 )
 
 const (
-	UndPathUndTag   = "github.com/ngicks/und/undtag"
-	UndPathValidate = "github.com/ngicks/und/validate"
+	UndPathConversion = "github.com/ngicks/und/conversion"
+	UndPathUndTag     = "github.com/ngicks/und/undtag"
+	UndPathValidate   = "github.com/ngicks/und/validate"
 )

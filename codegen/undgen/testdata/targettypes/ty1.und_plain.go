@@ -2,6 +2,7 @@ package targettypes
 
 import (
 	"github.com/ngicks/und"
+	"github.com/ngicks/und/conversion"
 	"github.com/ngicks/und/elastic"
 	"github.com/ngicks/und/option"
 	"github.com/ngicks/und/sliceund"
@@ -68,9 +69,164 @@ type AllPlain struct {
 	ElaEqEqNonNullNull       option.Option[[3]string] `json:",omitzero" und:"null,values:nonnull,len==3"`
 }
 
+func (v All) UndPlain() AllPlain {
+	return AllPlain{
+		Foo:               v.Foo,
+		Bar:               v.Bar,
+		Baz:               v.Baz,
+		Qux:               v.Qux,
+		UntouchedOpt:      v.UntouchedOpt,
+		UntouchedUnd:      v.UntouchedUnd,
+		UntouchedSliceUnd: v.UntouchedSliceUnd,
+		OptRequired:       v.OptRequired.Value(),
+		OptNullish:        nil,
+		OptDef:            v.OptDef.Value(),
+		OptNull:           nil,
+		OptUnd:            nil,
+		OptDefOrUnd:       v.OptDefOrUnd,
+		OptDefOrNull:      v.OptDefOrNull,
+		OptNullOrUnd:      nil,
+		OptDefOrNullOrUnd: v.OptDefOrNullOrUnd,
+		UndRequired:       v.UndRequired.Value(),
+		UndNullish:        conversion.UndNullish(v.UndNullish),
+		UndDef:            v.UndDef.Value(),
+		UndNull:           nil,
+		UndUnd:            nil,
+		UndDefOrUnd:       v.UndDefOrUnd.Unwrap().Value(),
+		UndDefOrNull:      v.UndDefOrNull.Unwrap().Value(),
+		UndNullOrUnd:      conversion.UndNullish(v.UndNullOrUnd),
+		UndDefOrNullOrUnd: v.UndDefOrNullOrUnd,
+		ElaRequired:       v.ElaRequired.Unwrap().Value(),
+		ElaNullish:        conversion.UndNullish(v.ElaNullish),
+		ElaDef:            v.ElaDef.Unwrap().Value(),
+		ElaNull:           nil,
+		ElaUnd:            nil,
+		ElaDefOrUnd:       conversion.UnwrapElastic(v.ElaDefOrUnd).Unwrap().Value(),
+		ElaDefOrNull:      conversion.UnwrapElastic(v.ElaDefOrNull).Unwrap().Value(),
+		ElaNullOrUnd:      conversion.UndNullish(v.ElaNullOrUnd),
+		ElaDefOrNullOrUnd: v.ElaDefOrNullOrUnd,
+		ElaEqEq: conversion.UnwrapLen1(und.Map(
+			conversion.UnwrapElastic(v.ElaEqEq),
+			func(o []option.Option[string]) (out [1]option.Option[string]) {
+				copy(out[:], o)
+				return out
+			},
+		)).Value(),
+		ElaGr:   conversion.LenNAtLeast(2, conversion.UnwrapElastic(v.ElaGr)).Value(),
+		ElaGrEq: conversion.LenNAtLeast(1, conversion.UnwrapElastic(v.ElaGrEq)).Value(),
+		ElaLe:   conversion.LenNAtMost(0, conversion.UnwrapElastic(v.ElaLe)).Value(),
+		ElaLeEq: conversion.LenNAtMost(1, conversion.UnwrapElastic(v.ElaLeEq)).Value(),
+		ElaEqEquRequired: und.Map(
+			conversion.UnwrapElastic(v.ElaEqEquRequired),
+			func(o []option.Option[string]) (out [2]option.Option[string]) {
+				copy(out[:], o)
+				return out
+			},
+		).Value(),
+		ElaEqEquNullish: und.Map(
+			conversion.UnwrapElastic(v.ElaEqEquNullish),
+			func(o []option.Option[string]) (out [2]option.Option[string]) {
+				copy(out[:], o)
+				return out
+			},
+		),
+		ElaEqEquDef: und.Map(
+			conversion.UnwrapElastic(v.ElaEqEquDef),
+			func(o []option.Option[string]) (out [2]option.Option[string]) {
+				copy(out[:], o)
+				return out
+			},
+		).Value(),
+		ElaEqEquNull: und.Map(
+			conversion.UnwrapElastic(v.ElaEqEquNull),
+			func(o []option.Option[string]) (out [2]option.Option[string]) {
+				copy(out[:], o)
+				return out
+			},
+		).Unwrap().Value(),
+		ElaEqEquUnd: und.Map(
+			conversion.UnwrapElastic(v.ElaEqEquUnd),
+			func(o []option.Option[string]) (out [2]option.Option[string]) {
+				copy(out[:], o)
+				return out
+			},
+		).Unwrap().Value(),
+		ElaEqEqNonNullSlice:     conversion.NonNull(conversion.UnwrapElastic(v.ElaEqEqNonNullSlice)),
+		ElaEqEqNonNullNullSlice: nil,
+		ElaEqEqNonNullSingle: conversion.UnwrapLen1(und.Map(
+			und.Map(
+				conversion.UnwrapElastic(v.ElaEqEqNonNullSingle),
+				func(o []option.Option[string]) (out [1]option.Option[string]) {
+					copy(out[:], o)
+					return out
+				},
+			),
+			func(s [1]option.Option[string]) (r [1]string) {
+				for i := 0; i < 1; i++ {
+					r[i] = s[i].Value()
+				}
+				return
+			},
+		)).Value(),
+		ElaEqEqNonNullNullSingle: conversion.UnwrapLen1(und.Map(
+			und.Map(
+				conversion.UnwrapElastic(v.ElaEqEqNonNullNullSingle),
+				func(o []option.Option[string]) (out [1]option.Option[string]) {
+					copy(out[:], o)
+					return out
+				},
+			),
+			func(s [1]option.Option[string]) (r [1]string) {
+				for i := 0; i < 1; i++ {
+					r[i] = s[i].Value()
+				}
+				return
+			},
+		)).Unwrap().Value(),
+		ElaEqEqNonNull: und.Map(
+			und.Map(
+				conversion.UnwrapElastic(v.ElaEqEqNonNull),
+				func(o []option.Option[string]) (out [3]option.Option[string]) {
+					copy(out[:], o)
+					return out
+				},
+			),
+			func(s [3]option.Option[string]) (r [3]string) {
+				for i := 0; i < 3; i++ {
+					r[i] = s[i].Value()
+				}
+				return
+			},
+		).Value(),
+		ElaEqEqNonNullNull: und.Map(
+			und.Map(
+				conversion.UnwrapElastic(v.ElaEqEqNonNullNull),
+				func(o []option.Option[string]) (out [3]option.Option[string]) {
+					copy(out[:], o)
+					return out
+				},
+			),
+			func(s [3]option.Option[string]) (r [3]string) {
+				for i := 0; i < 3; i++ {
+					r[i] = s[i].Value()
+				}
+				return
+			},
+		).Unwrap().Value(),
+	}
+}
+
 //undgen:generated
 type WithTypeParamPlain[T any] struct {
 	Foo string
 	Bar T
 	Baz T `json:",omitzero" und:"required"`
+}
+
+func (v WithTypeParam[T]) UndPlain() WithTypeParamPlain[T] {
+	return WithTypeParamPlain[T]{
+		Foo: v.Foo,
+		Bar: v.Bar,
+		Baz: v.Baz.Value(),
+	}
 }

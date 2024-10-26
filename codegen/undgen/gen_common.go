@@ -2,11 +2,14 @@ package undgen
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"go/ast"
 	"go/printer"
 	"go/token"
 	"io"
+	"slices"
+	"strings"
 
 	"github.com/dave/dst"
 )
@@ -66,4 +69,33 @@ func bufPrintf(w io.Writer) (func(format string, args ...any), func() error) {
 		}, func() error {
 			return bufw.Flush()
 		}
+}
+
+func printTypeParamForField(fset *token.FileSet, ts *ast.TypeSpec, fieldName string) (string, error) {
+	st := ts.Type.(*ast.StructType) // panic if not a struct
+	if st.Fields == nil {
+		return "", fmt.Errorf("struct has no field")
+	}
+	for _, field := range st.Fields.List {
+		if !slices.ContainsFunc(field.Names, func(n *ast.Ident) bool { return n.Name == fieldName }) {
+			continue
+		}
+		var node ast.Node
+		switch t := field.Type.(type) {
+		default:
+			return "", nil
+		case *ast.IndexExpr:
+			node = t // this includes field type itself
+		case *ast.IndexListExpr:
+			node = t
+		}
+		buf := new(bytes.Buffer)
+		err := printer.Fprint(buf, fset, node)
+		if err != nil {
+			return "", err
+		}
+		s := buf.String()
+		return s[strings.Index(s, "[")+1 : len(s)-1], nil
+	}
+	return "", fmt.Errorf("field not found: %q", fieldName)
 }

@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"io"
 	"log/slog"
 	"strconv"
 
@@ -62,7 +63,8 @@ func GeneratePlain(
 		}
 
 		for _, s := range hiter.Values2(data.targets) {
-			ts := res.Ast.Nodes[data.dec.Dst.Nodes[s.TypeSpec].(*dst.TypeSpec)].(*ast.TypeSpec)
+			dts := data.dec.Dst.Nodes[s.TypeSpec].(*dst.TypeSpec)
+			ts := res.Ast.Nodes[dts].(*ast.TypeSpec)
 			buf.WriteString("//" + UndDirectivePrefix + UndDirectiveCommentGenerated + "\n")
 			buf.WriteString(token.TYPE.String())
 			buf.WriteByte(' ')
@@ -70,6 +72,21 @@ func GeneratePlain(
 			if err != nil {
 				return fmt.Errorf("print.Fprint failed for type %s in file %q: %w", data.filename, ts.Name.Name, err)
 			}
+			buf.WriteString("\n\n")
+
+			_, err = generateMethodToPlain(
+				buf,
+				data.dec,
+				dts,
+				ts.Name.Name[:len(ts.Name.Name)-len("Plain")]+printTypeParamVars(dts),
+				ts.Name.Name+printTypeParamVars(dts),
+				s,
+				data.importMap,
+			)
+			if err != nil {
+				return err
+			}
+
 			buf.WriteString("\n\n")
 		}
 
@@ -94,9 +111,10 @@ func replaceToPlainTypes(ty rawTypeReplacerData, err error) (rawTypeReplacerData
 		if err != nil {
 			return ty, err
 		}
-		if modified {
-			targets = append(targets, hiter.KeyValue[int, RawMatchedType]{K: idx, V: rawTy})
+		if !modified {
+			continue
 		}
+		targets = append(targets, hiter.KeyValue[int, RawMatchedType]{K: idx, V: rawTy})
 	}
 	ty.targets = targets
 	return ty, err
@@ -286,4 +304,339 @@ func unwrapUndFieldsDirect(field *dst.Field, mf MatchedField, undOpt undtag.UndO
 	}
 
 	return field, modified
+}
+
+func generateMethodToPlain(
+	w io.Writer,
+	dec *decorator.Decorator,
+	ts *dst.TypeSpec,
+	tyName string,
+	modifiedTyName string, // must include type param
+	target RawMatchedType,
+	importMap importDecls,
+) (ok bool, err error) {
+	if target.Variant != MatchedAsStruct { //TODO remove this constraint
+		return false, nil
+	}
+
+	printf, flush := bufPrintf(w)
+	defer func() {
+		fErr := flush()
+		if err != nil {
+			return
+		}
+		err = fErr
+	}()
+
+	printf(
+		`func (v %[1]s) UndPlain() %[2]s {
+	return %[2]s{
+`,
+		tyName, modifiedTyName,
+	)
+	defer func() {
+		printf(`}
+		}
+		
+`)
+	}()
+
+	var (
+		atLeastOne bool
+	)
+	dstutil.Apply(
+		ts.Type,
+		func(c *dstutil.Cursor) bool {
+			if err != nil {
+				return false
+			}
+
+			node := c.Node()
+			switch field := node.(type) {
+			default:
+				return true
+			case *dst.Field:
+				if len(field.Names) == 0 { // Is it possible?
+					return false
+				}
+
+				var fieldConverter func(ident string) string
+				defer func() {
+					if fieldConverter == nil {
+						fieldConverter = func(ident string) string {
+							return ident
+						}
+					}
+					// TODO: move this line to somewhere when adding conversion other than "direct".
+					for _, n := range field.Names {
+						printf("\t%s: %s,\n", n.Name, fieldConverter("v."+n.Name))
+					}
+				}()
+
+				mf, ok := target.FieldByName(field.Names[0].Name)
+				if !ok || mf.UndTag.IsNone() {
+					return false
+				}
+
+				undOptParseResult := mf.UndTag.Value()
+				if undOptParseResult.Err != nil {
+					if err == nil {
+						err = undOptParseResult.Err
+					}
+					return false
+				}
+
+				undOpt := undOptParseResult.Opt
+
+				switch mf.As {
+				// TODO add more match pattern
+				case MatchedAsDirect:
+					var param string
+					param, err = printTypeParamForField(dec.Fset, dec.Ast.Nodes[ts].(*ast.TypeSpec), field.Names[0].Name)
+					if err != nil {
+						return false
+					}
+
+					fieldConverter = generateMethodToPlainDirect(mf, undOpt, param, importMap)
+					return false
+				}
+			}
+			return false
+		},
+		nil,
+	)
+	return atLeastOne, err
+}
+
+func generateMethodToPlainDirect(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) func(ident string) string {
+	switch mf.Type {
+	case UndTargetTypeOption:
+		return optionToPlain(undOpt)
+	case UndTargetTypeUnd, UndTargetTypeSliceUnd:
+		return undToPlain(undOpt, importMap)
+	case UndTargetTypeElastic, UndTargetTypeSliceElastic:
+		return elasticToPlain(mf, undOpt, typeParam, importMap)
+	}
+	return nil
+}
+
+func optionToPlain(undOpt undtag.UndOpt) func(ident string) string {
+	switch s := undOpt.States().Value(); {
+	default:
+		return nil
+	case s.Def && (s.Null || s.Und):
+		return nil
+	case s.Def:
+		return func(fieldName string) string {
+			return fmt.Sprintf("%s.Value()", fieldName)
+		}
+	case s.Null || s.Und:
+		return func(fieldName string) string { return "nil" }
+	}
+}
+
+func undToPlain(undOpt undtag.UndOpt, importMap importDecls) func(ident string) string {
+	convertIdent, _ := importMap.Ident(UndPathConversion)
+	switch s := undOpt.States().Value(); {
+	default:
+		return nil
+	case s.Def && s.Null && s.Und:
+		return nil
+	case s.Def && (s.Null || s.Und):
+		return func(ident string) string {
+			return fmt.Sprintf("%s.Unwrap().Value()", ident)
+		}
+	case s.Null && s.Und:
+		return func(ident string) string {
+			return fmt.Sprintf("%s.UndNullish(%s)", convertIdent, ident)
+		}
+	case s.Def:
+		return func(ident string) string {
+			return fmt.Sprintf("%s.Value()", ident)
+		}
+	case s.Null || s.Und:
+		return func(ident string) string { return "nil" }
+	}
+}
+
+func elasticToPlain(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) func(ident string) string {
+	optionIdent, _ := importMap.Ident(UndTargetTypeOption.ImportPath)
+	undIdent, _ := importMap.Ident(UndTargetTypeUnd.ImportPath)
+	sliceUndIdent, _ := importMap.Ident(UndTargetTypeSliceUnd.ImportPath)
+	convertIdent, _ := importMap.Ident(UndPathConversion)
+	isSlice := mf.Type == UndTargetTypeSliceElastic
+	// very really simple case.
+	if undOpt.States().IsSome() && undOpt.Len().IsNone() && undOpt.Values().IsNone() {
+		switch s := undOpt.States().Value(); {
+		default:
+			return nil
+		case s.Def && s.Null && s.Und:
+			return nil
+		case s.Def && (s.Null || s.Und):
+			return func(ident string) string {
+				return fmt.Sprintf(`%s.UnwrapElastic%s(%s).Unwrap().Value()`,
+					convertIdent, orIsSlice("", "Slice", isSlice), ident,
+				)
+			}
+		case s.Null && s.Und:
+			return func(ident string) string {
+				return fmt.Sprintf("%s.UndNullish(%s)", convertIdent, ident)
+			}
+		case s.Def:
+			return func(ident string) string {
+				return fmt.Sprintf("%s.Unwrap().Value()", ident)
+			}
+		case s.Null || s.Und:
+			return func(ident string) string {
+				return "nil"
+			}
+		}
+	}
+
+	states := undOpt.States().Value()
+	if !states.Def {
+		// return early.
+		switch s := states; {
+		case s.Null && s.Und:
+			return func(ident string) string {
+				return fmt.Sprintf("%s.Unwrap().Value()", ident)
+			}
+		case s.Null || s.Und:
+			return func(ident string) string {
+				return "nil"
+			}
+		}
+	}
+	// fist, converts Elastic[T] -> Und[[]option.Option[T]]
+	c := func(ident string) string {
+		return fmt.Sprintf(`%s.%s(%s)`,
+			convertIdent, suffixSlice("UnwrapElastic", isSlice), ident,
+		)
+	}
+	wrappers := []func(val string) string{}
+
+	if undOpt.Len().IsSome() {
+		lv := undOpt.Len().Value()
+
+		switch lv.Op {
+		default:
+			panic("unknown len op")
+		case undtag.LenOpEqEq:
+			// to [n]option.Option[T]
+			wrappers = append(wrappers, func(val string) string {
+				return fmt.Sprintf(
+					`%[1]s.Map(
+						%[2]s,
+						func(o []%[3]s.Option[%[4]s]) (out [%[5]d]option.Option[%[4]s]) {
+					 		copy(out[:], o)
+					 		return out
+						},
+					)`,
+					/*1*/ orIsSlice(undIdent, sliceUndIdent, isSlice),
+					/*2*/ val,
+					/*3*/ optionIdent,
+					/*4*/ typeParam,
+					/*5*/ lv.Len,
+				)
+			})
+		case undtag.LenOpGr, undtag.LenOpGrEq, undtag.LenOpLe, undtag.LenOpLeEq:
+			// other then trim down or append it to the size at most or at least.
+			var methodName string
+			len := lv.Len
+			switch lv.Op {
+			case undtag.LenOpGr:
+				methodName = "LenNAtLeast"
+				len += 1
+			case undtag.LenOpGrEq:
+				methodName = "LenNAtLeast"
+			case undtag.LenOpLe:
+				methodName = "LenNAtMost"
+				len -= 1
+			case undtag.LenOpLeEq:
+				methodName = "LenNAtMost"
+			}
+			wrappers = append(wrappers, func(val string) string {
+				return fmt.Sprintf("%s.%s(%d, %s)", convertIdent, suffixSlice(methodName, isSlice), len, val)
+			})
+		}
+	}
+	if undOpt.Values().IsSome() {
+		v := undOpt.Values().Value()
+		switch {
+		case v.Nonnull:
+			if undOpt.Len().IsSomeAnd(func(lv undtag.LenValidator) bool { return lv.Op == undtag.LenOpEqEq }) {
+				/*
+					{{.UndPkg}}.Map(
+						{{.Arg}},
+						func(s [{{.Size}}]{{.OptionPkg}}.Option[{{.TypeParam}}]) (r [{{.Size}}]{{.TypeParam}}) {
+							for i := 0; i < {{.Size}}; i++ {
+								r[i] = s[i].Value()
+							}
+							return
+						},
+					)
+				*/
+				wrappers = append(wrappers, func(val string) string {
+					return fmt.Sprintf(
+						`%[1]s.Map(
+							%[2]s,
+							func(s [%[3]d]%[4]s.Option[%[5]s]) (r [%[3]d]%[5]s) {
+								for i := 0; i < %[3]d; i++ {
+									r[i] = s[i].Value()
+								}
+								return
+							},
+						)`,
+						/*1*/ orIsSlice(undIdent, sliceUndIdent, isSlice),
+						/*2*/ val,
+						/*3*/ undOpt.Len().Value().Len,
+						/*4*/ optionIdent,
+						/*5*/ typeParam,
+					)
+				})
+			} else {
+				wrappers = append(wrappers, func(val string) string {
+					return fmt.Sprintf(
+						`%s.NonNull%s(%s)`,
+						convertIdent, orIsSlice("", "Slice", isSlice), val,
+					)
+				})
+			}
+			// no other cases at the moment. I don't expect it to expand tho.
+		}
+	}
+
+	// Then when len == 1, convert und.Und[[1]option.Option[T]] or und.Und[[1]T] to und.Und[option.Option[T]], und.Und[T] respectively
+	if undOpt.Len().IsSomeAnd(func(lv undtag.LenValidator) bool { return lv.Op == undtag.LenOpEqEq && lv.Len == 1 }) {
+		wrappers = append(wrappers, func(val string) string {
+			return fmt.Sprintf("%s.UnwrapLen1%s(%s)", convertIdent, orIsSlice("", "Slice", isSlice), val)
+		})
+	}
+
+	// Finally unwrap value based on req,null,und
+	if wrapper := undToPlain(undOpt, importMap); wrapper != nil {
+		wrappers = append(wrappers, wrapper)
+	}
+
+	return func(ident string) string {
+		exp := c(ident)
+		for _, wrapper := range wrappers {
+			exp = wrapper(exp)
+		}
+		return exp
+	}
+}
+
+func orIsSlice[T any](l, r T, isSlice bool) T {
+	if !isSlice {
+		return l
+	}
+	return r
+}
+
+func suffixSlice(s string, isSlice bool) string {
+	if isSlice {
+		s += "Slice"
+	}
+	return s
 }
