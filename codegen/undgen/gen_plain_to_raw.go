@@ -1,8 +1,12 @@
 package undgen
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/printer"
+	"go/token"
+	"go/types"
 	"io"
 	"slices"
 
@@ -95,15 +99,29 @@ func generateMethodToRaw(
 					undOpt = undOptParseResult.Opt
 				}
 
-				switch mf.As {
-				// TODO add more match pattern
-				case MatchedAsDirect:
-					var param string
+				var param string
+				if mf.Elem != nil && mf.Elem.As == MatchedAsImplementor {
+					expr := conversionTargetOfImplementorAst(
+						target,
+						mf.TypeInfo.(*types.Named).TypeArgs().At(0).(*types.Named),
+						importMap,
+					)
+					buf := new(bytes.Buffer)
+					err = printer.Fprint(buf, token.NewFileSet(), expr)
+					if err != nil {
+						return false
+					}
+					param = buf.String()
+				} else {
 					param, err = printTypeParamForField(dec.Fset, dec.Ast.Nodes[ts].(*ast.TypeSpec), field.Names[0].Name)
 					if err != nil {
 						return false
 					}
+				}
 
+				switch mf.As {
+				// TODO add more match pattern
+				case MatchedAsDirect:
 					fieldConverter = generateMethodToRawDirect(mf, undOpt, param, importMap)
 					return false
 				case MatchedAsImplementor:
@@ -120,16 +138,30 @@ func generateMethodToRaw(
 
 }
 
-func generateMethodToRawDirect(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) func(ident string) string {
+func generateMethodToRawDirect(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (convert func(ident string) string) {
 	switch mf.Type {
 	case UndTargetTypeOption:
-		return optionToRaw(undOpt, typeParam, importMap)
+		convert = optionToRaw(undOpt, typeParam, importMap)
 	case UndTargetTypeUnd, UndTargetTypeSliceUnd:
-		return undToRaw(mf, undOpt, typeParam, importMap)
+		convert = undToRaw(mf, undOpt, typeParam, importMap)
 	case UndTargetTypeElastic, UndTargetTypeSliceElastic:
-		return elasticToRaw(mf, undOpt, typeParam, importMap)
+		convert = elasticToRaw(mf, undOpt, typeParam, importMap)
 	}
-	return nil
+	if mf.Elem != nil && mf.Elem.As == MatchedAsImplementor {
+		conversionIdent, _ := importMap.Ident(UndPathConversion)
+		pkgIdent := importIdent(mf.Type, importMap)
+		inner := convert
+		convert = func(ident string) string {
+			return fmt.Sprintf(
+				`%s.Map(
+				%s,
+				%s.ToRaw,
+			)`,
+				pkgIdent, inner(ident), conversionIdent,
+			)
+		}
+	}
+	return
 }
 
 func optionToRaw(undOpt undtag.UndOpt, typeParam string, importMap importDecls) func(ident string) string {

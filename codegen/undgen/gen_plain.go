@@ -214,38 +214,14 @@ func unwrapUndFields(ts *dst.TypeSpec, target RawMatchedType, importMap importDe
 				switch mf.As {
 				// TODO add more match pattern
 				case MatchedAsDirect:
-					field, modified := unwrapUndFieldsDirect(field, mf, undOpt, importMap)
+					field, modified := unwrapUndFieldsDirect(field, target, mf, undOpt, importMap)
 					if modified {
 						atLeastOne = true
 					}
 					c.Replace(field)
 				case MatchedAsImplementor:
 					atLeastOne = true
-					fieldVar := target.TypeInfo.Type().Underlying().(*types.Struct).Field(mf.Pos)
-					fieldTypeNamed := fieldVar.Type().(*types.Named)
-					ty, ok := ConstUnd.ConversionMethod.ConvertedType(fieldTypeNamed)
-					if ok {
-						field.Type = typeToDst(
-							ty,
-							target.TypeInfo.Type().(*types.Named).Obj().Pkg().Path(),
-							importMap,
-						)
-					} else {
-						field.Type = typeToDst(
-							types.NewNamed(
-								types.NewTypeName(
-									0,
-									fieldTypeNamed.Obj().Pkg(),
-									fieldTypeNamed.Obj().Name()+"Plain",
-									nil,
-								),
-								nil,
-								nil,
-							),
-							fieldTypeNamed.Obj().Pkg().Path(),
-							importMap,
-						)
-					}
+					field.Type = conversionTargetOfImplementorDst(target, mf.TypeInfo.(*types.Named), importMap)
 				}
 			}
 			return false
@@ -255,11 +231,20 @@ func unwrapUndFields(ts *dst.TypeSpec, target RawMatchedType, importMap importDe
 	return atLeastOne, err
 }
 
-func unwrapUndFieldsDirect(field *dst.Field, mf MatchedField, undOpt undtag.UndOpt, importMap importDecls) (*dst.Field, bool) {
+func unwrapUndFieldsDirect(field *dst.Field, target RawMatchedType, mf MatchedField, undOpt undtag.UndOpt, importMap importDecls) (*dst.Field, bool) {
 	modified := true
 
 	fieldTy := field.Type.(*dst.IndexExpr) // X.Sel[Index]
 	sel := fieldTy.X.(*dst.SelectorExpr)   // X.Sel
+
+	if mf.Elem != nil && mf.Elem.As == MatchedAsImplementor {
+		fieldTy.Index = conversionTargetOfImplementorDst(
+			target,
+			mf.TypeInfo.(*types.Named).TypeArgs().At(0).(*types.Named),
+			importMap,
+		)
+	}
+
 	switch mf.Type {
 	case UndTargetTypeOption:
 		switch s := undOpt.States().Value(); {
@@ -368,6 +353,59 @@ func unwrapUndFieldsDirect(field *dst.Field, mf MatchedField, undOpt undtag.UndO
 	}
 
 	return field, modified
+}
+
+func conversionTargetOfImplementorAst(target RawMatchedType, fieldTypeNamed *types.Named, importMap importDecls) ast.Expr {
+	ty, ok := ConstUnd.ConversionMethod.ConvertedType(fieldTypeNamed)
+	if ok {
+		return typeToAst(
+			ty,
+			target.TypeInfo.Type().(*types.Named).Obj().Pkg().Path(),
+			importMap,
+		)
+	} else {
+		return typeToAst(
+			types.NewNamed(
+				types.NewTypeName(
+					0,
+					fieldTypeNamed.Obj().Pkg(),
+					fieldTypeNamed.Obj().Name()+"Plain",
+					nil,
+				),
+				nil,
+				nil,
+			),
+			fieldTypeNamed.Obj().Pkg().Path(),
+			importMap,
+		)
+	}
+
+}
+
+func conversionTargetOfImplementorDst(target RawMatchedType, fieldTypeNamed *types.Named, importMap importDecls) dst.Expr {
+	ty, ok := ConstUnd.ConversionMethod.ConvertedType(fieldTypeNamed)
+	if ok {
+		return typeToDst(
+			ty,
+			target.TypeInfo.Type().(*types.Named).Obj().Pkg().Path(),
+			importMap,
+		)
+	} else {
+		return typeToDst(
+			types.NewNamed(
+				types.NewTypeName(
+					0,
+					fieldTypeNamed.Obj().Pkg(),
+					fieldTypeNamed.Obj().Name()+"Plain",
+					nil,
+				),
+				nil,
+				nil,
+			),
+			fieldTypeNamed.Obj().Pkg().Path(),
+			importMap,
+		)
+	}
 }
 
 func sliceSuffix(isSlice bool) string {

@@ -289,7 +289,14 @@ func preprocessRawTypes(imports []TargetImport, rawTypes RawTypes) iter.Seq2[raw
 								if !ok {
 									continue
 								}
-								imports = appendTypeAndTypeParams(imports, ty)
+								imports = appendTypeAndTypeParams(imports, pkg.PkgPath, ty)
+							}
+							if f.Elem != nil && f.Elem.As == MatchedAsImplementor {
+								ty, ok := ConstUnd.ConversionMethod.ConvertedType(f.TypeInfo.(*types.Named).TypeArgs().At(0).(*types.Named))
+								if !ok {
+									continue
+								}
+								imports = appendTypeAndTypeParams(imports, pkg.PkgPath, ty)
 							}
 						}
 					case MatchedAsArray, MatchedAsSlice, MatchedAsMap:
@@ -299,7 +306,7 @@ func preprocessRawTypes(imports []TargetImport, rawTypes RawTypes) iter.Seq2[raw
 							if !ok {
 								continue
 							}
-							imports = appendTypeAndTypeParams(imports, ty)
+							imports = appendTypeAndTypeParams(imports, pkg.PkgPath, ty)
 						}
 					}
 				}

@@ -1,8 +1,12 @@
 package undgen
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/printer"
+	"go/token"
+	"go/types"
 	"io"
 
 	"github.com/dave/dst"
@@ -96,9 +100,23 @@ func generateMethodToPlain(
 				}
 
 				var param string
-				param, err = printTypeParamForField(dec.Fset, dec.Ast.Nodes[ts].(*ast.TypeSpec), field.Names[0].Name)
-				if err != nil {
-					return false
+				if mf.Elem != nil && mf.Elem.As == MatchedAsImplementor {
+					expr := conversionTargetOfImplementorAst(
+						target,
+						mf.TypeInfo.(*types.Named).TypeArgs().At(0).(*types.Named),
+						importMap,
+					)
+					buf := new(bytes.Buffer)
+					err = printer.Fprint(buf, token.NewFileSet(), expr)
+					if err != nil {
+						return false
+					}
+					param = buf.String()
+				} else {
+					param, err = printTypeParamForField(dec.Fset, dec.Ast.Nodes[ts].(*ast.TypeSpec), field.Names[0].Name)
+					if err != nil {
+						return false
+					}
 				}
 				switch mf.As {
 				// TODO add more match pattern
@@ -118,16 +136,30 @@ func generateMethodToPlain(
 	return err
 }
 
-func generateMethodToPlainDirect(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) func(ident string) string {
+func generateMethodToPlainDirect(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (convert func(ident string) string) {
 	switch mf.Type {
 	case UndTargetTypeOption:
-		return optionToPlain(undOpt)
+		convert = optionToPlain(undOpt)
 	case UndTargetTypeUnd, UndTargetTypeSliceUnd:
-		return undToPlain(undOpt, importMap)
+		convert = undToPlain(undOpt, importMap)
 	case UndTargetTypeElastic, UndTargetTypeSliceElastic:
-		return elasticToPlain(mf, undOpt, typeParam, importMap)
+		convert = elasticToPlain(mf, undOpt, typeParam, importMap)
 	}
-	return nil
+	if mf.Elem != nil && mf.Elem.As == MatchedAsImplementor {
+		conversionIdent, _ := importMap.Ident(UndPathConversion)
+		pkgIdent := importIdent(mf.Type, importMap)
+		inner := convert
+		convert = func(ident string) string {
+			return inner(fmt.Sprintf(
+				`%s.Map(
+				%s,
+				%s.ToPlain,
+			)`,
+				pkgIdent, ident, conversionIdent,
+			))
+		}
+	}
+	return
 }
 
 func optionToPlain(undOpt undtag.UndOpt) func(ident string) string {

@@ -18,5 +18,5 @@ type IncludesImplementor struct {
 	Und          und.Und[sub.Foo[*bytes.Buffer]]     `und:"def"`
 	Elastic      elastic.Elastic[sub.Foo[string]]    `und:"def"`
 	SliceUnd     sliceund.Und[sub.Foo[int]]          `und:"def"`
-	SliceElastic sliceelastic.Elastic[sub.Foo[bool]] `und:"def"`
+	SliceElastic sliceelastic.Elastic[sub.Foo[bool]] `und:"len==2"`
 }

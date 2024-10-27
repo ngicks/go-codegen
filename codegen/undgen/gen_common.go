@@ -126,13 +126,21 @@ func importIdent(ty TargetType, imports importDecls) string {
 	return ""
 }
 
-func appendTypeAndTypeParams(imports []TargetImport, ty types.Type) []TargetImport {
+func appendTypeAndTypeParams(imports []TargetImport, pkgPath string, ty types.Type) []TargetImport {
+	p, ok := ty.(*types.Pointer)
+	if ok {
+		ty = p.Elem()
+	}
 	named, ok := ty.(*types.Named)
 	if !ok {
 		return imports
 	}
 	obj := named.Obj()
-	if pkg := obj.Pkg(); pkg != nil && pkg.Path() != "" {
+	pkg := obj.Pkg()
+	if pkg == nil {
+		return imports
+	}
+	if pkg.Path() != "" && pkg.Path() != pkgPath {
 		imports = AppendTargetImports(imports,
 			TargetImport{
 				ImportPath: pkg.Path(),
@@ -144,11 +152,18 @@ func appendTypeAndTypeParams(imports []TargetImport, ty types.Type) []TargetImpo
 		if ty == nil {
 			continue
 		}
+		p, ok := ty.(*types.Pointer)
+		if ok {
+			ty = p.Elem()
+		}
 		named, ok := ty.(*types.Named)
 		if !ok {
 			continue
 		}
 		if named.Obj() == nil || named.Obj().Pkg() == nil {
+			continue
+		}
+		if named.Obj().Pkg().Path() == pkgPath {
 			continue
 		}
 		imports = AppendTargetImports(
@@ -177,6 +192,10 @@ type hasTypeArg interface {
 func typeToDst(ty types.Type, pkgPath string, importMap importDecls) dst.Expr {
 	var exp dst.Expr
 	switch x := ty.(type) {
+	case *types.Pointer:
+		exp = &dst.StarExpr{
+			X: typeToDst(x.Elem(), pkgPath, importMap),
+		}
 	case hasName:
 		exp = &dst.Ident{
 			Name: x.Name(),
@@ -215,6 +234,57 @@ func typeToDst(ty types.Type, pkgPath string, importMap importDecls) dst.Expr {
 			exprs = append(exprs, typeToDst(ty, pkgPath, importMap))
 		}
 		return &dst.IndexListExpr{
+			X:       exp,
+			Indices: exprs,
+		}
+	}
+}
+
+func typeToAst(ty types.Type, pkgPath string, importMap importDecls) ast.Expr {
+	var exp ast.Expr
+	switch x := ty.(type) {
+	case *types.Pointer:
+		exp = &ast.StarExpr{
+			X: typeToAst(x.Elem(), pkgPath, importMap),
+		}
+	case hasName:
+		exp = &ast.Ident{
+			Name: x.Name(),
+		}
+	case hasObj:
+		if x.Obj() != nil &&
+			x.Obj().Pkg() != nil &&
+			x.Obj().Pkg().Path() != pkgPath {
+			exp = importMap.AstExpr(TargetType{
+				ImportPath: x.Obj().Pkg().Path(),
+				Name:       x.Obj().Name(),
+			})
+		} else {
+			exp = &ast.Ident{
+				Name: x.Obj().Name(),
+			}
+		}
+	}
+
+	named, ok := ty.(hasTypeArg)
+	if !ok {
+		return exp
+	}
+	switch named.TypeArgs().Len() {
+	case 0:
+		return exp
+	case 1:
+		return &ast.IndexExpr{
+			X:     exp,
+			Index: typeToAst(named.TypeArgs().At(0), pkgPath, importMap),
+		}
+	default:
+		args := named.TypeArgs()
+		var exprs []ast.Expr
+		for _, ty := range hiter.IndexAccessible(args, hiter.Range(0, args.Len())) {
+			exprs = append(exprs, typeToAst(ty, pkgPath, importMap))
+		}
+		return &ast.IndexListExpr{
 			X:       exp,
 			Indices: exprs,
 		}
