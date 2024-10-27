@@ -32,3 +32,35 @@ func TestGenPlain(t *testing.T) {
 		t.Logf("%q:\n%s", k, result)
 	}
 }
+
+func TestGenPlain_2(t *testing.T) {
+	testPrinter := suffixwriter.NewTestWriter(".und_plain")
+	err := GeneratePlain(
+		testPrinter.Writer,
+		true,
+		plaintargetPackages,
+		ConstUnd.Imports,
+	)
+	assert.NilError(t, err)
+	results := testPrinter.Results()
+	for _, k := range slices.Sorted(maps.Keys(results)) {
+		result := results[k]
+		t.Logf("%q:\n%s", k, result)
+	}
+}
+
+func TestGenPlain_3(t *testing.T) {
+	testPrinter := suffixwriter.NewTestWriter(".und_plain")
+	err := GeneratePlain(
+		testPrinter.Writer,
+		true,
+		validatorPackages,
+		ConstUnd.Imports,
+	)
+	assert.NilError(t, err)
+	results := testPrinter.Results()
+	for _, k := range slices.Sorted(maps.Keys(results)) {
+		result := results[k]
+		t.Logf("%q:\n%s", k, result)
+	}
+}

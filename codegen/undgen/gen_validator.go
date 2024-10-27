@@ -266,9 +266,9 @@ type rawTypeReplacerData struct {
 	targets   hiter.KeyValues[int, RawMatchedType]
 }
 
-func preprocessRawTypes(imports []TargetImport, types RawTypes) iter.Seq2[rawTypeReplacerData, error] {
+func preprocessRawTypes(imports []TargetImport, rawTypes RawTypes) iter.Seq2[rawTypeReplacerData, error] {
 	return func(yield func(rawTypeReplacerData, error) bool) {
-		for pkg, seq := range types.Iter() {
+		for pkg, seq := range rawTypes.Iter() {
 			for file, seq := range seq {
 				dec := decorator.NewDecorator(pkg.Fset)
 				df, err := dec.DecorateFile(file)
@@ -277,6 +277,31 @@ func preprocessRawTypes(imports []TargetImport, types RawTypes) iter.Seq2[rawTyp
 						return
 					}
 					continue
+				}
+
+				targets := hiter.Collect2(seq)
+				for _, matched := range hiter.Values2(targets) {
+					switch matched.Variant {
+					case MatchedAsStruct:
+						for _, f := range matched.Field {
+							if f.As == MatchedAsImplementor {
+								ty, ok := ConstUnd.ConversionMethod.ConvertedType(f.TypeInfo.(*types.Named))
+								if !ok {
+									continue
+								}
+								imports = appendTypeAndTypeParams(imports, ty)
+							}
+						}
+					case MatchedAsArray, MatchedAsSlice, MatchedAsMap:
+						f := matched.Field[0]
+						if f.As == MatchedAsImplementor {
+							ty, ok := ConstUnd.ConversionMethod.ConvertedType(f.Elem.TypeInfo.(*types.Named))
+							if !ok {
+								continue
+							}
+							imports = appendTypeAndTypeParams(imports, ty)
+						}
+					}
 				}
 
 				importMap := parseImports(file.Imports, imports)
@@ -289,7 +314,7 @@ func preprocessRawTypes(imports []TargetImport, types RawTypes) iter.Seq2[rawTyp
 						dec:       dec,
 						df:        df,
 						importMap: importMap,
-						targets:   hiter.Collect2(seq),
+						targets:   targets,
 					},
 					nil,
 				) {
@@ -303,11 +328,12 @@ func preprocessRawTypes(imports []TargetImport, types RawTypes) iter.Seq2[rawTyp
 func findValidatableTypes(pkgs []*packages.Package, imports []TargetImport) (RawTypes, error) {
 	validatorMethod := ValidatorMethod{"UndValidate"}
 	// 1st path, find other than implementor
-	matched, err := findRawTypes(pkgs, imports, validatorMethod, nil, false)
+	matched, err := findRawTypes(pkgs, imports, validatorMethod, nil, false, nil)
 	if err != nil {
 		return matched, err
 	}
 
+	// TODO: use filter instead
 	matched = collectRawTypes(
 		filterRawTypes(
 			nil,
@@ -329,7 +355,7 @@ func findValidatableTypes(pkgs []*packages.Package, imports []TargetImport) (Raw
 	)
 
 	// 2nd path, find including implementor
-	matched, err = findRawTypes(pkgs, imports, validatorMethod, matched, true)
+	matched, err = findRawTypes(pkgs, imports, validatorMethod, matched, true, nil)
 	if err != nil {
 		return matched, err
 	}

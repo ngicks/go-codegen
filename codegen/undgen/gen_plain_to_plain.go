@@ -76,31 +76,39 @@ func generateMethodToPlain(
 				}()
 
 				mf, ok := target.FieldByName(field.Names[0].Name)
-				if !ok || mf.UndTag.IsNone() {
+				if !ok {
+					return false
+				}
+				if mf.UndTag.IsNone() && mf.As != MatchedAsImplementor {
 					return false
 				}
 
-				undOptParseResult := mf.UndTag.Value()
-				if undOptParseResult.Err != nil {
-					if err == nil {
-						err = undOptParseResult.Err
+				var undOpt undtag.UndOpt
+				if mf.UndTag.IsSome() {
+					undOptParseResult := mf.UndTag.Value()
+					if undOptParseResult.Err != nil {
+						if err == nil {
+							err = undOptParseResult.Err
+						}
+						return false
 					}
-					return false
+					undOpt = undOptParseResult.Opt
 				}
 
-				undOpt := undOptParseResult.Opt
-
+				var param string
+				param, err = printTypeParamForField(dec.Fset, dec.Ast.Nodes[ts].(*ast.TypeSpec), field.Names[0].Name)
+				if err != nil {
+					return false
+				}
 				switch mf.As {
 				// TODO add more match pattern
 				case MatchedAsDirect:
-					var param string
-					param, err = printTypeParamForField(dec.Fset, dec.Ast.Nodes[ts].(*ast.TypeSpec), field.Names[0].Name)
-					if err != nil {
-						return false
-					}
-
 					fieldConverter = generateMethodToPlainDirect(mf, undOpt, param, importMap)
 					return false
+				case MatchedAsImplementor:
+					fieldConverter = func(ident string) string {
+						return ident + ".UndPlain()"
+					}
 				}
 			}
 			return false

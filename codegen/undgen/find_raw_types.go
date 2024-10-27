@@ -46,14 +46,19 @@ type IsImplementor interface {
 // And the returned value also implements [ConversionMethodsSet.ToRaw] and its returned value is single and the type.
 //
 // FindRawTypes ignores types if they have //undgen:ignore or //undgen:generated in the associated doc comments.
-func FindRawTypes(pkgs []*packages.Package, imports []TargetImport, methods ConversionMethodsSet) (RawTypes, error) {
+func FindRawTypes(
+	pkgs []*packages.Package,
+	imports []TargetImport,
+	methods ConversionMethodsSet,
+	filter func(pkg *packages.Package, file *ast.File, mt RawMatchedType) bool,
+) (RawTypes, error) {
 	// 1st path, find other than implementor
-	matched, err := findRawTypes(pkgs, imports, methods, nil, false)
+	matched, err := findRawTypes(pkgs, imports, methods, nil, false, filter)
 	if err != nil {
 		return matched, err
 	}
 	// 2nd path, find including implementor
-	matched, err = findRawTypes(pkgs, imports, methods, matched, true)
+	matched, err = findRawTypes(pkgs, imports, methods, matched, true, filter)
 	if err != nil {
 		return matched, err
 	}
@@ -243,11 +248,11 @@ func (ty RawMatchedType) FieldByName(name string) (MatchedField, bool) {
 }
 
 type MatchedField struct {
-	Pos  int
-	Name string
-	As   MatchedAs
-	// Empty if As is "implementor".
-	Type TargetType
+	Pos      int
+	Name     string
+	As       MatchedAs
+	Type     TargetType
+	TypeInfo types.Type
 	// Elem type for "array", "slice", "map".
 	// In that case Type should be "direct".
 	Elem   *MatchedField
@@ -288,6 +293,7 @@ func findRawTypes(
 	implementationChecker IsImplementor,
 	matched RawTypes,
 	checkMatched bool,
+	filter func(pkg *packages.Package, file *ast.File, mt RawMatchedType) bool,
 ) (RawTypes, error) {
 	newMatched := collectRawTypes(matched.Iter())
 	if newMatched == nil {
@@ -331,6 +337,10 @@ func findRawTypes(
 				mt.GenDecl = tsi.GenDecl
 				mt.TypeSpec = tsi.TypeSpec
 				mt.TypeInfo = tsi.TypeInfo
+
+				if filter != nil && !filter(pkg, file, mt) {
+					continue
+				}
 
 				matchedFile.Types[mt.Pos] = mt
 			}
@@ -425,8 +435,9 @@ func isRawType(
 		targetTy, ok := imports.MatchTy(pkgPath, name)
 		if ok {
 			filed := MatchedField{
-				As:   MatchedAsDirect,
-				Type: targetTy,
+				As:       MatchedAsDirect,
+				Type:     targetTy,
+				TypeInfo: ty,
 			}
 			typeArg := x.TypeArgs()
 			if typeArg.Len() > 0 {
@@ -439,34 +450,44 @@ func isRawType(
 		}
 		_, ok = total.HasTy(pkgPath, name)
 		if ok {
-			return MatchedField{As: MatchedAsImplementor, Type: TargetType{pkgPath, name}}
+			return MatchedField{
+				As:       MatchedAsImplementor,
+				Type:     TargetType{pkgPath, name},
+				TypeInfo: ty,
+			}
 		}
-		// TODO: do not check implementation when x is within same package... or remove all files that are supposed to have been generated?
 		if implementationChecker.IsImplementor(x) {
-			return MatchedField{As: MatchedAsImplementor, Type: TargetType{pkgPath, name}}
+			return MatchedField{
+				As:       MatchedAsImplementor,
+				Type:     TargetType{pkgPath, name},
+				TypeInfo: ty,
+			}
 		}
 	case *types.Array:
 		m := isRawType(x.Elem(), imports, total, implementationChecker)
 		if m.As != "" {
 			return MatchedField{
-				As:   MatchedAsArray,
-				Elem: &m,
+				As:       MatchedAsArray,
+				Elem:     &m,
+				TypeInfo: ty,
 			}
 		}
 	case *types.Slice:
 		m := isRawType(x.Elem(), imports, total, implementationChecker)
 		if m.As != "" {
 			return MatchedField{
-				As:   MatchedAsSlice,
-				Elem: &m,
+				As:       MatchedAsSlice,
+				Elem:     &m,
+				TypeInfo: ty,
 			}
 		}
 	case *types.Map:
 		m := isRawType(x.Elem(), imports, total, implementationChecker)
 		if m.As != "" {
 			return MatchedField{
-				As:   MatchedAsMap,
-				Elem: &m,
+				As:       MatchedAsMap,
+				Elem:     &m,
+				TypeInfo: ty,
 			}
 		}
 	}
@@ -481,6 +502,11 @@ type ConversionMethodsSet struct {
 }
 
 func (mset ConversionMethodsSet) IsImplementor(ty *types.Named) bool {
+	_, ok := isConversionMethodImplementor(ty, mset, mset.FromPlain)
+	return ok
+}
+
+func (mset ConversionMethodsSet) ConvertedType(ty *types.Named) (*types.Named, bool) {
 	return isConversionMethodImplementor(ty, mset, mset.FromPlain)
 }
 
@@ -494,7 +520,7 @@ func (mset ConversionMethodsSet) IsImplementor(ty *types.Named) bool {
 // where the returned value of the method is only one and type A.
 //
 // If fromPlain is true isConversionMethodImplementor works reversely (it checks assuming ty is type B.)
-func isConversionMethodImplementor(ty *types.Named, conversionMethod ConversionMethodsSet, fromPlain bool) bool {
+func isConversionMethodImplementor(ty *types.Named, conversionMethod ConversionMethodsSet, fromPlain bool) (*types.Named, bool) {
 	toMethod := conversionMethod.ToPlain
 	revMethod := conversionMethod.ToRaw
 	if fromPlain {
@@ -507,49 +533,50 @@ func isConversionMethodImplementor(ty *types.Named, conversionMethod ConversionM
 		if sel.Obj().Name() == toMethod {
 			sig, ok := sel.Obj().Type().Underlying().(*types.Signature)
 			if !ok {
-				return false
+				return nil, false
 			}
 			tup := sig.Results()
 			if tup.Len() != 1 {
-				return false
+				return nil, false
 			}
 			v := tup.At(0)
 
-			named, ok := v.Type().(*types.Named)
+			toType, ok := v.Type().(*types.Named)
 			if !ok {
-				return false
+				return nil, false
 			}
 
-			ms := types.NewMethodSet(types.NewPointer(named))
+			ms := types.NewMethodSet(types.NewPointer(toType))
 			for i := range ms.Len() {
 				sel := ms.At(i)
-				if sel.Obj().Name() == revMethod {
-					sig, ok := sel.Obj().Type().Underlying().(*types.Signature)
-					if !ok {
-						return false
-					}
-					tup := sig.Results()
-					if tup.Len() != 1 {
-						return false
-					}
-					v := tup.At(0)
-
-					named, ok := v.Type().(*types.Named)
-					if !ok {
-						return false
-					}
-
-					objStr1 := ty.Obj().String() // Assigning to a value just to inspect the string in the debugger.
-					objStr2 := named.Obj().String()
-					// simple pointer comparison should not suffice since
-					// if types are instantiated, they can be same type but different pointer.
-					// Am I correct? At least if I replace the line below with `return ty == named`
-					// Test_isImplementor fails.
-					return objStr1 == objStr2
+				if sel.Obj().Name() != revMethod {
+					continue
 				}
-			}
 
+				sig, ok := sel.Obj().Type().Underlying().(*types.Signature)
+				if !ok {
+					return toType, false
+				}
+				tup := sig.Results()
+				if tup.Len() != 1 {
+					return toType, false
+				}
+				v := tup.At(0)
+
+				supposeToBeFromType, ok := v.Type().(*types.Named)
+				if !ok {
+					return toType, false
+				}
+
+				objStr1 := ty.Obj().String() // Assigning to a value just to inspect the string in the debugger.
+				objStr2 := supposeToBeFromType.Obj().String()
+				// simple pointer comparison should not suffice since
+				// if types are instantiated, they can be same type but different pointer.
+				// Am I correct? At least if I replace the line below with `return ty == named`
+				// Test_isImplementor fails.
+				return toType, objStr1 == objStr2
+			}
 		}
 	}
-	return false
+	return nil, false
 }

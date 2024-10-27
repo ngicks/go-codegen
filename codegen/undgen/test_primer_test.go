@@ -8,6 +8,7 @@ var (
 	targettypesPackages []*packages.Package
 	patchtargetPackages []*packages.Package
 	validatorPackages   []*packages.Package
+	plaintargetPackages []*packages.Package
 )
 
 func init() {
@@ -40,6 +41,10 @@ func init() {
 		panic(err)
 	}
 	validatorPackages, err = packages.Load(cfg, "./internal/validatortarget/...")
+	if err != nil {
+		panic(err)
+	}
+	plaintargetPackages, err = packages.Load(cfg, "./internal/plaintarget/...")
 	if err != nil {
 		panic(err)
 	}

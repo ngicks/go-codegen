@@ -7,11 +7,14 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"go/types"
 	"io"
 	"slices"
 	"strings"
 
 	"github.com/dave/dst"
+	"github.com/ngicks/go-codegen/codegen/pkgsutil"
+	"github.com/ngicks/go-iterator-helper/hiter"
 )
 
 func printPackage(w io.Writer, af *ast.File) error {
@@ -121,4 +124,99 @@ func importIdent(ty TargetType, imports importDecls) string {
 		return optionImportIdent
 	}
 	return ""
+}
+
+func appendTypeAndTypeParams(imports []TargetImport, ty types.Type) []TargetImport {
+	named, ok := ty.(*types.Named)
+	if !ok {
+		return imports
+	}
+	obj := named.Obj()
+	if pkg := obj.Pkg(); pkg != nil && pkg.Path() != "" {
+		imports = AppendTargetImports(imports,
+			TargetImport{
+				ImportPath: pkg.Path(),
+				Types:      []string{obj.Name()},
+			},
+		)
+	}
+	for ty := range pkgsutil.EnumerateTypeParams(named) {
+		if ty == nil {
+			continue
+		}
+		named, ok := ty.(*types.Named)
+		if !ok {
+			continue
+		}
+		if named.Obj() == nil || named.Obj().Pkg() == nil {
+			continue
+		}
+		imports = AppendTargetImports(
+			imports,
+			TargetImport{
+				ImportPath: named.Obj().Pkg().Path(),
+				Types:      []string{named.Obj().Name()},
+			},
+		)
+	}
+	return imports
+}
+
+type hasName interface {
+	Name() string
+}
+
+type hasObj interface {
+	Obj() *types.TypeName
+}
+
+type hasTypeArg interface {
+	TypeArgs() *types.TypeList
+}
+
+func typeToDst(ty types.Type, pkgPath string, importMap importDecls) dst.Expr {
+	var exp dst.Expr
+	switch x := ty.(type) {
+	case hasName:
+		exp = &dst.Ident{
+			Name: x.Name(),
+		}
+	case hasObj:
+		if x.Obj() != nil &&
+			x.Obj().Pkg() != nil &&
+			x.Obj().Pkg().Path() != pkgPath {
+			exp = importMap.DstExpr(TargetType{
+				ImportPath: x.Obj().Pkg().Path(),
+				Name:       x.Obj().Name(),
+			})
+		} else {
+			exp = &dst.Ident{
+				Name: x.Obj().Name(),
+			}
+		}
+	}
+
+	named, ok := ty.(hasTypeArg)
+	if !ok {
+		return exp
+	}
+	switch named.TypeArgs().Len() {
+	case 0:
+		return exp
+	case 1:
+		return &dst.IndexExpr{
+			X:     exp,
+			Index: typeToDst(named.TypeArgs().At(0), pkgPath, importMap),
+		}
+	default:
+		args := named.TypeArgs()
+		var exprs []dst.Expr
+		for _, ty := range hiter.IndexAccessible(args, hiter.Range(0, args.Len())) {
+			exprs = append(exprs, typeToDst(ty, pkgPath, importMap))
+		}
+		return &dst.IndexListExpr{
+			X:       exp,
+			Indices: exprs,
+		}
+	}
 }

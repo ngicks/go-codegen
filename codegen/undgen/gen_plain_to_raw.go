@@ -76,19 +76,24 @@ func generateMethodToRaw(
 				}()
 
 				mf, ok := target.FieldByName(field.Names[0].Name)
-				if !ok || mf.UndTag.IsNone() {
+				if !ok {
+					return false
+				}
+				if mf.UndTag.IsNone() && mf.As != MatchedAsImplementor {
 					return false
 				}
 
-				undOptParseResult := mf.UndTag.Value()
-				if undOptParseResult.Err != nil {
-					if err == nil {
-						err = undOptParseResult.Err
+				var undOpt undtag.UndOpt
+				if mf.UndTag.IsSome() {
+					undOptParseResult := mf.UndTag.Value()
+					if undOptParseResult.Err != nil {
+						if err == nil {
+							err = undOptParseResult.Err
+						}
+						return false
 					}
-					return false
+					undOpt = undOptParseResult.Opt
 				}
-
-				undOpt := undOptParseResult.Opt
 
 				switch mf.As {
 				// TODO add more match pattern
@@ -101,6 +106,10 @@ func generateMethodToRaw(
 
 					fieldConverter = generateMethodToRawDirect(mf, undOpt, param, importMap)
 					return false
+				case MatchedAsImplementor:
+					fieldConverter = func(ident string) string {
+						return ident + ".UndRaw()"
+					}
 				}
 			}
 			return false

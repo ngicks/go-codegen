@@ -14,7 +14,7 @@ import (
 
 //undgen:generated
 type IncludesImplementorPlain struct {
-	Impl         sub.Foo[time.Time]
+	Impl         sub.FooPlain[time.Time]
 	Opt          sub.Foo[time.Time]               `und:"def"`
 	Und          sub.Foo[*bytes.Buffer]           `und:"def"`
 	Elastic      []option.Option[sub.Foo[string]] `und:"def"`
@@ -24,7 +24,7 @@ type IncludesImplementorPlain struct {
 
 func (v IncludesImplementor) UndPlain() IncludesImplementorPlain {
 	return IncludesImplementorPlain{
-		Impl:         v.Impl,
+		Impl:         v.Impl.UndPlain(),
 		Opt:          v.Opt.Value(),
 		Und:          v.Und.Value(),
 		Elastic:      v.Elastic.Unwrap().Value(),
@@ -35,7 +35,7 @@ func (v IncludesImplementor) UndPlain() IncludesImplementorPlain {
 
 func (v IncludesImplementorPlain) UndRaw() IncludesImplementor {
 	return IncludesImplementor{
-		Impl:         v.Impl,
+		Impl:         v.Impl.UndRaw(),
 		Opt:          option.Some(v.Opt),
 		Und:          und.Defined(v.Und),
 		Elastic:      elastic.FromOptions(v.Elastic...),

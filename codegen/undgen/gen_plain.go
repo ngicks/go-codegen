@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"go/types"
 	"log/slog"
 	"strconv"
 
@@ -31,7 +32,23 @@ func GeneratePlain(
 	pkgs []*packages.Package,
 	imports []TargetImport,
 ) error {
-	rawTypes, err := FindRawTypes(pkgs, imports, ConstUnd.ConversionMethod)
+	rawTypes, err := FindRawTypes(
+		pkgs,
+		imports,
+		ConstUnd.ConversionMethod,
+		func(pkg *packages.Package, file *ast.File, mt RawMatchedType) bool {
+			switch mt.Variant {
+			case MatchedAsStruct:
+				for _, mf := range mt.Field {
+					if mf.UndTag.IsSome() || mf.As == MatchedAsImplementor {
+						return true
+					}
+				}
+				return false
+			}
+			return true
+		},
+	)
 	if err != nil {
 		return err
 	}
@@ -170,18 +187,21 @@ func unwrapUndFields(ts *dst.TypeSpec, target RawMatchedType, importMap importDe
 					return false
 				}
 
-				if mf.UndTag.IsNone() {
-					return false
-				}
-				undOptParseResult := mf.UndTag.Value()
-				if undOptParseResult.Err != nil {
-					if err == nil {
-						err = undOptParseResult.Err
-					}
+				if mf.UndTag.IsNone() && mf.As != MatchedAsImplementor {
 					return false
 				}
 
-				undOpt := undOptParseResult.Opt
+				var undOpt undtag.UndOpt
+				if mf.UndTag.IsSome() {
+					undOptParseResult := mf.UndTag.Value()
+					if undOptParseResult.Err != nil {
+						if err == nil {
+							err = undOptParseResult.Err
+						}
+						return false
+					}
+					undOpt = undOptParseResult.Opt
+				}
 
 				// later mutated
 				// We need allocate one since field.Tag is nil when no tag is set.
@@ -199,6 +219,33 @@ func unwrapUndFields(ts *dst.TypeSpec, target RawMatchedType, importMap importDe
 						atLeastOne = true
 					}
 					c.Replace(field)
+				case MatchedAsImplementor:
+					atLeastOne = true
+					fieldVar := target.TypeInfo.Type().Underlying().(*types.Struct).Field(mf.Pos)
+					fieldTypeNamed := fieldVar.Type().(*types.Named)
+					ty, ok := ConstUnd.ConversionMethod.ConvertedType(fieldTypeNamed)
+					if ok {
+						field.Type = typeToDst(
+							ty,
+							target.TypeInfo.Type().(*types.Named).Obj().Pkg().Path(),
+							importMap,
+						)
+					} else {
+						field.Type = typeToDst(
+							types.NewNamed(
+								types.NewTypeName(
+									0,
+									fieldTypeNamed.Obj().Pkg(),
+									fieldTypeNamed.Obj().Name()+"Plain",
+									nil,
+								),
+								nil,
+								nil,
+							),
+							fieldTypeNamed.Obj().Pkg().Path(),
+							importMap,
+						)
+					}
 				}
 			}
 			return false

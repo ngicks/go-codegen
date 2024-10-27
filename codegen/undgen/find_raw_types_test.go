@@ -54,11 +54,18 @@ func Test_isImplementor(t *testing.T) {
 		ToRaw:   "UndRaw",
 		ToPlain: "UndPlain",
 	}
-	assert.Assert(t, isConversionMethodImplementor(foo, mset, false))
-	assert.Assert(t, isConversionMethodImplementor(fooPlain, mset, true))
+	assertIsConversionMethodImplementor := func(ty *types.Named, conversionMethod ConversionMethodsSet, fromPlain bool) {
+		t.Helper()
+		ty, ok := isConversionMethodImplementor(ty, conversionMethod, fromPlain)
+		assert.Assert(t, ok)
+		assert.Assert(t, ty != nil)
+	}
 
-	assert.Assert(t, !isConversionMethodImplementor(bar, mset, true))
-	assert.Assert(t, !isConversionMethodImplementor(nonCyclic, mset, true))
+	assertIsConversionMethodImplementor(foo, mset, false)
+	assertIsConversionMethodImplementor(fooPlain, mset, true)
+
+	assertIsConversionMethodImplementor(bar, mset, true)
+	assertIsConversionMethodImplementor(nonCyclic, mset, true)
 }
 
 func Test_parseImports(t *testing.T) {
@@ -137,6 +144,7 @@ func TestFindTargetType_error(t *testing.T) {
 		targettypesPackages,
 		ConstUnd.Imports,
 		ConstUnd.ConversionMethod,
+		nil,
 	)
 	assert.Assert(t, err != nil)
 	assert.Assert(t, len(result) > 0)
@@ -202,6 +210,7 @@ func TestFindTargetType(t *testing.T) {
 		),
 		ConstUnd.Imports,
 		ConstUnd.ConversionMethod,
+		nil,
 	)
 	assert.NilError(t, err)
 
@@ -281,7 +290,7 @@ func TestFindTargetType(t *testing.T) {
 				V: RawMatchedType{
 					Pos:     1,
 					Name:    "WithTypeParam",
-					Variant: "struct",
+					Variant: MatchedAsStruct,
 					Field: []MatchedField{
 						{
 							Pos:    2,
@@ -497,7 +506,7 @@ func TestFindTargetType(t *testing.T) {
 				V: RawMatchedType{
 					Pos:     1,
 					Name:    "IncludesImplementor",
-					Variant: "struct",
+					Variant: MatchedAsStruct,
 					Field: []MatchedField{
 						{
 							Name: "Foo",

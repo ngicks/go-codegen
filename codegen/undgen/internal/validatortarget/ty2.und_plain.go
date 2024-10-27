@@ -6,20 +6,20 @@ import (
 
 //undgen:generated
 type DPlain struct {
-	Foo All
+	Foo AllPlain
 	Bar All `und:"required"`
 }
 
 func (v D) UndPlain() DPlain {
 	return DPlain{
-		Foo: v.Foo,
+		Foo: v.Foo.UndPlain(),
 		Bar: v.Bar.Value(),
 	}
 }
 
 func (v DPlain) UndRaw() D {
 	return D{
-		Foo: v.Foo,
+		Foo: v.Foo.UndRaw(),
 		Bar: option.Some(v.Bar),
 	}
 }
