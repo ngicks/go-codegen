@@ -258,12 +258,14 @@ func generateUndValidate(
 }
 
 type rawTypeReplacerData struct {
-	filename  string
-	af        *ast.File
-	dec       *decorator.Decorator
-	df        *dst.File
-	importMap importDecls
-	targets   hiter.KeyValues[int, RawMatchedType]
+	filename    string
+	af          *ast.File
+	dec         *decorator.Decorator
+	df          *dst.File
+	importMap   importDecls
+	targets     hiter.KeyValues[int, RawMatchedType]
+	rawFields   map[int]map[string]string
+	plainFields map[int]map[string]string
 }
 
 func preprocessRawTypes(imports []TargetImport, rawTypes RawTypes) iter.Seq2[rawTypeReplacerData, error] {
@@ -292,7 +294,18 @@ func preprocessRawTypes(imports []TargetImport, rawTypes RawTypes) iter.Seq2[raw
 								imports = appendTypeAndTypeParams(imports, pkg.PkgPath, ty)
 							}
 							if f.Elem != nil && f.Elem.As == MatchedAsImplementor {
-								ty, ok := ConstUnd.ConversionMethod.ConvertedType(f.TypeInfo.(*types.Named).TypeArgs().At(0).(*types.Named))
+								var elem types.Type
+								switch x := f.TypeInfo.(type) {
+								case *types.Named:
+									elem = x
+								case *types.Array:
+									elem = x.Elem()
+								case *types.Slice:
+									elem = x.Elem()
+								case *types.Map:
+									elem = x.Elem()
+								}
+								ty, ok := ConstUnd.ConversionMethod.ConvertedType(elem.(*types.Named).TypeArgs().At(0).(*types.Named))
 								if !ok {
 									continue
 								}

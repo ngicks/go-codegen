@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
+	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
 )
@@ -74,6 +75,38 @@ func bufPrintf(w io.Writer) (func(format string, args ...any), func() error) {
 		}
 }
 
+func printFieldTypesAst(fset *token.FileSet, ts *ast.TypeSpec) map[string]string {
+	out := make(map[string]string)
+	st, ok := ts.Type.(*ast.StructType)
+	if !ok {
+		return nil
+	}
+	buf := new(bytes.Buffer)
+	for _, f := range st.Fields.List {
+		buf.Reset()
+		err := printer.Fprint(buf, fset, f.Type)
+		if err != nil {
+			panic(err)
+		}
+		for _, name := range f.Names {
+			out[name.Name] = buf.String()
+		}
+	}
+	return out
+}
+
+func printFieldTypesDst(file *dst.File, ts *dst.TypeSpec) map[string]string {
+	rec := decorator.NewRestorer()
+	_, err := rec.RestoreFile(file)
+	if err != nil {
+		panic(err)
+	}
+
+	ats := rec.Ast.Nodes[ts].(*ast.TypeSpec)
+
+	return printFieldTypesAst(rec.Fset, ats)
+}
+
 func printTypeParamForField(fset *token.FileSet, ts *ast.TypeSpec, fieldName string) (string, error) {
 	st := ts.Type.(*ast.StructType) // panic if not a struct
 	if st.Fields == nil {
@@ -87,6 +120,10 @@ func printTypeParamForField(fset *token.FileSet, ts *ast.TypeSpec, fieldName str
 		switch t := field.Type.(type) {
 		default:
 			return "", nil
+		case *ast.ArrayType:
+			node = t.Elt
+		case *ast.MapType:
+			node = t.Value
 		case *ast.IndexExpr:
 			node = t // this includes field type itself; IndexExpr is X[Index]
 		case *ast.IndexListExpr:

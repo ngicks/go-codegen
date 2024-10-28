@@ -43,8 +43,15 @@ func GeneratePlain(
 					if mf.UndTag.IsSome() || mf.As == MatchedAsImplementor {
 						return true
 					}
+					if mf.Elem != nil && mf.Elem.As == MatchedAsImplementor {
+						return true
+					}
 				}
 				return false
+				// case MatchedAsArray, MatchedAsSlice, MatchedAsMap:
+				// 	if mt.Field[0].Elem.As == MatchedAsImplementor {
+				// 		return true
+				// 	}
 			}
 			return true
 		},
@@ -81,7 +88,7 @@ func GeneratePlain(
 			return fmt.Errorf("%q: %w", data.filename, err)
 		}
 
-		for _, s := range hiter.Values2(data.targets) {
+		for idx, s := range hiter.Values2(data.targets) {
 			dts := data.dec.Dst.Nodes[s.TypeSpec].(*dst.TypeSpec)
 			ts := res.Ast.Nodes[dts].(*ast.TypeSpec)
 			buf.WriteString("//" + UndDirectivePrefix + UndDirectiveCommentGenerated + "\n")
@@ -101,6 +108,8 @@ func GeneratePlain(
 				ts.Name.Name+printTypeParamVars(dts),
 				s,
 				data.importMap,
+				data.rawFields[idx],
+				data.plainFields[idx],
 			)
 			if err != nil {
 				return err
@@ -116,6 +125,8 @@ func GeneratePlain(
 				ts.Name.Name+printTypeParamVars(dts),
 				s,
 				data.importMap,
+				data.rawFields[idx],
+				data.plainFields[idx],
 			)
 			if err != nil {
 				return err
@@ -139,15 +150,26 @@ func replaceToPlainTypes(ty rawTypeReplacerData, err error) (rawTypeReplacerData
 	if err != nil {
 		return ty, err
 	}
+
+	if ty.rawFields == nil {
+		ty.rawFields = make(map[int]map[string]string)
+	}
+	if ty.plainFields == nil {
+		ty.plainFields = make(map[int]map[string]string)
+	}
+
 	var targets hiter.KeyValues[int, RawMatchedType]
 	for idx, rawTy := range hiter.Values2(ty.targets) {
-		modified, err := unwrapUndFields(ty.dec.Dst.Nodes[rawTy.TypeSpec].(*dst.TypeSpec), rawTy, ty.importMap)
+		ts := ty.dec.Dst.Nodes[rawTy.TypeSpec].(*dst.TypeSpec)
+		modified, err := unwrapUndFields(ts, rawTy, ty.importMap)
 		if err != nil {
 			return ty, err
 		}
 		if !modified {
 			continue
 		}
+		ty.rawFields[idx] = printFieldTypesAst(token.NewFileSet(), rawTy.TypeSpec)
+		ty.plainFields[idx] = printFieldTypesDst(ty.df, ts)
 		targets = append(targets, hiter.KeyValue[int, RawMatchedType]{K: idx, V: rawTy})
 	}
 	ty.targets = targets
@@ -187,7 +209,7 @@ func unwrapUndFields(ts *dst.TypeSpec, target RawMatchedType, importMap importDe
 					return false
 				}
 
-				if mf.UndTag.IsNone() && mf.As != MatchedAsImplementor {
+				if mf.UndTag.IsNone() && mf.As != MatchedAsImplementor && (mf.Elem != nil && mf.Elem.As != MatchedAsImplementor) {
 					return false
 				}
 
@@ -219,9 +241,43 @@ func unwrapUndFields(ts *dst.TypeSpec, target RawMatchedType, importMap importDe
 						atLeastOne = true
 					}
 					c.Replace(field)
+				case MatchedAsArray, MatchedAsSlice:
+					sTy := field.Type.(*dst.ArrayType)
+					if mf.Elem.As == MatchedAsImplementor {
+						var elem types.Type
+						switch x := mf.TypeInfo.(type) {
+						case *types.Named:
+							elem = x
+						case *types.Array:
+							elem = x.Elem()
+						case *types.Slice:
+							elem = x.Elem()
+						}
+						sTy.Elt = conversionTargetOfImplementorDst(target, elem.(*types.Named), importMap)
+					} else {
+						expr, modified := unwrapUndType(sTy.Elt.(*dst.IndexExpr), target, *mf.Elem, undOpt, importMap)
+						if modified {
+							atLeastOne = true
+							sTy.Elt = expr
+						}
+					}
+					c.Replace(field)
+				case MatchedAsMap:
+					mTy := field.Type.(*dst.MapType)
+					if mf.Elem.As == MatchedAsImplementor {
+						mTy.Value = conversionTargetOfImplementorDst(target, mf.TypeInfo.(*types.Named), importMap)
+					} else {
+						expr, modified := unwrapUndType(mTy.Value.(*dst.IndexExpr), target, *mf.Elem, undOpt, importMap)
+						if modified {
+							atLeastOne = true
+							mTy.Value = expr
+						}
+					}
+					c.Replace(field)
 				case MatchedAsImplementor:
 					atLeastOne = true
 					field.Type = conversionTargetOfImplementorDst(target, mf.TypeInfo.(*types.Named), importMap)
+					c.Replace(field)
 				}
 			}
 			return false
@@ -232,10 +288,18 @@ func unwrapUndFields(ts *dst.TypeSpec, target RawMatchedType, importMap importDe
 }
 
 func unwrapUndFieldsDirect(field *dst.Field, target RawMatchedType, mf MatchedField, undOpt undtag.UndOpt, importMap importDecls) (*dst.Field, bool) {
-	modified := true
+	expr, modified := unwrapUndType(field.Type.(*dst.IndexExpr), target, mf, undOpt, importMap)
+	if modified {
+		field.Type = expr
+	}
+	return field, modified
+}
 
-	fieldTy := field.Type.(*dst.IndexExpr) // X.Sel[Index]
-	sel := fieldTy.X.(*dst.SelectorExpr)   // X.Sel
+func unwrapUndType(fieldTy *dst.IndexExpr, target RawMatchedType, mf MatchedField, undOpt undtag.UndOpt, importMap importDecls) (expr dst.Expr, modified bool) {
+	modified = true
+
+	// fieldTy -> X.Sel[Index]
+	sel := fieldTy.X.(*dst.SelectorExpr) // X.Sel
 
 	if mf.Elem != nil && mf.Elem.As == MatchedAsImplementor {
 		fieldTy.Index = conversionTargetOfImplementorDst(
@@ -253,9 +317,9 @@ func unwrapUndFieldsDirect(field *dst.Field, target RawMatchedType, mf MatchedFi
 		case s.Def && (s.Null || s.Und):
 			modified = false
 		case s.Def:
-			field.Type = fieldTy.Index // unwrap, simply T.
+			expr = fieldTy.Index // unwrap, simply T.
 		case s.Null || s.Und:
-			field.Type = startStructExpr() // *struct{}
+			expr = startStructExpr() // *struct{}
 		}
 	case UndTargetTypeUnd, UndTargetTypeSliceUnd:
 		switch s := undOpt.States().Value(); {
@@ -268,9 +332,9 @@ func unwrapUndFieldsDirect(field *dst.Field, target RawMatchedType, mf MatchedFi
 			*sel = *importMap.DstExpr(UndTargetTypeOption)
 		case s.Def:
 			// unwrap
-			field.Type = fieldTy.Index
+			expr = fieldTy.Index
 		case s.Null || s.Und:
-			field.Type = startStructExpr()
+			expr = startStructExpr()
 		}
 	case UndTargetTypeElastic, UndTargetTypeSliceElastic:
 		isSlice := targetTypeIsSlice(mf.Type)
@@ -282,7 +346,7 @@ func unwrapUndFieldsDirect(field *dst.Field, target RawMatchedType, mf MatchedFi
 			// when opt is eq, we'll narrow its type to [n]T. but otherwise it remains []T
 			return lv.Op != undtag.LenOpEqEq
 		})) && (undOpt.Values().IsNone()) {
-			return field, false
+			return expr, false
 		}
 
 		// Generally for other cases, replace types
@@ -346,13 +410,16 @@ func unwrapUndFieldsDirect(field *dst.Field, target RawMatchedType, mf MatchedFi
 			fieldTy.X = importMap.DstExpr(UndTargetTypeOption)
 		case s.Def:
 			// und.Und[[]option.Option[T]] -> []option.Option[T]
-			field.Type = fieldTy.Index
+			expr = fieldTy.Index
 		case s.Null || s.Und:
-			field.Type = startStructExpr()
+			expr = startStructExpr()
 		}
 	}
 
-	return field, modified
+	if expr == nil {
+		expr = fieldTy
+	}
+	return expr, modified
 }
 
 func conversionTargetOfImplementorAst(target RawMatchedType, fieldTypeNamed *types.Named, importMap importDecls) ast.Expr {

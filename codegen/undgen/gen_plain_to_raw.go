@@ -24,6 +24,8 @@ func generateMethodToRaw(
 	modifiedTyName string, // must include type param
 	target RawMatchedType,
 	importMap importDecls,
+	rawFields map[string]string,
+	plainFields map[string]string,
 ) (err error) {
 	if target.Variant != MatchedAsStruct { //TODO remove this constraint
 		return nil
@@ -83,7 +85,7 @@ func generateMethodToRaw(
 				if !ok {
 					return false
 				}
-				if mf.UndTag.IsNone() && mf.As != MatchedAsImplementor {
+				if mf.UndTag.IsNone() && mf.As != MatchedAsImplementor && (mf.Elem != nil && mf.Elem.As != MatchedAsImplementor) {
 					return false
 				}
 
@@ -100,19 +102,52 @@ func generateMethodToRaw(
 				}
 
 				var param string
-				if mf.Elem != nil && mf.Elem.As == MatchedAsImplementor {
-					expr := conversionTargetOfImplementorAst(
-						target,
-						mf.TypeInfo.(*types.Named).TypeArgs().At(0).(*types.Named),
-						importMap,
-					)
-					buf := new(bytes.Buffer)
-					err = printer.Fprint(buf, token.NewFileSet(), expr)
-					if err != nil {
-						return false
+				switch {
+				case mf.Elem != nil:
+					switch mf.Elem.As {
+					case MatchedAsImplementor:
+						var elem types.Type
+						switch x := mf.TypeInfo.(type) {
+						case *types.Named:
+							elem = x
+						case *types.Array:
+							elem = x.Elem()
+						case *types.Slice:
+							elem = x.Elem()
+						}
+						expr := conversionTargetOfImplementorAst(
+							target,
+							elem.(*types.Named).TypeArgs().At(0).(*types.Named),
+							importMap,
+						)
+						buf := new(bytes.Buffer)
+						err = printer.Fprint(buf, token.NewFileSet(), expr)
+						if err != nil {
+							return false
+						}
+						param = buf.String()
+					case MatchedAsDirect:
+						if mf.Elem.Elem != nil && mf.Elem.Elem.As == MatchedAsImplementor {
+							expr := conversionTargetOfImplementorAst(
+								target,
+								mf.Elem.Elem.TypeInfo.(*types.Named),
+								importMap,
+							)
+							buf := new(bytes.Buffer)
+							err = printer.Fprint(buf, token.NewFileSet(), expr)
+							if err != nil {
+								return false
+							}
+							param = buf.String()
+						} else {
+							ts := dec.Ast.Nodes[ts].(*ast.TypeSpec)
+							param, err = printTypeParamForField(dec.Fset, ts, field.Names[0].Name)
+							if err != nil {
+								return false
+							}
+						}
 					}
-					param = buf.String()
-				} else {
+				default:
 					param, err = printTypeParamForField(dec.Fset, dec.Ast.Nodes[ts].(*ast.TypeSpec), field.Names[0].Name)
 					if err != nil {
 						return false
@@ -122,8 +157,61 @@ func generateMethodToRaw(
 				switch mf.As {
 				// TODO add more match pattern
 				case MatchedAsDirect:
-					fieldConverter = generateMethodToRawDirect(mf, undOpt, param, importMap)
+					fieldConverter, _ = generateMethodToRawDirect(mf, undOpt, param, importMap)
 					return false
+				case MatchedAsArray:
+					mapper, needsArg := generateMethodToRawDirect(*mf.Elem, undOpt, param, importMap)
+					if mapper == nil {
+						mapper = func(ident string) string {
+							return ident + ".UndRaw()"
+						}
+						needsArg = true
+					}
+					fieldConverter = func(ident string) string {
+						return fmt.Sprintf(
+							`func(in %[1]s) (out %[2]s) {
+								for k %[3]s := range in {
+									out[k] = %[4]s
+								}
+								return out
+							}(%[5]s)`,
+							/*1*/ plainFields[mf.Name],
+							/*2*/ rawFields[mf.Name],
+							/*3*/ func() string {
+								if needsArg {
+									return ", v"
+								} else {
+									return ""
+								}
+							}(),
+							/*4*/ mapper("v"),
+							/*5*/ ident,
+						)
+					}
+				case MatchedAsSlice, MatchedAsMap:
+					mapper, needsArg := generateMethodToRawDirect(*mf.Elem, undOpt, param, importMap)
+					fieldConverter = func(ident string) string {
+						return fmt.Sprintf(
+							`func(in %[1]s) %[2]s {
+								out := make(%[2]s, len(in))
+								for k %[3]s := range in {
+									out[k] = %[4]s
+								}
+								return out
+							}(%[5]s)`,
+							/*1*/ plainFields[mf.Name],
+							/*2*/ rawFields[mf.Name],
+							/*3*/ func() string {
+								if needsArg {
+									return ", v"
+								} else {
+									return ""
+								}
+							}(),
+							/*4*/ mapper("v"),
+							/*5*/ ident,
+						)
+					}
 				case MatchedAsImplementor:
 					fieldConverter = func(ident string) string {
 						return ident + ".UndRaw()"
@@ -138,14 +226,14 @@ func generateMethodToRaw(
 
 }
 
-func generateMethodToRawDirect(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (convert func(ident string) string) {
+func generateMethodToRawDirect(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (convert func(ident string) string, needsArg bool) {
 	switch mf.Type {
 	case UndTargetTypeOption:
-		convert = optionToRaw(undOpt, typeParam, importMap)
+		convert, needsArg = optionToRaw(undOpt, typeParam, importMap)
 	case UndTargetTypeUnd, UndTargetTypeSliceUnd:
-		convert = undToRaw(mf, undOpt, typeParam, importMap)
+		convert, needsArg = undToRaw(mf, undOpt, typeParam, importMap)
 	case UndTargetTypeElastic, UndTargetTypeSliceElastic:
-		convert = elasticToRaw(mf, undOpt, typeParam, importMap)
+		convert, needsArg = elasticToRaw(mf, undOpt, typeParam, importMap)
 	}
 	if mf.Elem != nil && mf.Elem.As == MatchedAsImplementor {
 		conversionIdent, _ := importMap.Ident(UndPathConversion)
@@ -160,29 +248,30 @@ func generateMethodToRawDirect(mf MatchedField, undOpt undtag.UndOpt, typeParam 
 				pkgIdent, inner(ident), conversionIdent,
 			)
 		}
+		needsArg = true
 	}
 	return
 }
 
-func optionToRaw(undOpt undtag.UndOpt, typeParam string, importMap importDecls) func(ident string) string {
+func optionToRaw(undOpt undtag.UndOpt, typeParam string, importMap importDecls) (func(ident string) string, bool) {
 	optionIdent, _ := importMap.Ident(UndTargetTypeOption.ImportPath)
 	switch s := undOpt.States().Value(); {
 	default:
-		return nil
+		return nil, false
 	case s.Def && (s.Null || s.Und):
-		return nil
+		return nil, false
 	case s.Def:
 		return func(ident string) string {
 			return fmt.Sprintf("%s.Some(%s)", optionIdent, ident)
-		}
+		}, true
 	case s.Null || s.Und:
 		return func(ident string) string {
 			return fmt.Sprintf("%s.None[%s]()", optionIdent, typeParam)
-		}
+		}, true
 	}
 }
 
-func undToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) func(ident string) string {
+func undToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (func(ident string) string, bool) {
 	convertIdent, _ := importMap.Ident(UndPathConversion)
 	undIdent, _ := importMap.Ident(UndTargetTypeUnd.ImportPath)
 	isSlice := targetTypeIsSlice(mf.Type)
@@ -191,9 +280,9 @@ func undToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap
 	}
 	switch s := undOpt.States().Value(); {
 	default:
-		return nil
+		return nil, false
 	case s.Def && s.Null && s.Und:
-		return nil
+		return nil, false
 	case s.Def && (s.Null || s.Und):
 		return func(ident string) string {
 			return fmt.Sprintf(
@@ -203,29 +292,29 @@ func undToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap
 				s.Null,
 				ident,
 			)
-		}
+		}, true
 	case s.Null && s.Und:
 		return func(ident string) string {
 			return fmt.Sprintf("%s.NullishUnd%s[%s](%s)", convertIdent, sliceSuffix(isSlice), typeParam, ident)
-		}
+		}, true
 	case s.Def:
 		return func(ident string) string {
 			return fmt.Sprintf("%s.Defined(%s)", undIdent, ident)
-		}
+		}, true
 	case s.Null || s.Und:
 		if s.Null {
 			return func(ident string) string {
 				return fmt.Sprintf("%s.Null[%s]()", undIdent, typeParam)
-			}
+			}, false
 		} else {
 			return func(ident string) string {
 				return fmt.Sprintf("%s.Undefined[%s]()", undIdent, typeParam)
-			}
+			}, false
 		}
 	}
 }
 
-func elasticToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) func(ident string) string {
+func elasticToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (func(ident string) string, bool) {
 	optionIdent, _ := importMap.Ident(UndTargetTypeOption.ImportPath)
 	convertIdent, _ := importMap.Ident(UndPathConversion)
 
@@ -245,30 +334,30 @@ func elasticToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, impor
 	if undOpt.States().IsSome() && undOpt.Len().IsNone() && undOpt.Values().IsNone() {
 		switch s := undOpt.States().Value(); {
 		default:
-			return nil
+			return nil, false
 		case s.Def && s.Null && s.Und:
-			return nil
+			return nil, false
 		case s.Def && (s.Null || s.Und):
 			return func(ident string) string {
 				return fmt.Sprintf("%s.OptionOptionElastic(%t, %s)", convertIdent, s.Null, ident)
-			}
+			}, true
 		case s.Null && s.Und:
 			return func(ident string) string {
 				return fmt.Sprintf("%s.NullishElastic[%s](%s)", convertIdent, typeParam, ident)
-			}
+			}, true
 		case s.Def:
 			return func(ident string) string {
 				return fmt.Sprintf("%s.FromOptions(%s...)", elasticIdent, ident)
-			}
+			}, true
 		case s.Null || s.Und:
 			if s.Null {
 				return func(ident string) string {
 					return fmt.Sprintf("%s.Null[%s]()", elasticIdent, typeParam)
-				}
+				}, false
 			} else {
 				return func(ident string) string {
 					return fmt.Sprintf("%s.Undefined[%s]()", elasticIdent, typeParam)
-				}
+				}, false
 			}
 		}
 	}
@@ -280,16 +369,16 @@ func elasticToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, impor
 		case s.Null && s.Und:
 			return func(ident string) string {
 				return fmt.Sprintf("%s.NullishUnd%s[%s](%s)", convertIdent, sliceSuffix(isSlice), typeParam, ident)
-			}
+			}, true
 		case s.Null || s.Und:
 			if s.Null {
 				return func(ident string) string {
 					return fmt.Sprintf("%s.Null[%s]()", elasticIdent, typeParam)
-				}
+				}, false
 			} else {
 				return func(ident string) string {
 					return fmt.Sprintf("%s.Undefined[%s]()", elasticIdent, typeParam)
-				}
+				}, false
 			}
 		}
 	}
@@ -365,7 +454,7 @@ func elasticToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, impor
 	}
 
 	// Finally wrap value based on req,null,und
-	if wrapper := undToRaw(mf, undOpt, typeParam, importMap); wrapper != nil {
+	if wrapper, _ := undToRaw(mf, undOpt, typeParam, importMap); wrapper != nil {
 		wrappers = append(wrappers, wrapper)
 	}
 
@@ -375,5 +464,5 @@ func elasticToRaw(mf MatchedField, undOpt undtag.UndOpt, typeParam string, impor
 			exp = wrapper(exp)
 		}
 		return c(exp)
-	}
+	}, true
 }
