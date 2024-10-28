@@ -319,7 +319,7 @@ func unwrapUndType(fieldTy *dst.IndexExpr, target RawMatchedType, mf MatchedFiel
 		case s.Def:
 			expr = fieldTy.Index // unwrap, simply T.
 		case s.Null || s.Und:
-			expr = startStructExpr() // *struct{}
+			expr = conversionEmptyExpr(importMap)
 		}
 	case UndTargetTypeUnd, UndTargetTypeSliceUnd:
 		switch s := undOpt.States().Value(); {
@@ -328,13 +328,13 @@ func unwrapUndType(fieldTy *dst.IndexExpr, target RawMatchedType, mf MatchedFiel
 		case s.Def && (s.Null || s.Und):
 			*sel = *importMap.DstExpr(UndTargetTypeOption)
 		case s.Null && s.Und:
-			fieldTy.Index = startStructExpr()
+			fieldTy.Index = conversionEmptyExpr(importMap)
 			*sel = *importMap.DstExpr(UndTargetTypeOption)
 		case s.Def:
 			// unwrap
 			expr = fieldTy.Index
 		case s.Null || s.Und:
-			expr = startStructExpr()
+			expr = conversionEmptyExpr(importMap)
 		}
 	case UndTargetTypeElastic, UndTargetTypeSliceElastic:
 		isSlice := targetTypeIsSlice(mf.Type)
@@ -406,13 +406,13 @@ func unwrapUndType(fieldTy *dst.IndexExpr, target RawMatchedType, mf MatchedFiel
 			fieldTy.X = importMap.DstExpr(UndTargetTypeOption)
 		case s.Null && s.Und:
 			// option.Option[*struct{}]
-			fieldTy.Index = startStructExpr()
+			fieldTy.Index = conversionEmptyExpr(importMap)
 			fieldTy.X = importMap.DstExpr(UndTargetTypeOption)
 		case s.Def:
 			// und.Und[[]option.Option[T]] -> []option.Option[T]
 			expr = fieldTy.Index
 		case s.Null || s.Und:
-			expr = startStructExpr()
+			expr = conversionEmptyExpr(importMap)
 		}
 	}
 

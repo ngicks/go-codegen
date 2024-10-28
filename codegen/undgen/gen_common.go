@@ -57,13 +57,9 @@ func printImport(w io.Writer, af *ast.File, fset *token.FileSet) error {
 	return nil
 }
 
-// returns *struct{}
-func startStructExpr() *dst.StarExpr {
-	return &dst.StarExpr{
-		X: &dst.StructType{
-			Fields: &dst.FieldList{Opening: true, Closing: true},
-		},
-	}
+// returns conversion.Empty
+func conversionEmptyExpr(importMap importDecls) *dst.SelectorExpr {
+	return importMap.DstExpr(UndTargetTypeConversionEmpty)
 }
 
 func bufPrintf(w io.Writer) (func(format string, args ...any), func() error) {

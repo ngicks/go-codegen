@@ -15,7 +15,7 @@ type AllPlain struct {
 	Baz    string                                  `und:"def"`
 	Qux    option.Option[string]                   `und:"def,und"`
 	Quux   option.Option[[3]option.Option[string]] `und:"null,len==3"`
-	Corge  option.Option[*struct{}]                `und:"nullish"`
+	Corge  option.Option[conversion.Empty]         `und:"nullish"`
 	Grault option.Option[[]string]                 `und:"und,len>=2,values:nonnull"`
 }
 
@@ -57,7 +57,7 @@ func (v AllPlain) UndRaw() All {
 //undgen:generated
 type MapSliceArrayPlain struct {
 	Foo map[string]string                         `json:"foo" und:"def"`
-	Bar []*struct{}                               `json:"bar" und:"null"`
+	Bar []conversion.Empty                        `json:"bar" und:"null"`
 	Baz [5]option.Option[[]option.Option[string]] `json:"baz" und:"und,len>=2"`
 }
 
@@ -70,8 +70,8 @@ func (v MapSliceArray) UndPlain() MapSliceArrayPlain {
 			}
 			return out
 		}(v.Foo),
-		Bar: func(in []und.Und[string]) []*struct{} {
-			out := make([]*struct{}, len(in))
+		Bar: func(in []und.Und[string]) []conversion.Empty {
+			out := make([]conversion.Empty, len(in))
 			for k := range in {
 				out[k] = nil
 			}
@@ -95,7 +95,7 @@ func (v MapSliceArrayPlain) UndRaw() MapSliceArray {
 			}
 			return out
 		}(v.Foo),
-		Bar: func(in []*struct{}) []und.Und[string] {
+		Bar: func(in []conversion.Empty) []und.Und[string] {
 			out := make([]und.Und[string], len(in))
 			for k := range in {
 				out[k] = und.Null[string]()
@@ -134,7 +134,7 @@ func (v ContainsImplementorPlain) UndRaw() ContainsImplementor {
 //undgen:generated
 type MapSliceArrayContainsImplementorPlain struct {
 	Foo map[string]Implementor                         `und:"def"`
-	Bar []*struct{}                                    `und:"null"`
+	Bar []conversion.Empty                             `und:"null"`
 	Baz [5]option.Option[[]option.Option[Implementor]] `und:"und,len>=2"`
 }
 
@@ -147,8 +147,8 @@ func (v MapSliceArrayContainsImplementor) UndPlain() MapSliceArrayContainsImplem
 			}
 			return out
 		}(v.Foo),
-		Bar: func(in []und.Und[Implementor]) []*struct{} {
-			out := make([]*struct{}, len(in))
+		Bar: func(in []und.Und[Implementor]) []conversion.Empty {
+			out := make([]conversion.Empty, len(in))
 			for k := range in {
 				out[k] = nil
 			}
@@ -172,7 +172,7 @@ func (v MapSliceArrayContainsImplementorPlain) UndRaw() MapSliceArrayContainsImp
 			}
 			return out
 		}(v.Foo),
-		Bar: func(in []*struct{}) []und.Und[Implementor] {
+		Bar: func(in []conversion.Empty) []und.Und[Implementor] {
 			out := make([]und.Und[Implementor], len(in))
 			for k := range in {
 				out[k] = und.Null[Implementor]()

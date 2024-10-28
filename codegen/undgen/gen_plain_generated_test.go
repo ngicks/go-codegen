@@ -11,6 +11,7 @@ import (
 	"github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes"
 	"github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub"
 	"github.com/ngicks/und"
+	"github.com/ngicks/und/conversion"
 	"github.com/ngicks/und/elastic"
 	"github.com/ngicks/und/option"
 	"github.com/ngicks/und/sliceund"
@@ -119,22 +120,22 @@ func Test_plain_All(t *testing.T) {
 			OptNullOrUnd:             nil,
 			OptDefOrNullOrUnd:        option.Some("OptDefOrNullOrUnd"),
 			UndRequired:              "UndRequired",
-			UndNullish:               option.None[*struct{}](),
+			UndNullish:               option.None[conversion.Empty](),
 			UndDef:                   "UndDef",
 			UndNull:                  nil,
 			UndUnd:                   nil,
 			UndDefOrUnd:              option.Some("UndDefOrUnd"),
 			UndDefOrNull:             option.Some("UndDefOrNull"),
-			UndNullOrUnd:             option.None[*struct{}](),
+			UndNullOrUnd:             option.None[conversion.Empty](),
 			UndDefOrNullOrUnd:        und.Defined("UndDefOrNullOrUnd"),
 			ElaRequired:              []option.Option[string]{option.Some("ElaRequired"), option.None[string](), option.Some("ElaRequired"), option.None[string](), option.Some("ElaRequired")},
-			ElaNullish:               option.None[*struct{}](),
+			ElaNullish:               option.None[conversion.Empty](),
 			ElaDef:                   []option.Option[string]{option.Some("ElaDef"), option.None[string](), option.Some("ElaDef"), option.None[string](), option.Some("ElaDef")},
 			ElaNull:                  nil,
 			ElaUnd:                   nil,
 			ElaDefOrUnd:              option.Some([]option.Option[string]{option.Some("ElaDefOrUnd"), option.None[string](), option.Some("ElaDefOrUnd"), option.None[string](), option.Some("ElaDefOrUnd")}),
 			ElaDefOrNull:             option.Some([]option.Option[string]{option.Some("ElaDefOrNull"), option.None[string](), option.Some("ElaDefOrNull"), option.None[string](), option.Some("ElaDefOrNull")}),
-			ElaNullOrUnd:             option.None[*struct{}](),
+			ElaNullOrUnd:             option.None[conversion.Empty](),
 			ElaDefOrNullOrUnd:        elastic.FromOptions(option.Some("ElaDefOrNullOrUnd"), option.None[string](), option.Some("ElaDefOrNullOrUnd"), option.None[string](), option.Some("ElaDefOrNullOrUnd")),
 			ElaEqEq:                  option.Some("ElaEqEq"),
 			ElaGr:                    []option.Option[string]{option.Some("ElaGr"), option.None[string](), option.Some("ElaGr"), option.None[string](), option.Some("ElaGr")},

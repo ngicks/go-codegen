@@ -37,7 +37,7 @@ var ConstUnd = ConstSet{
 		},
 		{
 			ImportPath: "github.com/ngicks/und/conversion",
-			Types:      []string{},
+			Types:      []string{"Empty"},
 		},
 	},
 	ConversionMethod: ConversionMethodsSet{
@@ -73,6 +73,10 @@ var (
 	UndTargetTypeSliceElastic = TargetType{
 		ImportPath: "github.com/ngicks/und/sliceund/elastic",
 		Name:       "Elastic",
+	}
+	UndTargetTypeConversionEmpty = TargetType{
+		ImportPath: "github.com/ngicks/und/conversion",
+		Name:       "Empty",
 	}
 )
 

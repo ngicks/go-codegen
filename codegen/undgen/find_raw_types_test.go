@@ -54,18 +54,22 @@ func Test_isImplementor(t *testing.T) {
 		ToRaw:   "UndRaw",
 		ToPlain: "UndPlain",
 	}
-	assertIsConversionMethodImplementor := func(ty *types.Named, conversionMethod ConversionMethodsSet, fromPlain bool) {
+	assertIsConversionMethodImplementor := func(ty *types.Named, conversionMethod ConversionMethodsSet, fromPlain bool, ok1, ok2 bool) {
 		t.Helper()
-		ty, ok := isConversionMethodImplementor(ty, conversionMethod, fromPlain)
-		assert.Assert(t, ok)
-		assert.Assert(t, ty != nil)
+		ty, ok_ := isConversionMethodImplementor(ty, conversionMethod, fromPlain)
+		assert.Assert(t, ok1 == ok_)
+		if ok2 {
+			assert.Assert(t, ty != nil)
+		} else {
+			assert.Assert(t, ty == nil)
+		}
 	}
 
-	assertIsConversionMethodImplementor(foo, mset, false)
-	assertIsConversionMethodImplementor(fooPlain, mset, true)
+	assertIsConversionMethodImplementor(foo, mset, false, true, true)
+	assertIsConversionMethodImplementor(fooPlain, mset, true, true, true)
 
-	assertIsConversionMethodImplementor(bar, mset, true)
-	assertIsConversionMethodImplementor(nonCyclic, mset, true)
+	assertIsConversionMethodImplementor(bar, mset, true, false, false)
+	assertIsConversionMethodImplementor(nonCyclic, mset, true, false, false)
 }
 
 func Test_parseImports(t *testing.T) {
@@ -161,6 +165,7 @@ func deepEqualRawMatchedType(t *testing.T, i, j []hiter.KeyValue[int, RawMatched
 		gocmp.Comparer(func(i, j *ast.TypeSpec) bool { return true }),
 		gocmp.Comparer(func(i, j types.Object) bool { return true }),
 		gocmp.Comparer(func(i, j structtag.Tags) bool { return true }),
+		gocmp.Comparer(func(i, j types.Type) bool { return true }),
 	)
 }
 

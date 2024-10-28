@@ -20,33 +20,33 @@ type AllPlain struct {
 	UntouchedSliceUnd sliceund.Und[int]  `json:",omitzero"`
 
 	OptRequired       string                `json:"opt_required,omitzero" und:"required"`
-	OptNullish        *struct{}             `json:",omitzero" und:"nullish"`
+	OptNullish        conversion.Empty      `json:",omitzero" und:"nullish"`
 	OptDef            string                `json:",omitzero" und:"def"`
-	OptNull           *struct{}             `json:",omitzero" und:"null"`
-	OptUnd            *struct{}             `json:",omitzero" und:"und"`
+	OptNull           conversion.Empty      `json:",omitzero" und:"null"`
+	OptUnd            conversion.Empty      `json:",omitzero" und:"und"`
 	OptDefOrUnd       option.Option[string] `json:",omitzero" und:"def,und"`
 	OptDefOrNull      option.Option[string] `json:",omitzero" und:"def,null"`
-	OptNullOrUnd      *struct{}             `json:",omitzero" und:"null,und"`
+	OptNullOrUnd      conversion.Empty      `json:",omitzero" und:"null,und"`
 	OptDefOrNullOrUnd option.Option[string] `json:",omitzero" und:"def,null,und"`
 
-	UndRequired       string                   `json:",omitzero" und:"required"`
-	UndNullish        option.Option[*struct{}] `json:",omitzero" und:"nullish"`
-	UndDef            string                   `json:",omitzero" und:"def"`
-	UndNull           *struct{}                `json:",omitzero" und:"null"`
-	UndUnd            *struct{}                `json:",omitzero" und:"und"`
-	UndDefOrUnd       option.Option[string]    `json:",omitzero" und:"def,und"`
-	UndDefOrNull      option.Option[string]    `json:",omitzero" und:"def,null"`
-	UndNullOrUnd      option.Option[*struct{}] `json:",omitzero" und:"null,und"`
-	UndDefOrNullOrUnd und.Und[string]          `json:",omitzero" und:"def,null,und"`
+	UndRequired       string                          `json:",omitzero" und:"required"`
+	UndNullish        option.Option[conversion.Empty] `json:",omitzero" und:"nullish"`
+	UndDef            string                          `json:",omitzero" und:"def"`
+	UndNull           conversion.Empty                `json:",omitzero" und:"null"`
+	UndUnd            conversion.Empty                `json:",omitzero" und:"und"`
+	UndDefOrUnd       option.Option[string]           `json:",omitzero" und:"def,und"`
+	UndDefOrNull      option.Option[string]           `json:",omitzero" und:"def,null"`
+	UndNullOrUnd      option.Option[conversion.Empty] `json:",omitzero" und:"null,und"`
+	UndDefOrNullOrUnd und.Und[string]                 `json:",omitzero" und:"def,null,und"`
 
 	ElaRequired       []option.Option[string]                `json:",omitzero" und:"required"`
-	ElaNullish        option.Option[*struct{}]               `json:",omitzero" und:"nullish"`
+	ElaNullish        option.Option[conversion.Empty]        `json:",omitzero" und:"nullish"`
 	ElaDef            []option.Option[string]                `json:",omitzero" und:"def"`
-	ElaNull           *struct{}                              `json:",omitzero" und:"null"`
-	ElaUnd            *struct{}                              `json:",omitzero" und:"und"`
+	ElaNull           conversion.Empty                       `json:",omitzero" und:"null"`
+	ElaUnd            conversion.Empty                       `json:",omitzero" und:"und"`
 	ElaDefOrUnd       option.Option[[]option.Option[string]] `json:",omitzero" und:"def,und"`
 	ElaDefOrNull      option.Option[[]option.Option[string]] `json:",omitzero" und:"def,null"`
-	ElaNullOrUnd      option.Option[*struct{}]               `json:",omitzero" und:"null,und"`
+	ElaNullOrUnd      option.Option[conversion.Empty]        `json:",omitzero" und:"null,und"`
 	ElaDefOrNullOrUnd elastic.Elastic[string]                `json:",omitzero" und:"def,null,und"`
 
 	ElaEqEq option.Option[string]   `json:",omitzero" und:"len==1"`
@@ -62,7 +62,7 @@ type AllPlain struct {
 	ElaEqEquUnd      option.Option[[2]option.Option[string]] `json:",omitzero" und:"und,len==2"`
 
 	ElaEqEqNonNullSlice      und.Und[[]string]        `json:",omitzero" und:"values:nonnull"`
-	ElaEqEqNonNullNullSlice  *struct{}                `json:",omitzero" und:"null,values:nonnull"`
+	ElaEqEqNonNullNullSlice  conversion.Empty         `json:",omitzero" und:"null,values:nonnull"`
 	ElaEqEqNonNullSingle     string                   `json:",omitzero" und:"values:nonnull,len==1"`
 	ElaEqEqNonNullNullSingle option.Option[string]    `json:",omitzero" und:"null,values:nonnull,len==1"`
 	ElaEqEqNonNull           [3]string                `json:",omitzero" und:"values:nonnull,len==3"`
