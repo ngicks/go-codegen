@@ -14,8 +14,8 @@ import (
 
 func Test_generatePatcher(t *testing.T) {
 	var pkg *packages.Package
-	for _, p := range testdataPackages {
-		if p.PkgPath == "github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes" {
+	for _, p := range targettypesPackages {
+		if p.PkgPath == "github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes" {
 			pkg = p
 			break
 		}
@@ -40,7 +40,7 @@ func Test_generatePatcher(t *testing.T) {
 func Test_generatePatcher_write(t *testing.T) {
 	var pkg *packages.Package
 	for _, p := range patchtargetPackages {
-		if p.PkgPath == "github.com/ngicks/go-codegen/codegen/undgen/testdata/patchtarget" {
+		if p.PkgPath == "github.com/ngicks/go-codegen/codegen/undgen/internal/patchtarget" {
 			pkg = p
 			break
 		}

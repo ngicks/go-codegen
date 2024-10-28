@@ -3,7 +3,7 @@ package undgen
 import (
 	"testing"
 
-	"github.com/ngicks/go-codegen/codegen/undgen/testdata/validatortarget"
+	"github.com/ngicks/go-codegen/codegen/undgen/internal/validatortarget"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/elastic"
 	"github.com/ngicks/und/option"

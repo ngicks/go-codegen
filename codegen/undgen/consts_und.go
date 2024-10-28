@@ -35,6 +35,10 @@ var ConstUnd = ConstSet{
 			ImportPath: "github.com/ngicks/und/validate",
 			Types:      []string{},
 		},
+		{
+			ImportPath: "github.com/ngicks/und/conversion",
+			Types:      []string{"Empty"},
+		},
 	},
 	ConversionMethod: ConversionMethodsSet{
 		ToRaw:   "UndRaw",
@@ -70,9 +74,23 @@ var (
 		ImportPath: "github.com/ngicks/und/sliceund/elastic",
 		Name:       "Elastic",
 	}
+	UndTargetTypeConversionEmpty = TargetType{
+		ImportPath: "github.com/ngicks/und/conversion",
+		Name:       "Empty",
+	}
 )
 
+func targetTypeIsSlice(t TargetType) bool {
+	switch t {
+	default:
+		return false
+	case UndTargetTypeSliceUnd, UndTargetTypeSliceElastic:
+		return true
+	}
+}
+
 const (
-	UndPathUndTag   = "github.com/ngicks/und/undtag"
-	UndPathValidate = "github.com/ngicks/und/validate"
+	UndPathConversion = "github.com/ngicks/und/conversion"
+	UndPathUndTag     = "github.com/ngicks/und/undtag"
+	UndPathValidate   = "github.com/ngicks/und/validate"
 )

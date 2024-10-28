@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
-	"go/printer"
-	"go/token"
 	"go/types"
 	"io"
 	"iter"
@@ -16,12 +14,13 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/undtag"
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen validator --pkg ./testdata/targettypes/ --pkg ./testdata/targettypes/sub --pkg ./testdata/targettypes/sub2
-//go:generate go run ../ undgen validator --pkg ./testdata/validatortarget/...
+//go:generate go run ../ undgen validator --pkg ./internal/targettypes/ --pkg ./internal/targettypes/sub --pkg ./internal/targettypes/sub2
+//go:generate go run ../ undgen validator --pkg ./internal/validatortarget/...
 
 func GenerateValidator(
 	sourcePrinter *suffixwriter.Writer,
@@ -35,7 +34,7 @@ func GenerateValidator(
 	if err != nil {
 		return err
 	}
-	for data, err := range generatorRawIter(imports, rawTypes) {
+	for data, err := range preprocessRawTypes(imports, rawTypes) {
 		if err != nil {
 			return err
 		}
@@ -55,31 +54,14 @@ func GenerateValidator(
 
 		buf := new(bytes.Buffer) // pool buf?
 
-		buf.WriteString(token.PACKAGE.String())
-		buf.WriteByte(' ')
-		buf.WriteString(af.Name.Name)
-		buf.WriteString("\n\n")
-
-		// TODO: split these lines to function.
-		for i, dec := range af.Decls {
-			genDecl, ok := dec.(*ast.GenDecl)
-			if !ok {
-				continue
-			}
-			if genDecl.Tok != token.IMPORT {
-				// it's possible that the file has multiple import spec.
-				// but it always starts with import spec.
-				break
-			}
-			err = printer.Fprint(buf, res.Fset, genDecl)
-			if err != nil {
-				return fmt.Errorf("print.Fprint failed printing %dth import spec in file %q: %w", i, data.filename, err)
-			}
-			buf.WriteString("\n\n")
+		_ = printPackage(buf, af)
+		err = printImport(buf, af, res.Fset)
+		if err != nil {
+			return fmt.Errorf("%q: %w", data.filename, err)
 		}
 
 		var atLeastOne bool
-		for _, matchedType := range data.targets {
+		for _, matchedType := range hiter.Values2(data.targets) {
 			written, err := generateUndValidate(
 				buf,
 				data.dec.Dst.Nodes[matchedType.TypeSpec].(*dst.TypeSpec),
@@ -90,7 +72,7 @@ func GenerateValidator(
 				atLeastOne = true
 			}
 			if err != nil {
-				return fmt.Errorf("generating UndValidate for type %s in file %q: %w", data.filename, matchedType.TypeSpec.Name.Name, err)
+				return fmt.Errorf("generating UndValidate for type %s in file %q: %w", matchedType.TypeSpec.Name.Name, data.filename, err)
 			}
 			buf.WriteString("\n\n")
 		}
@@ -125,9 +107,14 @@ func generateUndValidate(
 
 	buf := new(bytes.Buffer)
 
-	printf := func(format string, args ...any) {
-		fmt.Fprintf(buf, format, args...)
-	}
+	printf, flush := bufPrintf(w)
+	defer func() {
+		fErr := flush()
+		if err != nil {
+			return
+		}
+		err = fErr
+	}()
 
 	// true only when validator is meaningful.
 	var shouldPrint bool
@@ -227,11 +214,11 @@ func generateUndValidate(
 						`{
 							return %[1]s.AppendValidationErrorDot(
 								fmt.Errorf("%%s: value is %%s", validator.Describe(), %[1]s.ReportState(v.%[2]s)),
-								%[2]q,
+								%[3]q,
 							)
 						}
 							`,
-						validateImportIdent, f.JsonFieldName(),
+						validateImportIdent, f.Name, f.JsonFieldName(),
 					)
 					if f.Elem != nil && f.Elem.As == MatchedAsImplementor {
 						if ident := importIdent(f.Type, imports); ident != "" {
@@ -270,39 +257,20 @@ func generateUndValidate(
 	return
 }
 
-func importIdent(ty TargetType, imports importDecls) string {
-	optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
-	undImportIdent, _ := imports.Ident(UndTargetTypeUnd.ImportPath)
-	sliceUndImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
-	elasticImportIdent, _ := imports.Ident(UndTargetTypeElastic.ImportPath)
-	sliceElasticImportIdent, _ := imports.Ident(UndTargetTypeSliceElastic.ImportPath)
-	switch ty {
-	case UndTargetTypeElastic:
-		return elasticImportIdent
-	case UndTargetTypeSliceElastic:
-		return sliceElasticImportIdent
-	case UndTargetTypeUnd:
-		return undImportIdent
-	case UndTargetTypeSliceUnd:
-		return sliceUndImportIdent
-	case UndTargetTypeOption:
-		return optionImportIdent
-	}
-	return ""
-}
-
 type rawTypeReplacerData struct {
-	filename  string
-	af        *ast.File
-	dec       *decorator.Decorator
-	df        *dst.File
-	importMap importDecls
-	targets   iter.Seq2[int, RawMatchedType]
+	filename    string
+	af          *ast.File
+	dec         *decorator.Decorator
+	df          *dst.File
+	importMap   importDecls
+	targets     hiter.KeyValues[int, RawMatchedType]
+	rawFields   map[int]map[string]string
+	plainFields map[int]map[string]string
 }
 
-func generatorRawIter(imports []TargetImport, types RawTypes) iter.Seq2[rawTypeReplacerData, error] {
+func preprocessRawTypes(imports []TargetImport, rawTypes RawTypes) iter.Seq2[rawTypeReplacerData, error] {
 	return func(yield func(rawTypeReplacerData, error) bool) {
-		for pkg, seq := range types.Iter() {
+		for pkg, seq := range rawTypes.Iter() {
 			for file, seq := range seq {
 				dec := decorator.NewDecorator(pkg.Fset)
 				df, err := dec.DecorateFile(file)
@@ -311,6 +279,49 @@ func generatorRawIter(imports []TargetImport, types RawTypes) iter.Seq2[rawTypeR
 						return
 					}
 					continue
+				}
+
+				targets := hiter.Collect2(seq)
+				for _, matched := range hiter.Values2(targets) {
+					switch matched.Variant {
+					case MatchedAsStruct:
+						for _, f := range matched.Field {
+							if f.As == MatchedAsImplementor {
+								ty, ok := ConstUnd.ConversionMethod.ConvertedType(f.TypeInfo.(*types.Named))
+								if !ok {
+									continue
+								}
+								imports = appendTypeAndTypeParams(imports, pkg.PkgPath, ty)
+							}
+							if f.Elem != nil && f.Elem.As == MatchedAsImplementor {
+								var elem types.Type
+								switch x := f.TypeInfo.(type) {
+								case *types.Named:
+									elem = x
+								case *types.Array:
+									elem = x.Elem()
+								case *types.Slice:
+									elem = x.Elem()
+								case *types.Map:
+									elem = x.Elem()
+								}
+								ty, ok := ConstUnd.ConversionMethod.ConvertedType(elem.(*types.Named).TypeArgs().At(0).(*types.Named))
+								if !ok {
+									continue
+								}
+								imports = appendTypeAndTypeParams(imports, pkg.PkgPath, ty)
+							}
+						}
+					case MatchedAsArray, MatchedAsSlice, MatchedAsMap:
+						f := matched.Field[0]
+						if f.As == MatchedAsImplementor {
+							ty, ok := ConstUnd.ConversionMethod.ConvertedType(f.Elem.TypeInfo.(*types.Named))
+							if !ok {
+								continue
+							}
+							imports = appendTypeAndTypeParams(imports, pkg.PkgPath, ty)
+						}
+					}
 				}
 
 				importMap := parseImports(file.Imports, imports)
@@ -323,7 +334,7 @@ func generatorRawIter(imports []TargetImport, types RawTypes) iter.Seq2[rawTypeR
 						dec:       dec,
 						df:        df,
 						importMap: importMap,
-						targets:   seq,
+						targets:   targets,
 					},
 					nil,
 				) {
@@ -337,7 +348,34 @@ func generatorRawIter(imports []TargetImport, types RawTypes) iter.Seq2[rawTypeR
 func findValidatableTypes(pkgs []*packages.Package, imports []TargetImport) (RawTypes, error) {
 	validatorMethod := ValidatorMethod{"UndValidate"}
 	// 1st path, find other than implementor
-	matched, err := findRawTypes(pkgs, imports, validatorMethod, nil, false)
+	matched, err := findRawTypes(pkgs, imports, validatorMethod, nil, false, nil)
+	if err != nil {
+		return matched, err
+	}
+
+	// TODO: use filter instead
+	matched = collectRawTypes(
+		filterRawTypes(
+			nil,
+			nil,
+			func(rmt RawMatchedType) bool {
+				if rmt.Variant != MatchedAsStruct {
+					return true
+				}
+				var count int
+				for _, f := range rmt.Field {
+					if (f.UndTag.IsSome() && f.As != MatchedAsImplementor) || f.As == MatchedAsImplementor {
+						count++
+					}
+				}
+				return count > 0
+			},
+			matched.Iter(),
+		),
+	)
+
+	// 2nd path, find including implementor
+	matched, err = findRawTypes(pkgs, imports, validatorMethod, matched, true, nil)
 	if err != nil {
 		return matched, err
 	}
@@ -352,7 +390,7 @@ func findValidatableTypes(pkgs []*packages.Package, imports []TargetImport) (Raw
 				}
 				var count int
 				for _, f := range rmt.Field {
-					if f.UndTag.IsSome() && f.As != MatchedAsImplementor {
+					if (f.UndTag.IsSome() && f.As != MatchedAsImplementor) || f.As == MatchedAsImplementor {
 						count++
 					}
 				}
@@ -361,12 +399,6 @@ func findValidatableTypes(pkgs []*packages.Package, imports []TargetImport) (Raw
 			matched.Iter(),
 		),
 	)
-
-	// 2nd path, find including implementor
-	matched, err = findRawTypes(pkgs, imports, validatorMethod, matched, true)
-	if err != nil {
-		return matched, err
-	}
 
 	return matched, nil
 }

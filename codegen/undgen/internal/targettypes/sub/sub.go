@@ -1,7 +1,7 @@
 package sub
 
 import (
-	"github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub2"
+	"github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub2"
 	"github.com/ngicks/und/option"
 )
 
@@ -13,7 +13,14 @@ type Foo[T any] struct {
 
 func (f Foo[T]) UndPlain() FooPlain[T] {
 	return FooPlain[T]{
-		Nay: f.Yay,
+		T: f.T,
+		Nay: func() string {
+			if f.Yay == "yay" {
+				return "nay"
+			} else {
+				return f.Yay
+			}
+		}(),
 	}
 }
 
@@ -25,7 +32,14 @@ type FooPlain[T any] struct {
 
 func (f FooPlain[T]) UndRaw() Foo[T] {
 	return Foo[T]{
-		Yay: f.Nay,
+		T: f.T,
+		Yay: func() string {
+			if f.Nay == "nay" {
+				return "yay"
+			} else {
+				return f.Nay
+			}
+		}(),
 	}
 }
 

@@ -1,7 +1,6 @@
 package undgen
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -28,8 +27,8 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen patch --pkg ./testdata/patchtarget All Ignored Hmm NameOverlapping
-//go:generate go run ../ undgen patch --pkg ./testdata/targettypes All WithTypeParam A B IncludesSubTarget
+//go:generate go run ../ undgen patch --pkg ./internal/patchtarget All Ignored Hmm NameOverlapping
+//go:generate go run ../ undgen patch --pkg ./internal/targettypes All WithTypeParam A B IncludesSubTarget
 
 func GeneratePatcher(
 	sourcePrinter *suffixwriter.Writer,
@@ -38,7 +37,19 @@ func GeneratePatcher(
 	imports []TargetImport,
 	targetTypeNames ...string,
 ) error {
-	for data, err := range generatePatcherType(pkg, imports, targetTypeNames...) {
+	if verbose {
+		slog.Debug(
+			"target type names",
+			slog.Any("names", targetTypeNames),
+		)
+	}
+	for data, err := range xiter.Map2(
+		wrapNonUndFields,
+		generatorIter(
+			imports,
+			findTypes(pkg, targetTypeNames...),
+		),
+	) {
 		if err != nil {
 			return err
 		}
@@ -62,26 +73,10 @@ func GeneratePatcher(
 
 		buf := new(bytes.Buffer) // pool buf?
 
-		buf.WriteString(token.PACKAGE.String())
-		buf.WriteByte(' ')
-		buf.WriteString(af.Name.Name)
-		buf.WriteString("\n\n")
-
-		for i, dec := range af.Decls {
-			genDecl, ok := dec.(*ast.GenDecl)
-			if !ok {
-				continue
-			}
-			if genDecl.Tok != token.IMPORT {
-				// it's possible that the file has multiple import spec.
-				// but it always starts with import spec.
-				break
-			}
-			err = printer.Fprint(buf, res.Fset, genDecl)
-			if err != nil {
-				return fmt.Errorf("print.Fprint failed printing %dth import spec in file %q: %w", i, data.filename, err)
-			}
-			buf.WriteString("\n\n")
+		_ = printPackage(buf, af)
+		err = printImport(buf, af, res.Fset)
+		if err != nil {
+			return fmt.Errorf("%q: %w", data.filename, err)
 		}
 
 		for i, spec := range hiter.Enumerate(data.targets.typeSpecs()) {
@@ -158,32 +153,20 @@ type methodGenSet struct {
 
 type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, typeInfo types.Object, matchedFields RawMatchedType, imports importDecls, typeSuffix string) error
 
-func generatePatcherType(pkg *packages.Package, imports []TargetImport, targetTypeNames ...string) iter.Seq2[replaceData, error] {
-	return func(yield func(replaceData, error) bool) {
-		for data, err := range generatorIter(
-			imports,
-			findTypes(pkg, targetTypeNames...),
-		) {
-			if err != nil {
-				if !yield(data, err) {
-					return
-				}
-				continue
-			}
-			for i, ts := range hiter.Enumerate(data.targets.typeSpecs()) {
-				wrapNonUndFieldsWithSliceUnd(ts, data.targets[i].replacerPerTypeData, data.importMap)
-			}
-			addMissingImports(data.df, data.importMap)
-
-			if !yield(data, nil) {
-				return
-			}
-		}
+func wrapNonUndFields(data replaceData, err error) (replaceData, error) {
+	if err != nil {
+		return data, err
 	}
+	for i, ts := range hiter.Enumerate(data.targets.typeSpecs()) {
+		wrapNonUndFieldsWithSliceUnd(ts, data.targets[i].replacerPerTypeData, data.importMap)
+	}
+	addMissingImports(data.df, data.importMap)
+
+	return data, nil
 }
 
 func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, importMap importDecls) {
-	fieldName := ts.Name.Name
+	typeName := ts.Name.Name
 	ts.Name.Name = ts.Name.Name + "Patch"
 	dstutil.Apply(
 		ts.Type,
@@ -212,7 +195,7 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, 
 						c.Replace(&dst.Field{
 							Names: field.Names,
 							Type: &dst.IndexExpr{
-								X:     importMap.DstExpr(UndTargetTypeSliceUnd.ImportPath, UndTargetTypeSliceUnd.Name),
+								X:     importMap.DstExpr(UndTargetTypeSliceUnd),
 								Index: field.Type.(*dst.IndexExpr).Index,
 							},
 							Tag:  field.Tag,
@@ -227,7 +210,7 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, 
 						&dst.Field{
 							Names: field.Names,
 							Type: &dst.IndexExpr{
-								X:     importMap.DstExpr(UndTargetTypeSliceUnd.ImportPath, UndTargetTypeSliceUnd.Name),
+								X:     importMap.DstExpr(UndTargetTypeSliceUnd),
 								Index: field.Type,
 							},
 							Tag:  field.Tag,
@@ -242,7 +225,7 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, 
 					if err != nil {
 						panic(fmt.Errorf(
 							"malformed struct tag on field %s of type %q: %w",
-							concatFieldNames(field), fieldName, err,
+							concatFieldNames(field), typeName, err,
 						))
 					}
 					tagOpt, _ = tagOpt.Delete("json", "omitempty")
@@ -360,15 +343,14 @@ func generateFromValue(
 	matchedFields RawMatchedType,
 	imports importDecls,
 	patcherTypeSuffix string,
-) error {
+) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, patcherTypeSuffix) + printTypeParamVars(ts)
 
-	bufw := bufio.NewWriter(w)
-
-	printf := func(format string, args ...any) {
-		fmt.Fprintf(bufw, format, args...)
-	}
+	printf, flush := bufPrintf(w)
+	defer func() {
+		err = flush()
+	}()
 
 	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
 	printf("func (p *%s) FromValue(v %s) {\n", patchTypeName, orgTypeName)
@@ -397,7 +379,7 @@ func generateFromValue(
 			sliceUndImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
 			optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
 			printf(
-				"%[1]s: %[2]s.MapOrOption("+
+				"%[1]s: %[2]s.MapOr("+
 					"v.%[1]s,"+
 					" %[3]s.Null[%[4]s](),"+
 					"%[3]s.Defined[%[4]s]),\n",
@@ -413,7 +395,7 @@ func generateFromValue(
 	printf("\t}\n")
 	printf("}\n\n")
 
-	return bufw.Flush()
+	return
 }
 
 // generates methods on the patch type
@@ -431,15 +413,14 @@ func generateToValue(
 	matchedFields RawMatchedType,
 	imports importDecls,
 	patcherTypeSuffix string,
-) error {
+) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, patcherTypeSuffix) + printTypeParamVars(ts)
 
-	bufw := bufio.NewWriter(w)
-
-	printf := func(format string, args ...any) {
-		fmt.Fprintf(bufw, format, args...)
-	}
+	printf, flush := bufPrintf(w)
+	defer func() {
+		err = flush()
+	}()
 
 	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
 	printf("func (p %s) ToValue() %s {\n", patchTypeName, orgTypeName)
@@ -463,7 +444,7 @@ func generateToValue(
 		case UndTargetTypeOption:
 			// sliceund.Und[T] -> option.Option[T]
 			optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
-			printf("%[1]s: %[2]s.FlattenOption(p.%[1]s.Unwrap()),\n", f.Name(), optionImportIdent)
+			printf("%[1]s: %[2]s.Flatten(p.%[1]s.Unwrap()),\n", f.Name(), optionImportIdent)
 			continue
 		case UndTargetTypeUnd, UndTargetTypeSliceUnd,
 			UndTargetTypeElastic, UndTargetTypeSliceElastic:
@@ -474,7 +455,7 @@ func generateToValue(
 	printf("\t}\n")
 	printf("}\n\n")
 
-	return bufw.Flush()
+	return
 }
 
 // generates methods on the patch type
@@ -492,14 +473,13 @@ func generateMerge(
 	matchedFields RawMatchedType,
 	imports importDecls,
 	_ /*patcherTypeSuffix*/ string,
-) error {
+) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 
-	bufw := bufio.NewWriter(w)
-
-	printf := func(format string, args ...any) {
-		fmt.Fprintf(bufw, format, args...)
-	}
+	printf, flush := bufPrintf(w)
+	defer func() {
+		err = flush()
+	}()
 
 	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
 	printf("func (p %[1]s) Merge(r %[1]s) %[1]s {\n", patchTypeName)
@@ -543,7 +523,7 @@ func generateMerge(
 	printf("\t}\n")
 	printf("}\n\n")
 
-	return bufw.Flush()
+	return
 }
 
 // generates methods on the patch type
@@ -561,15 +541,14 @@ func generateApplyPatch(
 	_ /*matchedFields*/ RawMatchedType,
 	_ /*imports*/ importDecls,
 	patcherTypeSuffix string,
-) error {
+) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, patcherTypeSuffix) + printTypeParamVars(ts)
 
-	bufw := bufio.NewWriter(w)
-
-	printf := func(format string, args ...any) {
-		fmt.Fprintf(bufw, format, args...)
-	}
+	printf, flush := bufPrintf(w)
+	defer func() {
+		err = flush()
+	}()
 
 	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated) // note this is generated method.
 	printf("func (p %[1]s) ApplyPatch(v %[2]s) %[2]s {\n", patchTypeName, orgTypeName)
@@ -579,5 +558,5 @@ func generateApplyPatch(
 	printf("\treturn merged.ToValue()\n")
 	printf("}\n\n")
 
-	return bufw.Flush()
+	return
 }

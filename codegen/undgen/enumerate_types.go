@@ -10,6 +10,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
+	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"github.com/ngicks/und/option"
@@ -226,6 +227,13 @@ func (p replacerPerTypeData) Field(fieldName string) (MatchedField, bool) {
 func generatorIter(imports []TargetImport, seq enumTypeSeq) iter.Seq2[replaceData, error] {
 	return func(yield func(replaceData, error) bool) {
 		for pkg, seq := range seq {
+			if err := pkgsutil.LoadError(pkg); err != nil {
+				if !yield(replaceData{}, err) {
+					return
+				}
+				continue
+			}
+
 			for file, seq := range seq {
 				dec := decorator.NewDecorator(pkg.Fset)
 				df, err := dec.DecorateFile(file)

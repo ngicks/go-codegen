@@ -138,13 +138,36 @@ func (id importDecls) matchFallback(pkgPath, name string) (string, TargetImport)
 	return "", TargetImport{}
 }
 
-func (id importDecls) DstExpr(pkgPath, name string) *dst.SelectorExpr {
+func (id importDecls) AstExpr(ty TargetType) *ast.SelectorExpr {
 	var (
 		ident string
 	)
-	ident, _ = id.matchIdentToImport(pkgPath, name)
+	ident, _ = id.matchIdentToImport(ty.ImportPath, ty.Name)
 	if ident == "" {
-		ident, _ = id.matchFallback(pkgPath, name)
+		ident, _ = id.matchFallback(ty.ImportPath, ty.Name)
+	}
+
+	if ident == "" {
+		return nil
+	}
+
+	return &ast.SelectorExpr{
+		X: &ast.Ident{
+			Name: ident,
+		},
+		Sel: &ast.Ident{
+			Name: ty.Name,
+		},
+	}
+}
+
+func (id importDecls) DstExpr(ty TargetType) *dst.SelectorExpr {
+	var (
+		ident string
+	)
+	ident, _ = id.matchIdentToImport(ty.ImportPath, ty.Name)
+	if ident == "" {
+		ident, _ = id.matchFallback(ty.ImportPath, ty.Name)
 	}
 
 	if ident == "" {
@@ -156,7 +179,7 @@ func (id importDecls) DstExpr(pkgPath, name string) *dst.SelectorExpr {
 			Name: ident,
 		},
 		Sel: &dst.Ident{
-			Name: name,
+			Name: ty.Name,
 		},
 	}
 }
@@ -201,6 +224,15 @@ func (i importDecls) MatchTy(path string, name string) (TargetType, bool) {
 	for _, v := range i.identToImport {
 		if v.ImportPath == path && slices.Contains(v.Types, name) {
 			return TargetType{v.ImportPath, name}, true
+		}
+	}
+	return TargetType{}, false
+}
+
+func (i importDecls) MatchSelector(left, right string) (TargetType, bool) {
+	for ident, ti := range i.identToImport {
+		if ident == left && slices.Contains(ti.Types, right) {
+			return TargetType{ti.ImportPath, right}, true
 		}
 	}
 	return TargetType{}, false

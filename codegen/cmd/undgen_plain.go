@@ -12,13 +12,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// undgenPatchCmd represents the patch command
-var undgenValidatorCmd = &cobra.Command{
-	Use:   "validator [flags]",
-	Short: "undgen-validator generates validator method on target types.",
-	Long:  `undgen-validator generates validator method on target types.`,
+// undgenPlainCmd represents the patch command
+var undgenPlainCmd = &cobra.Command{
+	Use:   "plain",
+	Short: "undgen-plain generates plain types and conversion methods from target types.",
+	Long:  `undgen-plain generates plain types and conversion methods from target types.`, // TODO improve
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fset := cmd.Flags()
+
 		dir, pkg, verbose, dry, err := undCommonOpts(fset, true)
 		if err != nil {
 			return err
@@ -26,12 +27,15 @@ var undgenValidatorCmd = &cobra.Command{
 
 		ctx := cmd.Context()
 
+		if verbose {
+			fmt.Printf("loading: %#v\n", pkg)
+		}
 		targetPkgs, err := loadPkgs(ctx, dir, pkg, true, verbose)
 		if err != nil {
 			return err
 		}
 
-		const suffix = ".und_validator"
+		const suffix = ".und_plain"
 		writer, deferred := createWriter(dir, suffix, verbose, dry)
 		defer deferred()
 
@@ -51,12 +55,12 @@ var undgenValidatorCmd = &cobra.Command{
 			return err
 		}
 
-		return undgen.GenerateValidator(writer, verbose, targetPkgs, undgen.ConstUnd.Imports)
+		return undgen.GeneratePlain(writer, verbose, targetPkgs, undgen.ConstUnd.Imports)
 	},
 }
 
 func init() {
-	fset := undgenValidatorCmd.Flags()
+	fset := undgenPlainCmd.Flags()
 	undCommonFlags(fset, true)
-	undgenCmd.AddCommand(undgenValidatorCmd)
+	undgenCmd.AddCommand(undgenPlainCmd)
 }

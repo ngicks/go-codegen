@@ -6,6 +6,7 @@
         "nolint",
         "nonnull",
         "omitzero",
+        "preprocess",
         "sliceelastic",
         "sliceund",
         "suffixprinter",

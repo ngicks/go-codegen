@@ -8,8 +8,10 @@ import (
 	"iter"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
+	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -29,7 +31,7 @@ func EnumeratePackages(pkgs []*packages.Package) iter.Seq2[*packages.Package, it
 	}
 }
 
-func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string) iter.Seq2[string, error] {
+func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string, dry bool) iter.Seq2[string, error] {
 	return func(yield func(string, error) bool) {
 		if cwd == "" {
 			var err error
@@ -40,12 +42,18 @@ func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string) iter.Seq2
 			}
 		}
 		for pkg, seq := range EnumeratePackages(pkgs) {
+			if err := LoadError(pkg); err != nil {
+				if !yield("", err) {
+					return
+				}
+				continue
+			}
 			for file := range seq {
 				filename := pkg.Fset.Position(file.FileStart).Filename
 
 				rel, err := filepath.Rel(cwd, filename)
 				if err != nil {
-					yield("", err)
+					yield("", fmt.Errorf("cwd = %q, filename = %q: %w", cwd, filename, err))
 					return
 				}
 
@@ -71,18 +79,40 @@ func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string) iter.Seq2
 
 				withoutExt, _ := strings.CutSuffix(rel, filepath.Ext(rel))
 				if strings.HasSuffix(withoutExt, suffix) {
-					err = os.Remove(rel)
-					if errors.Is(err, fs.ErrNotExist) {
-						err = nil
-					}
-					if err != nil {
-						err = fmt.Errorf("remove %q: %w", rel, err)
-					}
-					if !yield(rel, err) {
-						return
+					if dry {
+						if !yield(rel, nil) {
+							return
+						}
+					} else {
+						err = os.Remove(rel)
+						if errors.Is(err, fs.ErrNotExist) {
+							err = nil
+						}
+						if err != nil {
+							err = fmt.Errorf("remove %q: %w", rel, err)
+						}
+						if !yield(rel, err) {
+							return
+						}
 					}
 				}
 			}
 		}
 	}
+}
+
+func LoadError(pkg *packages.Package) error {
+	if len(pkg.Errors) > 0 {
+		format, _ := strings.CutSuffix(strings.Repeat("%w, ", len(pkg.Errors)), ", ")
+		return fmt.Errorf(
+			format,
+			slices.Collect(
+				xiter.Map(
+					func(e packages.Error) any { return e },
+					slices.Values(pkg.Errors),
+				),
+			)...,
+		)
+	}
+	return nil
 }

@@ -1,7 +1,7 @@
 package targettypes
 
 import (
-	"github.com/ngicks/go-codegen/codegen/undgen/testdata/targettypes/sub"
+	"github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/option"
 	"github.com/ngicks/und/sliceund"
@@ -16,7 +16,7 @@ type APatch struct {
 func (p *APatch) FromValue(v A) {
 	//nolint
 	*p = APatch{
-		A: option.MapOrOption(v.A, sliceund.Null[string](), sliceund.Defined[string]),
+		A: option.MapOr(v.A, sliceund.Null[string](), sliceund.Defined[string]),
 	}
 }
 
@@ -24,7 +24,7 @@ func (p *APatch) FromValue(v A) {
 func (p APatch) ToValue() A {
 	//nolint
 	return A{
-		A: option.FlattenOption(p.A.Unwrap()),
+		A: option.Flatten(p.A.Unwrap()),
 	}
 }
 
