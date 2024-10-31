@@ -263,7 +263,7 @@ func typeToDst(ty types.Type, pkgPath string, importMap importDecls) dst.Expr {
 	default:
 		args := named.TypeArgs()
 		var exprs []dst.Expr
-		for _, ty := range hiter.IndexAccessible(args, hiter.Range(0, args.Len())) {
+		for _, ty := range hiter.AtterAll(args) {
 			exprs = append(exprs, typeToDst(ty, pkgPath, importMap))
 		}
 		return &dst.IndexListExpr{
@@ -314,7 +314,7 @@ func typeToAst(ty types.Type, pkgPath string, importMap importDecls) ast.Expr {
 	default:
 		args := named.TypeArgs()
 		var exprs []ast.Expr
-		for _, ty := range hiter.IndexAccessible(args, hiter.Range(0, args.Len())) {
+		for _, ty := range hiter.AtterAll(args) {
 			exprs = append(exprs, typeToAst(ty, pkgPath, importMap))
 		}
 		return &ast.IndexListExpr{

@@ -403,39 +403,6 @@ func findValidatableTypes(pkgs []*packages.Package, imports []TargetImport) (Raw
 	return matched, nil
 }
 
-type ValidatorMethod struct {
-	Name string
-}
-
-func (method ValidatorMethod) IsImplementor(ty *types.Named) bool {
-	return isValidatorImplementor(ty, method.Name)
-}
-
-func isValidatorImplementor(ty *types.Named, methodName string) bool {
-	ms := types.NewMethodSet(types.NewPointer(ty))
-	for i := range ms.Len() {
-		sel := ms.At(i)
-		if sel.Obj().Name() == methodName {
-			sig, ok := sel.Obj().Type().Underlying().(*types.Signature)
-			if !ok {
-				return false
-			}
-			tup := sig.Results()
-			if tup.Len() != 1 {
-				return false
-			}
-			v := tup.At(0)
-
-			named, ok := v.Type().(*types.Named)
-			if !ok {
-				return false
-			}
-			return named.Obj().Pkg() == nil && named.Obj().Name() == "error"
-		}
-	}
-	return false
-}
-
 func printValidator(undtagImportIdent string, tagOpt undtag.UndOpt) string {
 	var builder strings.Builder
 	builder.WriteString(undtagImportIdent + ".UndOptExport{\n")
