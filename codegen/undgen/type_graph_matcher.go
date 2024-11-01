@@ -8,6 +8,7 @@ import (
 
 	"github.com/ngicks/go-codegen/codegen/msg"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/undtag"
 )
 
@@ -24,11 +25,11 @@ func isUndAllowedEdgeKind(k typeDependencyEdgeKind) bool {
 }
 
 func isUndAllowedEdge(p []typeDependencyEdgePointer) bool {
-	return slices.ContainsFunc(
-		p,
+	return len(p) == 0 || hiter.Every(
 		func(p typeDependencyEdgePointer) bool {
 			return isUndAllowedEdgeKind(p.kind)
 		},
+		slices.Values(p),
 	)
 }
 
@@ -48,7 +49,7 @@ func isUndPlainTarget(named *types.Named, external bool) (bool, error) {
 		_ = visitToNamed(
 			elem,
 			func(named *types.Named, stack []typeDependencyEdgePointer) error {
-				if (len(stack) == 0 || isUndAllowedEdge(stack)) && isUndConversionImplementor(named) {
+				if isUndAllowedEdge(stack) && isUndConversionImplementor(named) {
 					found = true
 				}
 				return nil
