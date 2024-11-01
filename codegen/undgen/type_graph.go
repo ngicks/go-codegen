@@ -34,6 +34,13 @@ type typeIdent struct {
 	typeName string
 }
 
+func typeIdentFromTypesObject(obj types.Object) typeIdent {
+	return typeIdent{
+		obj.Pkg().Path(),
+		obj.Name(),
+	}
+}
+
 type typeNode struct {
 	parent   map[typeIdent]typeDependencyEdge
 	children map[typeIdent]typeDependencyEdge
@@ -172,10 +179,7 @@ func (g *typeGraph) listTypes(
 					}
 					if ok {
 						node.matched |= typeNodeMatchKindMatched
-						g.matched[typeIdent{
-							node.typeInfo.Pkg().Path(),
-							node.typeInfo.Name(),
-						}] = node
+						g.matched[typeIdentFromTypesObject(node.typeInfo)] = node
 					}
 				}
 			}
@@ -192,7 +196,7 @@ func addType(
 	ts *ast.TypeSpec,
 	typeInfo types.Object,
 ) *typeNode {
-	ident := typeIdent{typeInfo.Pkg().Path(), typeInfo.Name()}
+	ident := typeIdentFromTypesObject(typeInfo)
 	n, ok := to[ident]
 	if ok {
 		return n
@@ -243,7 +247,7 @@ func visitTypes(
 	return visitToNamed(
 		ty,
 		func(named *types.Named, stack []typeDependencyEdgePointer) error {
-			node, ok := allType[typeIdent{named.Obj().Pkg().Path(), named.Obj().Name()}]
+			node, ok := allType[typeIdentFromTypesObject(named.Obj())]
 			if ok {
 				parentNode.drawEdge(stack, node)
 				if node.matched.IsMatched() {
@@ -327,21 +331,21 @@ func visitToNamed(
 	}
 }
 
-func (n *typeNode) drawEdge(stack []typeDependencyEdgePointer, children *typeNode) {
-	if n.children == nil {
-		n.children = make(map[typeIdent]typeDependencyEdge)
+func (parent *typeNode) drawEdge(stack []typeDependencyEdgePointer, children *typeNode) {
+	if parent.children == nil {
+		parent.children = make(map[typeIdent]typeDependencyEdge)
 	}
 	if children.parent == nil {
 		children.parent = make(map[typeIdent]typeDependencyEdge)
 	}
 	stack = slices.Clone(stack)
-	n.children[typeIdent{children.typeInfo.Pkg().Path(), children.typeInfo.Name()}] = typeDependencyEdge{
+	parent.children[typeIdentFromTypesObject(children.typeInfo)] = typeDependencyEdge{
 		stack: stack,
 		node:  children,
 	}
-	children.parent[typeIdent{n.typeInfo.Pkg().Path(), n.typeInfo.Name()}] = typeDependencyEdge{
+	children.parent[typeIdentFromTypesObject(parent.typeInfo)] = typeDependencyEdge{
 		stack: stack,
-		node:  n,
+		node:  parent,
 	}
 }
 
