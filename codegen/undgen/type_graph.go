@@ -119,7 +119,6 @@ func newTypeGraph(
 	if err != nil {
 		return graph, err
 	}
-	graph.markTransitive()
 	return graph, nil
 }
 
@@ -349,8 +348,11 @@ func (parent *typeNode) drawEdge(stack []typeDependencyEdgePointer, children *ty
 	}
 }
 
-func (g *typeGraph) markTransitive() {
-	for node := range g.iterUpward(false) {
+func (g *typeGraph) markTransitive(edgeFilter func(p []typeDependencyEdgePointer) bool) {
+	for _, node := range g.types {
+		node.matched = node.matched &^ typeNodeMatchKindTransitive
+	}
+	for node := range g.iterUpward(false, edgeFilter) {
 		if node.matched.IsExternal() || node.matched.IsMatched() {
 			continue
 		}
@@ -358,11 +360,11 @@ func (g *typeGraph) markTransitive() {
 	}
 }
 
-func (g *typeGraph) iterUpward(includeMatched bool) iter.Seq[*typeNode] {
+func (g *typeGraph) iterUpward(includeMatched bool, edgeFilter func(p []typeDependencyEdgePointer) bool) iter.Seq[*typeNode] {
 	return func(yield func(*typeNode) bool) {
 		visited := make(map[*typeNode]bool)
 		for _, n := range g.external {
-			for nn := range visitUpward(n, visited) {
+			for nn := range visitUpward(n, edgeFilter, visited) {
 				if !yield(nn) {
 					return
 				}
@@ -374,7 +376,7 @@ func (g *typeGraph) iterUpward(includeMatched bool) iter.Seq[*typeNode] {
 					return
 				}
 			}
-			for nn := range visitUpward(n, visited) {
+			for nn := range visitUpward(n, edgeFilter, visited) {
 				if !yield(nn) {
 					return
 				}
@@ -383,11 +385,20 @@ func (g *typeGraph) iterUpward(includeMatched bool) iter.Seq[*typeNode] {
 	}
 }
 
-func visitUpward(from *typeNode, visited map[*typeNode]bool) iter.Seq[*typeNode] {
-	return visitNodes(from, true, visited)
+func visitUpward(
+	from *typeNode,
+	edgeFilter func(p []typeDependencyEdgePointer) bool,
+	visited map[*typeNode]bool,
+) iter.Seq[*typeNode] {
+	return visitNodes(from, true, edgeFilter, visited)
 }
 
-func visitNodes(n *typeNode, up bool, visited map[*typeNode]bool) iter.Seq[*typeNode] {
+func visitNodes(
+	n *typeNode,
+	up bool,
+	edgeFilter func(p []typeDependencyEdgePointer) bool,
+	visited map[*typeNode]bool,
+) iter.Seq[*typeNode] {
 	return func(yield func(*typeNode) bool) {
 		direction := n.parent
 		if !up {
@@ -398,10 +409,10 @@ func visitNodes(n *typeNode, up bool, visited map[*typeNode]bool) iter.Seq[*type
 				continue
 			}
 			visited[v.node] = true
-			if !yield(v.node) {
+			if (edgeFilter == nil || edgeFilter(v.stack)) && !yield(v.node) {
 				return
 			}
-			for n := range visitNodes(v.node, up, visited) {
+			for n := range visitNodes(v.node, up, edgeFilter, visited) {
 				if !yield(n) {
 					return
 				}

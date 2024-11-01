@@ -92,7 +92,34 @@ func Test_search_type_tree(t *testing.T) {
 		),
 	)
 
+	graph.markTransitive(nil)
+
 	transitive := slices.SortedFunc(
+		hiter.OmitL(
+			xiter.Filter2(
+				func(_ typeIdent, n *typeNode) bool {
+					return n.matched.IsTransitive()
+				},
+				maps.All(graph.types),
+			),
+		),
+		compareGraphIdent,
+	)
+
+	assert.Assert(
+		t,
+		slices.Equal(
+			[]typeIdent{
+				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree", "HasAlias"},
+				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub1", "HasAlias"},
+			},
+			transitive,
+		),
+	)
+
+	graph.markTransitive(isUndAllowedEdge)
+
+	transitive = slices.SortedFunc(
 		hiter.OmitL(
 			xiter.Filter2(
 				func(_ typeIdent, n *typeNode) bool {

@@ -1,6 +1,7 @@
 package searchtypetree
 
 import (
+	"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub1"
 	"github.com/ngicks/und/option"
 )
 
@@ -18,4 +19,8 @@ type Baz struct {
 
 type TypeParam[T any] struct {
 	T T
+}
+
+type HasAlias struct {
+	A chan sub1.HasAlias
 }
