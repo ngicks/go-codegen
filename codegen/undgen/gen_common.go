@@ -9,12 +9,14 @@ import (
 	"go/token"
 	"go/types"
 	"io"
+	"reflect"
 	"slices"
 	"strings"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
+	"github.com/ngicks/go-codegen/codegen/structtag"
 	"github.com/ngicks/go-iterator-helper/hiter"
 )
 
@@ -322,4 +324,12 @@ func typeToAst(ty types.Type, pkgPath string, importMap importDecls) ast.Expr {
 			Indices: exprs,
 		}
 	}
+}
+
+func fieldJsonName(st *types.Struct, i int) string {
+	tags, _ := structtag.ParseStructTag(reflect.StructTag(st.Tag(i)))
+	if _, name, err := tags.Get("json", ""); err == nil {
+		return name
+	}
+	return st.Field(i).Name()
 }

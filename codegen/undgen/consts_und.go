@@ -3,6 +3,7 @@ package undgen
 type ConstSet struct {
 	Imports          []TargetImport
 	ConversionMethod ConversionMethodsSet
+	ValidatorMethod  ValidatorMethod
 }
 
 var ConstUnd = ConstSet{
@@ -43,6 +44,9 @@ var ConstUnd = ConstSet{
 	ConversionMethod: ConversionMethodsSet{
 		ToRaw:   "UndRaw",
 		ToPlain: "UndPlain",
+	},
+	ValidatorMethod: ValidatorMethod{
+		Name: "UndValidate",
 	},
 }
 

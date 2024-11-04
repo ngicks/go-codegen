@@ -2,6 +2,7 @@ package undgen
 
 import (
 	"fmt"
+	"go/ast"
 	"go/types"
 	"reflect"
 	"slices"
@@ -24,7 +25,7 @@ func isUndAllowedEdgeKind(k typeDependencyEdgeKind) bool {
 	return slices.Contains(undFieldAllowedEdges, k)
 }
 
-func isUndAllowedEdge(p []typeDependencyEdgePointer) bool {
+func isUndAllowedPointer(p []typeDependencyEdgePointer) bool {
 	return len(p) == 0 || hiter.Every(
 		func(p typeDependencyEdgePointer) bool {
 			return isUndAllowedEdgeKind(p.kind)
@@ -33,9 +34,84 @@ func isUndAllowedEdge(p []typeDependencyEdgePointer) bool {
 	)
 }
 
+func isUndAllowedEdge(edge typeDependencyEdge) bool {
+	return isUndAllowedPointer(edge.stack)
+}
+
+func isUndValidatorAllowedEdge(edge typeDependencyEdge) bool {
+	if !isUndAllowedPointer(edge.stack) {
+		return false
+	}
+	// struct field
+	if len(edge.stack) > 0 && edge.stack[0].kind == typeDependencyEdgeKindStruct && edge.stack[0].pos > 0 {
+		// case 1. tagged und types.
+		st := edge.parentNode.typeInfo.Type().Underlying().(*types.Struct)
+		_, ok := reflect.StructTag(st.Tag(edge.stack[0].pos)).Lookup(undtag.TagName)
+		// we've rejected cases where tag on implementor
+		if ok {
+			return true
+		}
+		// case 2. implementor
+		if isUndValidatorImplementor(edge.childNode.typeInfo.Type().(*types.Named)) {
+			return true
+		}
+		// case 3. implementor wrapped in und types.
+		if isOnlySingleImplementorTypeArg(edge) {
+			return true
+		}
+		return false
+	}
+
+	// map, slice, array
+	// only allowed element is implementor or implementor wrapped in und types
+	if len(edge.stack) > 0 {
+		switch edge.stack[0].kind {
+		default:
+			return false
+		case typeDependencyEdgeKindMap, typeDependencyEdgeKindArray, typeDependencyEdgeKindSlice:
+		}
+		elem := edge.parentNode.typeInfo.Type().Underlying().(interface{ Elem() types.Type }).Elem()
+		named, ok := elem.(*types.Named)
+		if !ok {
+			return false
+		}
+		if isUndValidatorImplementor(named) {
+			return true
+		}
+
+		if isOnlySingleImplementorTypeArg(edge) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isOnlySingleImplementorTypeArg(edge typeDependencyEdge) bool {
+	if len(edge.typeArgs) == 1 {
+		arg := edge.typeArgs[0]
+		if arg.node != nil && len(arg.stack) == 0 && isUndValidatorImplementor(arg.node.typeInfo.Type().(*types.Named)) {
+			return true
+		}
+	}
+	return false
+}
+
 func isUndPlainTarget(named *types.Named, external bool) (bool, error) {
+	return _isUndTarget(named, external, isUndConversionImplementor)
+}
+
+func isUndValidatorTarget(named *types.Named, external bool) (bool, error) {
+	return _isUndTarget(named, external, isUndValidatorImplementor)
+}
+
+func _isUndTarget(named *types.Named, external bool, implementor func(named *types.Named) bool) (bool, error) {
 	if external {
-		return isUndConversionImplementor(named), nil
+		return matchUndType(
+			namedTypeToTargetType(named),
+			false,
+			func() bool { return true }, nil, nil,
+		) || implementor(named), nil
 	}
 	switch x := named.Underlying().(type) {
 	// case 1: map, array, slice that contain implementor
@@ -49,9 +125,20 @@ func isUndPlainTarget(named *types.Named, external bool) (bool, error) {
 		_ = visitToNamed(
 			elem,
 			func(named *types.Named, stack []typeDependencyEdgePointer) error {
-				if isUndAllowedEdge(stack) && isUndConversionImplementor(named) {
+				if !isUndAllowedPointer(stack) {
+					return nil
+				}
+
+				if isUndType(named) {
+					inner := named.TypeArgs().At(0)
+					named, ok := inner.(*types.Named)
+					if ok && !isUndType(named) && implementor(named) {
+						found = true
+					}
+				} else if !isUndType(named) && implementor(named) {
 					found = true
 				}
+
 				return nil
 			},
 			nil,
@@ -61,7 +148,7 @@ func isUndPlainTarget(named *types.Named, external bool) (bool, error) {
 		}
 	// case 2: struct type which includes
 	//  - untagged implementor field or
-	//  - tagged target type field
+	//  - tagged target type field (und types, or even implementor wrapped with und types)
 	case *types.Struct:
 		for i, f := range pkgsutil.EnumerateFields(x) {
 			undTagValue, ok := reflect.StructTag(x.Tag(i)).Lookup(undtag.TagName)
@@ -81,7 +168,7 @@ func isUndPlainTarget(named *types.Named, external bool) (bool, error) {
 				_ = visitToNamed(
 					f.Type(),
 					func(named *types.Named, stack []typeDependencyEdgePointer) error {
-						if (len(stack) == 0 || isUndAllowedEdge(stack)) && isUndType(named) {
+						if isUndAllowedPointer(stack) && isUndType(named) {
 							found = true
 							targetType = namedTypeToTargetType(named)
 						}
@@ -97,11 +184,12 @@ func isUndPlainTarget(named *types.Named, external bool) (bool, error) {
 				}
 				if err := matchUndType(
 					targetType,
+					true,
 					func() error {
-						return errUndTag(undOpt)
+						return errWrongUndTagForNonElastic(undOpt)
 					},
 					func(s bool) error {
-						return errUndTag(undOpt)
+						return errWrongUndTagForNonElastic(undOpt)
 					},
 					func(s bool) error {
 						return nil
@@ -118,7 +206,7 @@ func isUndPlainTarget(named *types.Named, external bool) (bool, error) {
 			_ = visitToNamed(
 				f.Type(),
 				func(named *types.Named, stack []typeDependencyEdgePointer) error {
-					if (len(stack) == 0 || isUndAllowedEdge(stack)) && isUndConversionImplementor(named) {
+					if isUndAllowedPointer(stack) && !isUndType(named) && implementor(named) {
 						found = true
 					}
 					return nil
@@ -143,6 +231,8 @@ func namedTypeToTargetType(named *types.Named) TargetType {
 	}
 }
 
+// isUndType returns true if named is one of "github.com/ngicks/und/option".Option[T], "github.com/ngicks/und".Und[T],
+// "github.com/ngicks/und/elastic".Elastic[T], "github.com/ngicks/und/sliceund".Und[T] or "github.com/ngicks/und/sliceund/elastic".Elastic[T].
 func isUndType(named *types.Named) bool {
 	return slices.Contains(
 		[]TargetType{
@@ -156,6 +246,7 @@ func isUndType(named *types.Named) bool {
 
 func matchUndType[T any](
 	tt TargetType,
+	panicOnMismatch bool,
 	onOpt func() T,
 	onUnd func(isSlice bool) T,
 	onElastic func(isSlice bool) T,
@@ -164,18 +255,77 @@ func matchUndType[T any](
 	case UndTargetTypeOption:
 		return onOpt()
 	case UndTargetTypeUnd:
-		return onUnd(false)
+		if onUnd != nil {
+			return onUnd(false)
+		}
+		return onOpt()
 	case UndTargetTypeSliceUnd:
-		return onUnd(true)
+		if onUnd != nil {
+			return onUnd(true)
+		}
+		return onOpt()
 	case UndTargetTypeElastic:
-		return onElastic(false)
+		if onElastic != nil {
+			return onElastic(false)
+		}
+		if onUnd != nil {
+			return onUnd(false)
+		}
+		return onOpt()
 	case UndTargetTypeSliceElastic:
-		return onElastic(true)
+		if onElastic != nil {
+			return onElastic(true)
+		}
+		if onUnd != nil {
+			return onUnd(true)
+		}
+		return onOpt()
 	}
-	panic(fmt.Errorf("not a und type: %#v", tt))
+	if panicOnMismatch {
+		panic(fmt.Errorf("not a und type: %#v", tt))
+	}
+	return *new(T)
 }
 
-func errUndTag(undOpt undtag.UndOpt) error {
+func matchUndTypeBool(
+	tt TargetType,
+	panicOnMismatch bool,
+	onOpt func(),
+	onUnd func(isSlice bool),
+	onElastic func(isSlice bool),
+) bool {
+	var (
+		_onOpt             func() bool
+		_onUnd, _onElastic func(isSlice bool) bool
+	)
+	if onOpt != nil {
+		_onOpt = func() bool {
+			onOpt()
+			return true
+		}
+	}
+	if onUnd != nil {
+		_onUnd = func(isSlice bool) bool {
+			onUnd(isSlice)
+			return true
+		}
+	}
+	if onElastic != nil {
+		_onElastic = func(isSlice bool) bool {
+			onElastic(isSlice)
+			return true
+		}
+	}
+	return matchUndType(
+		tt,
+		panicOnMismatch,
+		_onOpt,
+		_onUnd,
+		_onElastic,
+	)
+}
+
+func errWrongUndTagForNonElastic(undOpt undtag.UndOpt) error {
 	var v string
 	if undOpt.Len().IsSome() {
 		v = undtag.UndTagValueLen
@@ -189,6 +339,28 @@ func errUndTag(undOpt undtag.UndOpt) error {
 	return nil
 }
 
-func isUndConversionImplementor(typeInfo *types.Named) bool {
-	return ConstUnd.ConversionMethod.IsImplementor(typeInfo)
+func isUndConversionImplementor(named *types.Named) bool {
+	return ConstUnd.ConversionMethod.IsImplementor(named)
+}
+
+func isUndValidatorImplementor(named *types.Named) bool {
+	// und types are already implementors.
+	// exclude them first.
+	return !isUndType(named) && ConstUnd.ValidatorMethod.IsImplementor(named)
+}
+
+func excludeUndIgnoredCommentedGenDecl(genDecl *ast.GenDecl) (bool, error) {
+	direction, _, err := ParseUndComment(genDecl.Doc)
+	if err != nil {
+		return false, err
+	}
+	return !direction.MustIgnore(), nil
+}
+
+func excludeUndIgnoredCommentedTypeSpec(ts *ast.TypeSpec, _ types.Object) (bool, error) {
+	direction, _, err := ParseUndComment(ts.Doc)
+	if err != nil {
+		return false, err
+	}
+	return !direction.MustIgnore(), nil
 }

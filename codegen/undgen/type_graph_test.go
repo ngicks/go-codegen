@@ -87,6 +87,7 @@ func Test_search_type_tree(t *testing.T) {
 		slices.Equal(
 			[]typeIdent{
 				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub2", "Foo"},
+				{"github.com/ngicks/und/option", "Option"},
 			},
 			externals,
 		),

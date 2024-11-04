@@ -172,12 +172,13 @@ func filterEnumerateTypeSpec(
 }
 
 type replaceData struct {
-	filename  string
-	af        *ast.File
-	dec       *decorator.Decorator
-	df        *dst.File
-	importMap importDecls
-	targets   replacerTargets
+	filename    string
+	af          *ast.File
+	dec         *decorator.Decorator
+	df          *dst.File
+	importMap   importDecls
+	targets     replacerTargets
+	targetNodes []*typeNode
 }
 
 type replacerTargets []replacerTarget

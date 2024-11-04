@@ -11,51 +11,63 @@ import (
 )
 
 //undgen:generated
-func (v A) UndValidate() error {
-	for i, val := range v {
-		if err := elastic.UndValidate(val); err != nil {
-			return validate.AppendValidationErrorIndex(
+func (v A) UndValidate() (err error) {
+LOOP:
+	for k, v := range v {
+		err = elastic.UndValidate(v)
+		if err != nil {
+			err = validate.AppendValidationErrorIndex(
 				err,
-				fmt.Sprintf("%v", i),
+				fmt.Sprintf("%v", k),
 			)
+			break LOOP
 		}
 	}
-
-	return nil
+	return
 }
 
 //undgen:generated
-func (v B) UndValidate() error {
-	for i, val := range v {
-		if err := sliceelastic.UndValidate(val); err != nil {
-			return validate.AppendValidationErrorIndex(
+func (v B) UndValidate() (err error) {
+LOOP:
+	for k, v := range v {
+		err = sliceelastic.UndValidate(v)
+		if err != nil {
+			err = validate.AppendValidationErrorIndex(
 				err,
-				fmt.Sprintf("%v", i),
+				fmt.Sprintf("%v", k),
 			)
+			break LOOP
 		}
 	}
-
-	return nil
+	return
 }
 
 //undgen:generated
-func (v C) UndValidate() error {
-	for i, val := range v {
-		if err := option.UndValidate(val); err != nil {
-			return validate.AppendValidationErrorIndex(
+func (v C) UndValidate() (err error) {
+LOOP:
+	for k, v := range v {
+		err = option.UndValidate(v)
+		if err != nil {
+			err = validate.AppendValidationErrorIndex(
 				err,
-				fmt.Sprintf("%v", i),
+				fmt.Sprintf("%v", k),
 			)
+			break LOOP
 		}
 	}
-
-	return nil
+	return
 }
 
 //undgen:generated
-func (v D) UndValidate() error {
-	if err := v.Foo.UndValidate(); err != nil {
-		return validate.AppendValidationErrorDot(err, "Foo")
+func (v D) UndValidate() (err error) {
+	{
+		err = v.Foo.UndValidate()
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"Foo",
+			)
+		}
 	}
 	{
 		validator := undtag.UndOptExport{
@@ -65,18 +77,18 @@ func (v D) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.Bar) {
-			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Bar)),
-				"Bar",
-			)
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Bar))
 		}
-		if err := option.UndValidate(v.Bar); err != nil {
+		if err == nil {
+			err = option.UndValidate(v.Bar)
+		}
+
+		if err != nil {
 			return validate.AppendValidationErrorDot(
 				err,
 				"Bar",
 			)
 		}
 	}
-
-	return nil
+	return
 }
