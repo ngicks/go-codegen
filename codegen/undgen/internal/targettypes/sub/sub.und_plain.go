@@ -8,15 +8,3 @@ import (
 type IncludesImplementorPlain struct {
 	Foo sub2.FooPlain[int]
 }
-
-func (v IncludesImplementor) UndPlain() IncludesImplementorPlain {
-	return IncludesImplementorPlain{
-		Foo: v.Foo.UndPlain(),
-	}
-}
-
-func (v IncludesImplementorPlain) UndRaw() IncludesImplementor {
-	return IncludesImplementor{
-		Foo: v.Foo.UndRaw(),
-	}
-}
