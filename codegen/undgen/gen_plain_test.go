@@ -64,3 +64,19 @@ func TestGenPlain_3(t *testing.T) {
 		t.Logf("%q:\n%s", k, result)
 	}
 }
+
+func TestGenPlain_4(t *testing.T) {
+	testPrinter := suffixwriter.NewTestWriter(".und_plain")
+	err := GeneratePlain(
+		testPrinter.Writer,
+		true,
+		patchtargetPackages,
+		ConstUnd.Imports,
+	)
+	assert.NilError(t, err)
+	results := testPrinter.Results()
+	for _, k := range slices.Sorted(maps.Keys(results)) {
+		result := results[k]
+		t.Logf("%q:\n%s", k, result)
+	}
+}

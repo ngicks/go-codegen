@@ -5,6 +5,7 @@ import (
 	"go/token"
 	"go/types"
 	"iter"
+	"reflect"
 	"slices"
 
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
@@ -56,7 +57,7 @@ type typeNode struct {
 	// nth type spec in the file.
 	pos      int
 	ts       *ast.TypeSpec
-	typeInfo types.Object
+	typeInfo *types.Named
 }
 
 type typeNodeMatchKind uint64
@@ -80,10 +81,14 @@ func (k typeNodeMatchKind) IsExternal() bool {
 }
 
 type typeDependencyEdge struct {
-	stack      []typeDependencyEdgePointer
-	typeArgs   []typeArg
+	stack    []typeDependencyEdgePointer
+	typeArgs []typeArg
+	// non-instantiated parent
 	parentNode *typeNode
-	childNode  *typeNode
+	// instantiated child
+	childType *types.Named
+	// non-instantiated child node.
+	childNode *typeNode
 }
 
 func (e typeDependencyEdge) hasSingleNamedTypeArg(additionalCond func(named *types.Named) bool) bool {
@@ -112,7 +117,7 @@ type typeDependencyEdgePointer struct {
 type typeArg struct {
 	stack []typeDependencyEdgePointer
 	node  *typeNode
-	ty    types.Type
+	ty    *types.Named
 	org   types.Type
 }
 
@@ -204,14 +209,14 @@ func (g *typeGraph) listTypes(
 						continue
 					}
 
-					node := addType(g.types, pkg, file, currentPos, ts, obj)
+					node := addType(g.types, pkg, file, currentPos, ts, named)
 					ok, err := matcher(named, false)
 					if err != nil {
 						return err
 					}
 					if ok {
 						node.matched |= typeNodeMatchKindMatched
-						g.matched[typeIdentFromTypesObject(node.typeInfo)] = node
+						g.matched[typeIdentFromTypesObject(node.typeInfo.Obj())] = node
 					}
 				}
 			}
@@ -226,9 +231,9 @@ func addType(
 	file *ast.File,
 	pos int,
 	ts *ast.TypeSpec,
-	typeInfo types.Object,
+	typeInfo *types.Named,
 ) *typeNode {
-	ident := typeIdentFromTypesObject(typeInfo)
+	ident := typeIdentFromTypesObject(typeInfo.Obj())
 	n, ok := to[ident]
 	if ok {
 		return n
@@ -254,7 +259,7 @@ func (g *typeGraph) buildEdge(matcher func(named *types.Named, external bool) (b
 		//
 		err := visitTypes(
 			node,
-			node.typeInfo.Type().Underlying(),
+			node.typeInfo.Underlying(),
 			matcher,
 			g.types,
 			g.external,
@@ -281,16 +286,16 @@ func visitTypes(
 		func(named *types.Named, stack []typeDependencyEdgePointer) error {
 			node, ok := allType[typeIdentFromTypesObject(named.Obj())]
 			if ok {
-				parentNode.drawEdge(stack, node, visitOnTypeArgs(named.TypeArgs(), matcher, allType, externalType))
+				parentNode.drawEdge(stack, visitOnTypeArgs(named.TypeArgs(), matcher, allType, externalType), named, node)
 				return nil
 			}
 			ok, err := matcher(named, true)
 			if !ok || err != nil {
 				return err
 			}
-			externalNode := addType(externalType, nil, nil, -1, nil, named.Obj())
+			externalNode := addType(externalType, nil, nil, -1, nil, named)
 			externalNode.matched |= typeNodeMatchKindExternal
-			parentNode.drawEdge(stack, externalNode, visitOnTypeArgs(named.TypeArgs(), matcher, allType, externalType))
+			parentNode.drawEdge(stack, visitOnTypeArgs(named.TypeArgs(), matcher, allType, externalType), named, externalNode)
 			return nil
 		},
 		stack,
@@ -315,7 +320,7 @@ func visitOnTypeArgs(
 				if !ok {
 					ok, err := matcher(named, true)
 					if ok && err == nil {
-						externalNode := addType(externalType, nil, nil, -1, nil, named.Obj())
+						externalNode := addType(externalType, nil, nil, -1, nil, named)
 						externalNode.matched |= typeNodeMatchKindExternal
 						node = externalNode
 					}
@@ -384,7 +389,12 @@ func visitToNamed(
 	}
 }
 
-func (parent *typeNode) drawEdge(stack []typeDependencyEdgePointer, child *typeNode, typeArgs []typeArg) {
+func (parent *typeNode) drawEdge(
+	stack []typeDependencyEdgePointer,
+	typeArgs []typeArg,
+	childTy *types.Named,
+	child *typeNode,
+) {
 	if parent.children == nil {
 		parent.children = make(map[typeIdent][]typeDependencyEdge)
 	}
@@ -394,15 +404,16 @@ func (parent *typeNode) drawEdge(stack []typeDependencyEdgePointer, child *typeN
 
 	edge := typeDependencyEdge{
 		stack:      slices.Clone(stack),
-		parentNode: parent,
-		childNode:  child,
 		typeArgs:   typeArgs,
+		parentNode: parent,
+		childType:  childTy,
+		childNode:  child,
 	}
 
-	parentIdent := typeIdentFromTypesObject(parent.typeInfo)
+	parentIdent := typeIdentFromTypesObject(parent.typeInfo.Obj())
 	child.parent[parentIdent] = append(child.parent[parentIdent], edge)
 
-	childIdent := typeIdentFromTypesObject(child.typeInfo)
+	childIdent := typeIdentFromTypesObject(child.typeInfo.Obj())
 	parent.children[childIdent] = append(parent.children[childIdent], edge)
 }
 
@@ -493,7 +504,7 @@ func visitNodes(
 // fields enumerates its children edges as iter.Seq2[int, typeDependencyEdge] assuming n's underlying type is struct.
 // The key of the iterator is position of field in source code order.
 func (n *typeNode) fields() iter.Seq2[int, typeDependencyEdge] {
-	_ = n.typeInfo.Type().Underlying().(*types.Struct)
+	_ = n.typeInfo.Underlying().(*types.Struct)
 	return func(yield func(int, typeDependencyEdge) bool) {
 		for _, edges := range n.children {
 			for _, e := range edges {
@@ -506,7 +517,7 @@ func (n *typeNode) fields() iter.Seq2[int, typeDependencyEdge] {
 }
 
 func (n *typeNode) fieldsName() iter.Seq2[string, typeDependencyEdge] {
-	structTy := n.typeInfo.Type().Underlying().(*types.Struct)
+	structTy := n.typeInfo.Underlying().(*types.Struct)
 	return func(yield func(string, typeDependencyEdge) bool) {
 		for _, edges := range n.children {
 			for _, e := range edges {
@@ -518,20 +529,21 @@ func (n *typeNode) fieldsName() iter.Seq2[string, typeDependencyEdge] {
 	}
 }
 
-func (n *typeNode) byFieldName(name string) *types.Var {
-	structObj := n.typeInfo.Type().Underlying().(*types.Struct)
+func (n *typeNode) byFieldName(name string) (typeDependencyEdge, *types.Var, reflect.StructTag, bool) {
+	structObj := n.typeInfo.Underlying().(*types.Struct)
 	for _, edges := range n.children {
 		for _, e := range edges {
 			if e.stack[0].pos < 0 {
-				return nil
+				return typeDependencyEdge{}, nil, "", false
 			}
-			v := structObj.Field(e.stack[0].pos)
+			pos := e.stack[0].pos
+			v := structObj.Field(pos)
 			if v.Name() == name {
-				return v
+				return e, v, reflect.StructTag(structObj.Tag(pos)), true
 			}
 		}
 	}
-	return nil
+	return typeDependencyEdge{}, nil, "", false
 }
 
 func (g *typeGraph) enumerateTypesKeys(keys iter.Seq[typeIdent]) iter.Seq2[typeIdent, *typeNode] {

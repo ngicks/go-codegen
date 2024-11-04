@@ -118,7 +118,7 @@ func Test_search_type_tree(t *testing.T) {
 		),
 	)
 
-	graph.markTransitive(isUndAllowedEdge)
+	graph.markTransitive(func(edge typeDependencyEdge) bool { return isUndAllowedPointer(edge.stack) })
 
 	transitive = slices.SortedFunc(
 		hiter.OmitL(

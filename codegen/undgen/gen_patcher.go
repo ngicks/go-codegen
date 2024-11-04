@@ -75,7 +75,7 @@ func GeneratePatcher(
 				slog.Any(
 					"typesNames",
 					slices.Collect(xiter.Map(
-						func(n *typeNode) string { return n.typeInfo.Name() },
+						func(n *typeNode) string { return n.typeInfo.Obj().Name() },
 						slices.Values(data.targetNodes),
 					)),
 				),
@@ -199,7 +199,7 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *typeNode, importMap 
 				isSliceType := true
 				if ok {
 					matchUndType(
-						namedTypeToTargetType(edge.childNode.typeInfo.Type().(*types.Named)),
+						namedTypeToTargetType(edge.childType),
 						false,
 						func() bool {
 							c.Replace(&dst.Field{
@@ -338,9 +338,9 @@ func printTypeParamVars(ts *dst.TypeSpec) string {
 	return "[" + typeParams.String() + "]"
 }
 
-func typeObjectFieldsIter(typeInfo types.Object) iter.Seq2[int, *types.Var] {
+func typeObjectFieldsIter(typeInfo types.Type) iter.Seq2[int, *types.Var] {
 	return func(yield func(int, *types.Var) bool) {
-		structTy, ok := typeInfo.Type().Underlying().(*types.Struct)
+		structTy, ok := typeInfo.Underlying().(*types.Struct)
 		if !ok {
 			return
 		}
@@ -387,7 +387,7 @@ func generateFromValue(
 		// conserve type other than that e.g. for und.Und, elastic.Elastic.
 		edge, ok := edges[f.Name()]
 		if !ok || !matchUndType(
-			namedTypeToTargetType(edge.childNode.typeInfo.Type().(*types.Named)),
+			namedTypeToTargetType(edge.childType),
 			false,
 			func() bool {
 				// convert option -> und
@@ -457,7 +457,7 @@ func generateToValue(
 		// sliceund.Und[T] -> option.Option[T]
 		// conserve type other than that e.g. for und.Und, elastic.Elastic.
 		if !ok || !matchUndType(
-			namedTypeToTargetType(edge.childNode.typeInfo.Type().(*types.Named)),
+			namedTypeToTargetType(edge.childType),
 			false,
 			func() bool {
 				// sliceund.Und[T] -> option.Option[T]
@@ -516,7 +516,7 @@ func generateMerge(
 		// both elastic like type.
 		undImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
 		if !ok || !matchUndType(
-			namedTypeToTargetType(edge.childNode.typeInfo.Type().(*types.Named)),
+			namedTypeToTargetType(edge.childType),
 			false,
 			func() bool {
 				return false

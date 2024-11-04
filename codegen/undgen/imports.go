@@ -29,6 +29,11 @@ type importDecls struct {
 
 // parseImports relates ident (PackageName) to TargetImport.
 func parseImports(importSpecs []*ast.ImportSpec, imports []TargetImport) importDecls {
+	// TODO: parse type info. use package name as ident to PackageName.
+	// currently it uses base of import path.
+	// it IS'NT correct. For example, "github.com/charmbracelet/bubbletea"'s package name is `tea`.
+	// go compiler thinks ident is `tea`; it should be noted in specification. Read there and fix this function.
+
 	// pre-process input
 	imports = slices.Collect(
 		xiter.Map(

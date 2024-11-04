@@ -18,7 +18,7 @@ var undFieldAllowedEdges = []typeDependencyEdgeKind{
 	typeDependencyEdgeKindArray,
 	typeDependencyEdgeKindMap,
 	typeDependencyEdgeKindSlice,
-	typeDependencyEdgeKindStruct,
+	// typeDependencyEdgeKindStruct, // struct literal is not allowed
 }
 
 func isUndAllowedEdgeKind(k typeDependencyEdgeKind) bool {
@@ -26,37 +26,45 @@ func isUndAllowedEdgeKind(k typeDependencyEdgeKind) bool {
 }
 
 func isUndAllowedPointer(p []typeDependencyEdgePointer) bool {
-	return len(p) == 0 || hiter.Every(
-		func(p typeDependencyEdgePointer) bool {
-			return isUndAllowedEdgeKind(p.kind)
-		},
-		slices.Values(p),
-	)
+	return len(p) == 0 ||
+		// input p should be attached directly named types.
+		// struct kind is only allowed as underlying of the named type.
+		((p[0].kind == typeDependencyEdgeKindStruct || slices.Contains(undFieldAllowedEdges, p[0].kind)) &&
+			hiter.Every(
+				func(p typeDependencyEdgePointer) bool {
+					return isUndAllowedEdgeKind(p.kind)
+				},
+				slices.Values(p[1:]),
+			))
 }
 
-func isUndAllowedEdge(edge typeDependencyEdge) bool {
-	return isUndAllowedPointer(edge.stack)
+func isUndPlainAllowedEdge(edge typeDependencyEdge) bool {
+	return _isUndAllowedEdge(edge, isUndConversionImplementor)
 }
 
 func isUndValidatorAllowedEdge(edge typeDependencyEdge) bool {
+	return _isUndAllowedEdge(edge, isUndValidatorImplementor)
+}
+
+func _isUndAllowedEdge(edge typeDependencyEdge, implementorOf func(named *types.Named) bool) bool {
 	if !isUndAllowedPointer(edge.stack) {
 		return false
 	}
 	// struct field
-	if len(edge.stack) > 0 && edge.stack[0].kind == typeDependencyEdgeKindStruct && edge.stack[0].pos > 0 {
+	if len(edge.stack) > 0 && edge.stack[0].kind == typeDependencyEdgeKindStruct && edge.stack[0].pos >= 0 {
 		// case 1. tagged und types.
-		st := edge.parentNode.typeInfo.Type().Underlying().(*types.Struct)
+		st := edge.parentNode.typeInfo.Underlying().(*types.Struct)
 		_, ok := reflect.StructTag(st.Tag(edge.stack[0].pos)).Lookup(undtag.TagName)
 		// we've rejected cases where tag on implementor
 		if ok {
 			return true
 		}
 		// case 2. implementor
-		if isUndValidatorImplementor(edge.childNode.typeInfo.Type().(*types.Named)) {
+		if implementorOf(edge.childType) {
 			return true
 		}
 		// case 3. implementor wrapped in und types.
-		if isOnlySingleImplementorTypeArg(edge) {
+		if isOnlySingleImplementorTypeArg(edge, implementorOf) {
 			return true
 		}
 		return false
@@ -70,16 +78,18 @@ func isUndValidatorAllowedEdge(edge typeDependencyEdge) bool {
 			return false
 		case typeDependencyEdgeKindMap, typeDependencyEdgeKindArray, typeDependencyEdgeKindSlice:
 		}
-		elem := edge.parentNode.typeInfo.Type().Underlying().(interface{ Elem() types.Type }).Elem()
+
+		elem := edge.parentNode.typeInfo.Underlying().(interface{ Elem() types.Type }).Elem()
 		named, ok := elem.(*types.Named)
 		if !ok {
 			return false
 		}
-		if isUndValidatorImplementor(named) {
+
+		if implementorOf(named) {
 			return true
 		}
 
-		if isOnlySingleImplementorTypeArg(edge) {
+		if isOnlySingleImplementorTypeArg(edge, implementorOf) {
 			return true
 		}
 	}
@@ -87,10 +97,10 @@ func isUndValidatorAllowedEdge(edge typeDependencyEdge) bool {
 	return false
 }
 
-func isOnlySingleImplementorTypeArg(edge typeDependencyEdge) bool {
+func isOnlySingleImplementorTypeArg(edge typeDependencyEdge, implementorOf func(named *types.Named) bool) bool {
 	if len(edge.typeArgs) == 1 {
 		arg := edge.typeArgs[0]
-		if arg.node != nil && len(arg.stack) == 0 && isUndValidatorImplementor(arg.node.typeInfo.Type().(*types.Named)) {
+		if arg.ty != nil && len(arg.stack) == 0 && implementorOf(arg.ty) {
 			return true
 		}
 	}
@@ -105,13 +115,13 @@ func isUndValidatorTarget(named *types.Named, external bool) (bool, error) {
 	return _isUndTarget(named, external, isUndValidatorImplementor)
 }
 
-func _isUndTarget(named *types.Named, external bool, implementor func(named *types.Named) bool) (bool, error) {
+func _isUndTarget(named *types.Named, external bool, implementorOf func(named *types.Named) bool) (bool, error) {
 	if external {
 		return matchUndType(
 			namedTypeToTargetType(named),
 			false,
 			func() bool { return true }, nil, nil,
-		) || implementor(named), nil
+		) || implementorOf(named), nil
 	}
 	switch x := named.Underlying().(type) {
 	// case 1: map, array, slice that contain implementor
@@ -132,10 +142,10 @@ func _isUndTarget(named *types.Named, external bool, implementor func(named *typ
 				if isUndType(named) {
 					inner := named.TypeArgs().At(0)
 					named, ok := inner.(*types.Named)
-					if ok && !isUndType(named) && implementor(named) {
+					if ok && !isUndType(named) && implementorOf(named) {
 						found = true
 					}
-				} else if !isUndType(named) && implementor(named) {
+				} else if !isUndType(named) && implementorOf(named) {
 					found = true
 				}
 
@@ -206,7 +216,7 @@ func _isUndTarget(named *types.Named, external bool, implementor func(named *typ
 			_ = visitToNamed(
 				f.Type(),
 				func(named *types.Named, stack []typeDependencyEdgePointer) error {
-					if isUndAllowedPointer(stack) && !isUndType(named) && implementor(named) {
+					if isUndAllowedPointer(stack) && implementorOf(named) {
 						found = true
 					}
 					return nil
@@ -214,6 +224,7 @@ func _isUndTarget(named *types.Named, external bool, implementor func(named *typ
 				nil,
 			)
 			return found, nil
+			// untagged und fields are allowed. they'll be simply just ignored.
 		}
 	}
 	return false, nil

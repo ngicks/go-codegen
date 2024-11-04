@@ -18,6 +18,7 @@ import (
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/structtag"
 	"github.com/ngicks/go-iterator-helper/hiter"
+	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
 
 func printPackage(w io.Writer, af *ast.File) error {
@@ -187,27 +188,7 @@ func appendTypeAndTypeParams(imports []TargetImport, pkgPath string, ty types.Ty
 		if ty == nil {
 			continue
 		}
-		p, ok := ty.(*types.Pointer)
-		if ok {
-			ty = p.Elem()
-		}
-		named, ok := ty.(*types.Named)
-		if !ok {
-			continue
-		}
-		if named.Obj() == nil || named.Obj().Pkg() == nil {
-			continue
-		}
-		if named.Obj().Pkg().Path() == pkgPath {
-			continue
-		}
-		imports = AppendTargetImports(
-			imports,
-			TargetImport{
-				ImportPath: named.Obj().Pkg().Path(),
-				Types:      []string{named.Obj().Name()},
-			},
-		)
+		imports = appendTypeAndTypeParams(imports, pkgPath, ty)
 	}
 	return imports
 }
@@ -263,14 +244,16 @@ func typeToDst(ty types.Type, pkgPath string, importMap importDecls) dst.Expr {
 			Index: typeToDst(named.TypeArgs().At(0), pkgPath, importMap),
 		}
 	default:
-		args := named.TypeArgs()
-		var exprs []dst.Expr
-		for _, ty := range hiter.AtterAll(args) {
-			exprs = append(exprs, typeToDst(ty, pkgPath, importMap))
-		}
 		return &dst.IndexListExpr{
-			X:       exp,
-			Indices: exprs,
+			X: exp,
+			Indices: slices.Collect(
+				xiter.Map(
+					func(ty types.Type) dst.Expr {
+						return typeToDst(ty, pkgPath, importMap)
+					},
+					hiter.OmitF(hiter.AtterAll(named.TypeArgs())),
+				),
+			),
 		}
 	}
 }

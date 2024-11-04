@@ -33,6 +33,8 @@ func GenerateValidator(
 	pkgs []*packages.Package,
 	imports []TargetImport,
 ) error {
+	// append imports other than und imports.
+	// The generated code uses fmt.Errorf.
 	imports = AppendTargetImports(imports, TargetImport{ImportPath: "fmt"})
 
 	replacerData, err := gatherValidatableUndTypes(
@@ -174,6 +176,7 @@ func generateUndValidate(
 			})
 		}
 		if len(wrappers) > 0 {
+			// label with loopName, later break-ed when non nil error is returned from validator implementation.
 			wrappers = slices.Insert(
 				wrappers,
 				0,
@@ -185,7 +188,7 @@ func generateUndValidate(
 		return wrappers
 	}
 
-	switch x := node.typeInfo.Type().Underlying().(type) {
+	switch x := node.typeInfo.Underlying().(type) {
 	case *types.Map, *types.Array, *types.Slice:
 		// should be only one since we prohibit struct literals.
 		ident, edge := firstTypeIdent(node.children)
@@ -219,7 +222,9 @@ func generateUndValidate(
 
 			// There's cases where matched by but needed to be rejected.
 			// 1. not tagged, being und filed, type arg is not a implementor
-			if !hasTag && isUndType(edge.childNode.typeInfo.Type().(*types.Named)) &&
+			// TODO: remove this line and check test result.
+			// For now this guard is supposed to have been done by transitive edge filtering.
+			if !hasTag && isUndType(edge.childType) &&
 				!edge.hasSingleNamedTypeArg(isUndValidatorImplementor) {
 				continue
 			}
@@ -241,7 +246,7 @@ func generateUndValidate(
 
 				var nodeValidator func(ident string) string
 				if hasTag && matchUndTypeBool(
-					namedTypeToTargetType(edge.childNode.typeInfo.Type().(*types.Named)),
+					namedTypeToTargetType(edge.childType),
 					false,
 					func() {
 						nodeValidator = func(ident string) string {
@@ -280,7 +285,7 @@ func generateUndValidate(
 								}
 `,
 								importIdent(
-									namedTypeToTargetType(edge.childNode.typeInfo.Type().(*types.Named)),
+									namedTypeToTargetType(edge.childType),
 									imports,
 								),
 								ident,
@@ -416,64 +421,6 @@ func preprocessRawTypes(imports []TargetImport, rawTypes RawTypes) iter.Seq2[raw
 			}
 		}
 	}
-}
-
-func findValidatableTypes(pkgs []*packages.Package, imports []TargetImport) (RawTypes, error) {
-	validatorMethod := ValidatorMethod{"UndValidate"}
-	// 1st path, find other than implementor
-	matched, err := findRawTypes(pkgs, imports, validatorMethod, nil, false, nil)
-	if err != nil {
-		return matched, err
-	}
-
-	// TODO: use filter instead
-	matched = collectRawTypes(
-		filterRawTypes(
-			nil,
-			nil,
-			func(rmt RawMatchedType) bool {
-				if rmt.Variant != MatchedAsStruct {
-					return true
-				}
-				var count int
-				for _, f := range rmt.Field {
-					if (f.UndTag.IsSome() && f.As != MatchedAsImplementor) || f.As == MatchedAsImplementor {
-						count++
-					}
-				}
-				return count > 0
-			},
-			matched.Iter(),
-		),
-	)
-
-	// 2nd path, find including implementor
-	matched, err = findRawTypes(pkgs, imports, validatorMethod, matched, true, nil)
-	if err != nil {
-		return matched, err
-	}
-
-	matched = collectRawTypes(
-		filterRawTypes(
-			nil,
-			nil,
-			func(rmt RawMatchedType) bool {
-				if rmt.Variant != MatchedAsStruct {
-					return true
-				}
-				var count int
-				for _, f := range rmt.Field {
-					if (f.UndTag.IsSome() && f.As != MatchedAsImplementor) || f.As == MatchedAsImplementor {
-						count++
-					}
-				}
-				return count > 0
-			},
-			matched.Iter(),
-		),
-	)
-
-	return matched, nil
 }
 
 func printValidator(undtagImportIdent string, tagOpt undtag.UndOpt) string {
