@@ -5,7 +5,6 @@ import (
 	"github.com/ngicks/und/conversion"
 	"github.com/ngicks/und/elastic"
 	"github.com/ngicks/und/option"
-	sliceelastic "github.com/ngicks/und/sliceund/elastic"
 )
 
 //undgen:generated
@@ -37,23 +36,6 @@ func (v All) UndPlain() AllPlain {
 	}
 }
 
-func (v AllPlain) UndRaw() All {
-	return All{
-		Foo: v.Foo,
-		Bar: v.Bar,
-		Baz: option.Some(v.Baz),
-		Qux: conversion.OptionUnd(false, v.Qux),
-		Quux: elastic.FromUnd(und.Map(
-			conversion.OptionUnd(true, v.Quux),
-			func(s [3]option.Option[string]) []option.Option[string] {
-				return s[:]
-			},
-		)),
-		Corge:  conversion.NullishUndSlice[string](v.Corge),
-		Grault: sliceelastic.FromUnd(conversion.NullifySlice(conversion.OptionUndSlice(false, v.Grault))),
-	}
-}
-
 //undgen:generated
 type MapSliceArrayPlain struct {
 	Foo map[string]string                         `json:"foo" und:"def"`
@@ -63,71 +45,37 @@ type MapSliceArrayPlain struct {
 
 func (v MapSliceArray) UndPlain() MapSliceArrayPlain {
 	return MapSliceArrayPlain{
-		Foo: func(in map[string]option.Option[string]) map[string]string {
-			out := make(map[string]string, len(in))
-			for k, v := range in {
-				out[k] = v.Value()
-			}
-			return out
-		}(v.Foo),
-		Bar: func(in []und.Und[string]) []conversion.Empty {
-			out := make([]conversion.Empty, len(in))
-			for k := range in {
-				out[k] = nil
-			}
-			return out
-		}(v.Bar),
-		Baz: func(in [5]elastic.Elastic[string]) (out [5]option.Option[[]option.Option[string]]) {
-			for k, v := range in {
-				out[k] = conversion.LenNAtLeast(2, conversion.UnwrapElastic(v)).Unwrap().Value()
-			}
-			return out
-		}(v.Baz),
-	}
-}
+		Foo: (func(v map[string]option.Option[string]) map[string]string {
+			out := make(map[string]string, len(v))
 
-func (v MapSliceArrayPlain) UndRaw() MapSliceArray {
-	return MapSliceArray{
-		Foo: func(in map[string]string) map[string]option.Option[string] {
-			out := make(map[string]option.Option[string], len(in))
-			for k, v := range in {
-				out[k] = option.Some(v)
+			inner := &out
+			for k, v := range v {
+				(*inner)[k] = v.Value()
 			}
+
 			return out
-		}(v.Foo),
-		Bar: func(in []conversion.Empty) []und.Und[string] {
-			out := make([]und.Und[string], len(in))
-			for k := range in {
-				out[k] = und.Null[string]()
+		})(v.Foo),
+		Bar: (func(v []und.Und[string]) []conversion.Empty {
+			out := make([]conversion.Empty, len(v))
+
+			inner := &out
+			for k, v := range v {
+				(*inner)[k] = nil
+				_ = v // just to avoid compilation error
 			}
+
 			return out
-		}(v.Bar),
-		Baz: func(in [5]option.Option[[]option.Option[string]]) (out [5]elastic.Elastic[string]) {
-			for k, v := range in {
-				out[k] = elastic.FromUnd(conversion.OptionUnd(false, v))
+		})(v.Bar),
+		Baz: (func(v [5]elastic.Elastic[string]) [5]option.Option[[]option.Option[string]] {
+			out := [5]option.Option[[]option.Option[string]]{}
+
+			inner := &out
+			for k, v := range v {
+				(*inner)[k] = conversion.LenNAtLeast(2, conversion.UnwrapElastic(v)).Unwrap().Value()
 			}
+
 			return out
-		}(v.Baz),
-	}
-}
-
-//undgen:generated
-type ContainsImplementorPlain struct {
-	I Implementor
-	O Implementor `und:"required"`
-}
-
-func (v ContainsImplementor) UndPlain() ContainsImplementorPlain {
-	return ContainsImplementorPlain{
-		I: v.I,
-		O: v.O.Value(),
-	}
-}
-
-func (v ContainsImplementorPlain) UndRaw() ContainsImplementor {
-	return ContainsImplementor{
-		I: v.I,
-		O: option.Some(v.O),
+		})(v.Baz),
 	}
 }
 
@@ -140,50 +88,36 @@ type MapSliceArrayContainsImplementorPlain struct {
 
 func (v MapSliceArrayContainsImplementor) UndPlain() MapSliceArrayContainsImplementorPlain {
 	return MapSliceArrayContainsImplementorPlain{
-		Foo: func(in map[string]option.Option[Implementor]) map[string]Implementor {
-			out := make(map[string]Implementor, len(in))
-			for k, v := range in {
-				out[k] = v.Value()
-			}
-			return out
-		}(v.Foo),
-		Bar: func(in []und.Und[Implementor]) []conversion.Empty {
-			out := make([]conversion.Empty, len(in))
-			for k := range in {
-				out[k] = nil
-			}
-			return out
-		}(v.Bar),
-		Baz: func(in [5]elastic.Elastic[Implementor]) (out [5]option.Option[[]option.Option[Implementor]]) {
-			for k, v := range in {
-				out[k] = conversion.LenNAtLeast(2, conversion.UnwrapElastic(v)).Unwrap().Value()
-			}
-			return out
-		}(v.Baz),
-	}
-}
+		Foo: (func(v map[string]option.Option[Implementor]) map[string]Implementor {
+			out := make(map[string]Implementor, len(v))
 
-func (v MapSliceArrayContainsImplementorPlain) UndRaw() MapSliceArrayContainsImplementor {
-	return MapSliceArrayContainsImplementor{
-		Foo: func(in map[string]Implementor) map[string]option.Option[Implementor] {
-			out := make(map[string]option.Option[Implementor], len(in))
-			for k, v := range in {
-				out[k] = option.Some(v)
+			inner := &out
+			for k, v := range v {
+				(*inner)[k] = v.Value()
 			}
+
 			return out
-		}(v.Foo),
-		Bar: func(in []conversion.Empty) []und.Und[Implementor] {
-			out := make([]und.Und[Implementor], len(in))
-			for k := range in {
-				out[k] = und.Null[Implementor]()
+		})(v.Foo),
+		Bar: (func(v []und.Und[Implementor]) []conversion.Empty {
+			out := make([]conversion.Empty, len(v))
+
+			inner := &out
+			for k, v := range v {
+				(*inner)[k] = nil
+				_ = v // just to avoid compilation error
 			}
+
 			return out
-		}(v.Bar),
-		Baz: func(in [5]option.Option[[]option.Option[Implementor]]) (out [5]elastic.Elastic[Implementor]) {
-			for k, v := range in {
-				out[k] = elastic.FromUnd(conversion.OptionUnd(false, v))
+		})(v.Bar),
+		Baz: (func(v [5]elastic.Elastic[Implementor]) [5]option.Option[[]option.Option[Implementor]] {
+			out := [5]option.Option[[]option.Option[Implementor]]{}
+
+			inner := &out
+			for k, v := range v {
+				(*inner)[k] = conversion.LenNAtLeast(2, conversion.UnwrapElastic(v)).Unwrap().Value()
 			}
+
 			return out
-		}(v.Baz),
+		})(v.Baz),
 	}
 }
