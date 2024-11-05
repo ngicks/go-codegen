@@ -837,3 +837,25 @@ func (v All) UndValidate() (err error) {
 	}
 	return
 }
+
+//undgen:generated
+func (v WithTypeParam[T]) UndValidate() (err error) {
+	{
+		validator := undtag.UndOptExport{
+			States: &undtag.StateValidator{
+				Def: true,
+			},
+		}.Into()
+
+		if !validator.ValidOpt(v.Baz) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Baz))
+		}
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"Baz",
+			)
+		}
+	}
+	return
+}

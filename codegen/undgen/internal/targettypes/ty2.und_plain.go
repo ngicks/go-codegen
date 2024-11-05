@@ -15,6 +15,12 @@ func (v IncludesImplementor) UndPlain() IncludesImplementorPlain {
 	}
 }
 
+func (v IncludesImplementorPlain) UndRaw() IncludesImplementor {
+	return IncludesImplementor{
+		Foo: v.Foo.UndRaw(),
+	}
+}
+
 //undgen:generated
 type NestedImplementor2Plain struct {
 	Foo sub.IncludesImplementorPlain
@@ -23,5 +29,11 @@ type NestedImplementor2Plain struct {
 func (v NestedImplementor2) UndPlain() NestedImplementor2Plain {
 	return NestedImplementor2Plain{
 		Foo: v.Foo.UndPlain(),
+	}
+}
+
+func (v NestedImplementor2Plain) UndRaw() NestedImplementor2 {
+	return NestedImplementor2{
+		Foo: v.Foo.UndRaw(),
 	}
 }

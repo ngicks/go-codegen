@@ -14,3 +14,9 @@ func (v IncludesImplementor) UndPlain() IncludesImplementorPlain {
 		Foo: v.Foo.UndPlain(),
 	}
 }
+
+func (v IncludesImplementorPlain) UndRaw() IncludesImplementor {
+	return IncludesImplementor{
+		Foo: v.Foo.UndRaw(),
+	}
+}
