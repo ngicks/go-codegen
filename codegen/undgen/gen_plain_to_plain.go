@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
-	"github.com/dave/dst/decorator"
 	"github.com/dave/dst/dstutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/undtag"
@@ -44,10 +43,9 @@ func generateMethodToPlain(w io.Writer, data *replaceData, node *typeNode, exprM
 	named := node.typeInfo
 	switch named.Underlying().(type) {
 	case *types.Array, *types.Slice, *types.Map:
-		fn := generateMethodToPlainElemTypes(node, data.importMap, exprMap)
-		printf(fn("v"))
+		generateMethodToPlainElemTypes(printf, node, data.importMap, exprMap)
 	case *types.Struct:
-		return generateMethodToPlainStructFields(w, ts, node, data.importMap, exprMap)
+		generateMethodToPlainStructFields(printf, ts, node, rawTyName, plainTyName, data.importMap, exprMap)
 	}
 	// unreachable: should panic instead?
 	return nil
@@ -76,6 +74,9 @@ func unwrapFieldAlongPath(
 	edge typeDependencyEdge,
 	skip int,
 ) func(wrappee func(string) string, fieldExpr string) string {
+	if rawExpr == nil || plainExpr == nil {
+		return nil
+	}
 	input := printAstExprPanicking(rawExpr)
 	output := printAstExprPanicking(plainExpr)
 
@@ -101,10 +102,11 @@ func unwrapFieldAlongPath(
 		wrappers = append(wrappers, func(s string) string {
 			return fmt.Sprintf(
 				`for k, v := range v {
-					outer := &inner
-					inner := %s
+					outer := inner
+					mid := %s
+					inner := &mid
 					%s
-					(*outer)[k] = inner
+					(*outer)[k] = *inner
 				}`,
 				initializerExpr, s,
 			)
@@ -114,7 +116,7 @@ func unwrapFieldAlongPath(
 	wrappers = append(wrappers, func(s string) string {
 		return fmt.Sprintf(
 			`for k, v := range v {
-				inner[k] = %s
+				(*inner)[k] = %s
 			}`,
 			s,
 		)
@@ -127,7 +129,7 @@ func unwrapFieldAlongPath(
 		return fmt.Sprintf(`(func (v %s) %s {
 	out := %s
 
-	inner := out
+	inner := &out
 	%s
 
 	return out
@@ -137,7 +139,12 @@ func unwrapFieldAlongPath(
 
 }
 
-func generateMethodToPlainElemTypes(node *typeNode, importMap importDecls, exprMap map[string]fieldAstExprSet) func(field string) string {
+func generateMethodToPlainElemTypes(
+	printf func(format string, args ...any),
+	node *typeNode,
+	importMap importDecls,
+	exprMap map[string]fieldAstExprSet,
+) {
 	conversionIndent, _ := importMap.Ident(UndPathConversion)
 
 	var plainExpr ast.Expr
@@ -160,89 +167,57 @@ func generateMethodToPlainElemTypes(node *typeNode, importMap importDecls, exprM
 
 	if isUndType(edge.childType) {
 		// matched, wrapped implementor
-
-		return func(field string) string {
-			return `return ` + unwrapper(
-				func(s string) string {
-					return fmt.Sprintf(
-						`%s.Map(
+		printf(`return ` + unwrapper(
+			func(s string) string {
+				return fmt.Sprintf(
+					`%s.Map(
 						%s,
 						%s.ToPlain,
 					)`,
-						importIdent(namedTypeToTargetType(edge.childType), importMap),
-						s,
-						conversionIndent,
-					)
-				},
-				field,
-			)
-		}
+					importIdent(namedTypeToTargetType(edge.childType), importMap),
+					s,
+					conversionIndent,
+				)
+			},
+			"v",
+		) + `
+`)
+		return
 	} else {
 		// implementor
-		return func(field string) string {
-			return `return ` + unwrapper(
-				func(s string) string {
-					return fmt.Sprintf(
-						`%s.UndPlain()`,
-						s,
-					)
-				},
-				"v",
-			)
-		}
-	}
-}
-
-func generateMethodToPlainStructFields(w io.Writer, ts *dst.TypeSpec, node *typeNode, importMap importDecls, exprMap map[string]fieldAstExprSet) error {
-	return nil
-}
-
-func _generateMethodToPlain(
-	w io.Writer,
-	dec *decorator.Decorator,
-	ts *dst.TypeSpec,
-	tyName string,
-	modifiedTyName string, // must include type param
-	target RawMatchedType,
-	importMap importDecls,
-	rawFields map[string]string,
-	plainFields map[string]string,
-) (err error) {
-	if target.Variant != MatchedAsStruct { //TODO remove this constraint
-		return nil
-	}
-
-	printf, flush := bufPrintf(w)
-	defer func() {
-		fErr := flush()
-		if err != nil {
-			return
-		}
-		err = fErr
-	}()
-
-	printf(
-		`func (v %[1]s) UndPlain() %[2]s {
-	return %[2]s{
-`,
-		tyName, modifiedTyName,
-	)
-	defer func() {
-		printf(`}
-		}
-		
+		printf(`return ` + unwrapper(
+			func(s string) string {
+				return fmt.Sprintf(
+					`%s.UndPlain()`,
+					s,
+				)
+			},
+			"v",
+		) + `
 `)
-	}()
+		return
+	}
+}
 
+func generateMethodToPlainStructFields(
+	printf func(format string, args ...any),
+	ts *dst.TypeSpec,
+	node *typeNode,
+	rawTyName, plainTyName string,
+	importMap importDecls,
+	exprMap map[string]fieldAstExprSet,
+) {
+	printf(`return %s{
+`,
+		plainTyName,
+	)
+	defer printf(`}
+`)
 	dstutil.Apply(
 		ts.Type,
 		func(c *dstutil.Cursor) bool {
-			if err != nil {
-				return false
-			}
-
-			node := c.Node()
-			switch field := node.(type) {
+			dstNode := c.Node()
+			switch field := dstNode.(type) {
 			default:
 				return true
 			case *dst.Field:
@@ -263,161 +238,89 @@ func _generateMethodToPlain(
 					}
 				}()
 
-				mf, ok := target.FieldByName(field.Names[0].Name)
+				edge, typeVar, tag, ok := node.byFieldName(field.Names[0].Name)
 				if !ok {
 					return false
 				}
-				if mf.UndTag.IsNone() && mf.As != MatchedAsImplementor && (mf.Elem != nil && mf.Elem.As != MatchedAsImplementor) {
-					return false
-				}
 
-				var undOpt undtag.UndOpt
-				if mf.UndTag.IsSome() {
-					undOptParseResult := mf.UndTag.Value()
-					if undOptParseResult.Err != nil {
-						if err == nil {
-							err = undOptParseResult.Err
-						}
-						return false
-					}
-					undOpt = undOptParseResult.Opt
-				}
+				plainExpr := exprMap[typeVar.Name()]
 
-				var param string
-				switch {
-				case mf.Elem != nil:
-					switch mf.Elem.As {
-					case MatchedAsImplementor:
-						var elem types.Type
-						switch x := mf.TypeInfo.(type) {
-						case *types.Named:
-							elem = x
-						case *types.Array:
-							elem = x.Elem()
-						case *types.Slice:
-							elem = x.Elem()
-						}
-						expr := conversionTargetOfImplementorAst(
-							target,
-							elem.(*types.Named).TypeArgs().At(0).(*types.Named),
-							importMap,
-						)
-						buf := new(bytes.Buffer)
-						err = printer.Fprint(buf, token.NewFileSet(), expr)
-						if err != nil {
-							return false
-						}
-						param = buf.String()
-					case MatchedAsDirect:
-						if mf.Elem.Elem != nil && mf.Elem.Elem.As == MatchedAsImplementor {
-							expr := conversionTargetOfImplementorAst(
-								target,
-								mf.Elem.Elem.TypeInfo.(*types.Named),
-								importMap,
-							)
-							buf := new(bytes.Buffer)
-							err = printer.Fprint(buf, token.NewFileSet(), expr)
-							if err != nil {
-								return false
-							}
-							param = buf.String()
-						} else {
-							ts := dec.Ast.Nodes[ts].(*ast.TypeSpec)
-							param, err = printTypeParamForField(dec.Fset, ts, field.Names[0].Name)
-							if err != nil {
-								return false
-							}
-						}
+				var needsArg bool
+				undTag, ok := tag.Lookup(undtag.TagName)
+				if ok {
+					undOpt, err := undtag.ParseOption(undTag)
+					if err != nil { // this case should already be filtered out.
+						panic(err)
 					}
-				default:
-					param, err = printTypeParamForField(dec.Fset, dec.Ast.Nodes[ts].(*ast.TypeSpec), field.Names[0].Name)
-					if err != nil {
-						return false
+
+					var plainParam types.Type
+					if edge.hasSingleNamedTypeArg(isUndConversionImplementor) {
+						plainParam, _ = ConstUnd.ConversionMethod.ConvertedType(edge.typeArgs[0].org.(*types.Named))
+					} else {
+						plainParam = edge.typeArgs[0].org
 					}
-				}
-				switch mf.As {
-				// TODO add more match pattern
-				case MatchedAsDirect:
-					fieldConverter, _ = generateMethodToPlainDirect(mf, undOpt, param, importMap)
-					return false
-				case MatchedAsArray:
-					mapper, needsArg := generateMethodToPlainDirect(*mf.Elem, undOpt, param, importMap)
-					if mapper == nil {
-						mapper = func(ident string) string {
-							return ident + ".UndPlain()"
-						}
-						needsArg = true
-					}
-					fieldConverter = func(ident string) string {
-						return fmt.Sprintf(
-							`func(in %[1]s) (out %[2]s) {
-								for k %[3]s := range in {
-									out[k] = %[4]s
-								}
-								return out
-							}(%[5]s)`,
-							/*1*/ rawFields[mf.Name],
-							/*2*/ plainFields[mf.Name],
-							/*3*/ func() string {
-								if needsArg {
-									return ", v"
-								} else {
-									return ""
-								}
-							}(),
-							/*4*/ mapper("v"),
-							/*5*/ ident,
-						)
-					}
-				case MatchedAsSlice, MatchedAsMap:
-					mapper, needsArg := generateMethodToPlainDirect(*mf.Elem, undOpt, param, importMap)
-					fieldConverter = func(ident string) string {
-						return fmt.Sprintf(
-							`func(in %[1]s) %[2]s {
-								out := make(%[2]s, len(in))
-								for k %[3]s  := range in {
-									out[k] = %[4]s
-								}
-								return out
-							}(%[5]s)`,
-							/*1*/ rawFields[mf.Name],
-							/*2*/ plainFields[mf.Name],
-							/*3*/ func() string {
-								if needsArg {
-									return ", v"
-								} else {
-									return ""
-								}
-							}(),
-							/*4*/ mapper("v"),
-							/*5*/ ident,
-						)
-					}
-				case MatchedAsImplementor:
+					ty := printAstExprPanicking(typeToAst(
+						plainParam,
+						edge.parentNode.typeInfo.Obj().Pkg().Path(),
+						importMap,
+					))
+					fieldConverter, needsArg = generateMethodToPlainDirect(edge, undOpt, ty, importMap)
+				} else if isUndConversionImplementor(edge.childType) {
 					fieldConverter = func(ident string) string {
 						return ident + ".UndPlain()"
 					}
 				}
+
+				unwrapper := unwrapFieldAlongPath(
+					typeToAst(
+						edge.parentNode.typeInfo.Underlying().(*types.Struct).Field(edge.stack[0].pos.Value()).Type(),
+						edge.parentNode.typeInfo.Obj().Pkg().Path(),
+						importMap,
+					),
+					plainExpr.Wrapped,
+					edge,
+					1, // skip top struct-kind.
+				)
+				if unwrapper != nil {
+					unwrappedConverter := fieldConverter
+					fieldConverter = func(ident string) string {
+						return unwrapper(
+							func(s string) string {
+								expr := unwrappedConverter(s)
+								if !needsArg {
+									expr += "\n_ = v // just to avoid compilation error"
+								}
+								return expr
+							},
+							ident,
+						)
+					}
+				}
+
+				return false
 			}
-			return false
 		},
 		nil,
 	)
-	return err
 }
 
-func generateMethodToPlainDirect(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (convert func(ident string) string, needsArg bool) {
-	switch mf.Type {
-	case UndTargetTypeOption:
-		convert, needsArg = optionToPlain(undOpt)
-	case UndTargetTypeUnd, UndTargetTypeSliceUnd:
-		convert, needsArg = undToPlain(undOpt, importMap)
-	case UndTargetTypeElastic, UndTargetTypeSliceElastic:
-		convert, needsArg = elasticToPlain(mf, undOpt, typeParam, importMap)
-	}
-	if mf.Elem != nil && mf.Elem.As == MatchedAsImplementor {
+func generateMethodToPlainDirect(edge typeDependencyEdge, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (convert func(ident string) string, needsArg bool) {
+	matchUndTypeBool(
+		namedTypeToTargetType(edge.childType),
+		false,
+		func() {
+			convert, needsArg = optionToPlain(undOpt)
+		},
+		func(isSlice bool) {
+			convert, needsArg = undToPlain(undOpt, importMap)
+		},
+		func(isSlice bool) {
+			convert, needsArg = elasticToPlain(isSlice, undOpt, typeParam, importMap)
+		},
+	)
+	if edge.hasSingleNamedTypeArg(isUndConversionImplementor) {
 		conversionIdent, _ := importMap.Ident(UndPathConversion)
-		pkgIdent := importIdent(mf.Type, importMap)
+		pkgIdent := importIdent(namedTypeToTargetType(edge.childType), importMap)
 		inner := convert
 		convert = func(ident string) string {
 			return inner(fmt.Sprintf(
@@ -472,10 +375,9 @@ func undToPlain(undOpt undtag.UndOpt, importMap importDecls) (func(ident string)
 	}
 }
 
-func elasticToPlain(mf MatchedField, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (func(ident string) string, bool) {
+func elasticToPlain(isSlice bool, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (func(ident string) string, bool) {
 	optionIdent, _ := importMap.Ident(UndTargetTypeOption.ImportPath)
 	convertIdent, _ := importMap.Ident(UndPathConversion)
-	isSlice := targetTypeIsSlice(mf.Type)
 	undIdent, _ := importMap.Ident(UndTargetTypeUnd.ImportPath)
 	if isSlice {
 		undIdent, _ = importMap.Ident(UndTargetTypeSliceUnd.ImportPath)

@@ -11,6 +11,7 @@ import (
 	"io"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/dave/dst"
@@ -281,6 +282,23 @@ func typeToAst(ty types.Type, pkgPath string, importMap importDecls) ast.Expr {
 			exp = &ast.Ident{
 				Name: x.Obj().Name(),
 			}
+		}
+	case *types.Array:
+		return &ast.ArrayType{
+			Len: &ast.BasicLit{
+				Kind:  token.INT,
+				Value: strconv.FormatInt(x.Len(), 10),
+			},
+			Elt: typeToAst(x.Elem(), pkgPath, importMap),
+		}
+	case *types.Slice:
+		return &ast.ArrayType{
+			Elt: typeToAst(x.Elem(), pkgPath, importMap),
+		}
+	case *types.Map:
+		return &ast.MapType{
+			Key:   typeToAst(x.Key(), pkgPath, importMap),
+			Value: typeToAst(x.Elem(), pkgPath, importMap),
 		}
 	}
 

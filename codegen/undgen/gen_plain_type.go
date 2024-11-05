@@ -114,7 +114,7 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typeNode, importMap importDecls)
 						for _, name := range field.Names {
 							exprMap[name.Name] = fieldDstExprSet{
 								Wrapped:   field.Type,
-								Unwrapped: expr,
+								Unwrapped: *unwrapped,
 							}
 						}
 					}
@@ -129,6 +129,12 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typeNode, importMap importDecls)
 						importMap,
 					)
 					atLeastOne = true
+					for _, name := range field.Names {
+						exprMap[name.Name] = fieldDstExprSet{
+							Wrapped:   field.Type,
+							Unwrapped: *unwrapped,
+						}
+					}
 				}
 
 				return false
