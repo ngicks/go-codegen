@@ -51,10 +51,10 @@ func _isUndAllowedEdge(edge typeDependencyEdge, implementorOf func(named *types.
 		return false
 	}
 	// struct field
-	if len(edge.stack) > 0 && edge.stack[0].kind == typeDependencyEdgeKindStruct && edge.stack[0].pos >= 0 {
+	if len(edge.stack) > 0 && edge.stack[0].kind == typeDependencyEdgeKindStruct && edge.stack[0].pos.IsSome() {
 		// case 1. tagged und types.
 		st := edge.parentNode.typeInfo.Underlying().(*types.Struct)
-		_, ok := reflect.StructTag(st.Tag(edge.stack[0].pos)).Lookup(undtag.TagName)
+		_, ok := reflect.StructTag(st.Tag(edge.stack[0].pos.Value())).Lookup(undtag.TagName)
 		// we've rejected cases where tag on implementor
 		if ok {
 			return true

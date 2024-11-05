@@ -29,3 +29,5 @@ type IncludesImplementorArraySliceMap struct {
 	M1 map[string]sliceund.Und[sub.Foo[int]]          `und:"def"`
 	M2 map[string]sliceelastic.Elastic[sub.Foo[bool]] `und:"len==2"`
 }
+
+type Wrapped map[string][3][]sub.Foo[string]

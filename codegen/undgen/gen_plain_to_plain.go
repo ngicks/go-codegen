@@ -8,14 +8,196 @@ import (
 	"go/token"
 	"go/types"
 	"io"
+	"slices"
+	"strings"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/dave/dst/dstutil"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/undtag"
 )
 
-func generateMethodToPlain(
+type fieldAstExprSet struct {
+	Wrapped   ast.Expr
+	Unwrapped ast.Expr
+}
+
+func generateMethodToPlain(w io.Writer, data *replaceData, node *typeNode, exprMap map[string]fieldAstExprSet) (err error) {
+	ts := data.dec.Dst.Nodes[node.ts].(*dst.TypeSpec)
+	plainTyName := ts.Name.Name + printTypeParamVars(ts)
+	rawTyName, _ := strings.CutSuffix(ts.Name.Name, "Plain")
+	rawTyName += printTypeParamVars(ts)
+	printf, flush := bufPrintf(w)
+	defer func() {
+		if err == nil {
+			err = flush()
+		}
+	}()
+	printf(`func (v %s) UndPlain() %s {
+`,
+		rawTyName, plainTyName,
+	)
+	defer printf(`}
+`)
+
+	named := node.typeInfo
+	switch named.Underlying().(type) {
+	case *types.Array, *types.Slice, *types.Map:
+		fn := generateMethodToPlainElemTypes(node, data.importMap, exprMap)
+		printf(fn("v"))
+	case *types.Struct:
+		return generateMethodToPlainStructFields(w, ts, node, data.importMap, exprMap)
+	}
+	// unreachable: should panic instead?
+	return nil
+}
+
+func printAstExprPanicking(expr ast.Expr) string {
+	buf := new(bytes.Buffer)
+	err := printer.Fprint(buf, token.NewFileSet(), expr)
+	if err != nil {
+		panic(err)
+	}
+	return buf.String()
+}
+
+func unwrapExprOne(expr ast.Expr, kind typeDependencyEdgeKind) ast.Expr {
+	switch kind {
+	case typeDependencyEdgeKindArray, typeDependencyEdgeKindSlice:
+		return expr.(*ast.ArrayType).Elt
+	default:
+		return expr.(*ast.MapType).Value
+	}
+}
+
+func unwrapFieldAlongPath(
+	rawExpr, plainExpr ast.Expr,
+	edge typeDependencyEdge,
+	skip int,
+) func(wrappee func(string) string, fieldExpr string) string {
+	input := printAstExprPanicking(rawExpr)
+	output := printAstExprPanicking(plainExpr)
+
+	s := edge.stack[skip:]
+	if len(s) == 0 {
+		return nil
+	}
+
+	initializer := func(expr ast.Expr, kind typeDependencyEdgeKind) string {
+		switch kind {
+		case typeDependencyEdgeKindArray:
+			return fmt.Sprintf("%s{}", printAstExprPanicking(expr))
+		default:
+			return fmt.Sprintf("make(%s, len(v))", printAstExprPanicking(expr))
+		}
+	}
+
+	var wrappers []func(string) string
+	unwrapped := plainExpr
+	for p := range hiter.Window(s, 2) {
+		unwrapped = unwrapExprOne(unwrapped, p[0].kind)
+		initializerExpr := initializer(unwrapped, p[1].kind)
+		wrappers = append(wrappers, func(s string) string {
+			return fmt.Sprintf(
+				`for k, v := range v {
+					outer := &inner
+					inner := %s
+					%s
+					(*outer)[k] = inner
+				}`,
+				initializerExpr, s,
+			)
+		})
+
+	}
+	wrappers = append(wrappers, func(s string) string {
+		return fmt.Sprintf(
+			`for k, v := range v {
+				inner[k] = %s
+			}`,
+			s,
+		)
+	})
+	return func(wrappee func(string) string, fieldExpr string) string {
+		expr := wrappee("v")
+		for _, wrapper := range slices.Backward(wrappers) {
+			expr = wrapper(expr)
+		}
+		return fmt.Sprintf(`(func (v %s) %s {
+	out := %s
+
+	inner := out
+	%s
+
+	return out
+})(%s)`,
+			input, output, initializer(plainExpr, s[0].kind), expr, fieldExpr)
+	}
+
+}
+
+func generateMethodToPlainElemTypes(node *typeNode, importMap importDecls, exprMap map[string]fieldAstExprSet) func(field string) string {
+	conversionIndent, _ := importMap.Ident(UndPathConversion)
+
+	var plainExpr ast.Expr
+	for _, v := range exprMap {
+		plainExpr = v.Wrapped
+	}
+
+	_, edge := firstTypeIdent(node.children) // must be only one.
+
+	unwrapper := unwrapFieldAlongPath(
+		typeToAst(
+			edge.parentNode.typeInfo,
+			edge.parentNode.typeInfo.Obj().Pkg().Path(),
+			importMap,
+		),
+		plainExpr,
+		edge,
+		0,
+	)
+
+	if isUndType(edge.childType) {
+		// matched, wrapped implementor
+
+		return func(field string) string {
+			return `return ` + unwrapper(
+				func(s string) string {
+					return fmt.Sprintf(
+						`%s.Map(
+						%s,
+						%s.ToPlain,
+					)`,
+						importIdent(namedTypeToTargetType(edge.childType), importMap),
+						s,
+						conversionIndent,
+					)
+				},
+				field,
+			)
+		}
+	} else {
+		// implementor
+		return func(field string) string {
+			return `return ` + unwrapper(
+				func(s string) string {
+					return fmt.Sprintf(
+						`%s.UndPlain()`,
+						s,
+					)
+				},
+				"v",
+			)
+		}
+	}
+}
+
+func generateMethodToPlainStructFields(w io.Writer, ts *dst.TypeSpec, node *typeNode, importMap importDecls, exprMap map[string]fieldAstExprSet) error {
+	return nil
+}
+
+func _generateMethodToPlain(
 	w io.Writer,
 	dec *decorator.Decorator,
 	ts *dst.TypeSpec,

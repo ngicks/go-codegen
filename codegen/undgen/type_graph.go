@@ -10,6 +10,7 @@ import (
 
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
+	"github.com/ngicks/und/option"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -24,6 +25,8 @@ import (
 // +──────+  ┠─(as struct member elt of [][]T)─+──────+
 // .         ┠─...                             │ node │────...
 // .         ...                               +──────+
+//
+// Nodes are connected by [typeDependencyEdge].
 type typeGraph struct {
 	types    map[typeIdent]*typeNode
 	matched  map[typeIdent]*typeNode
@@ -111,7 +114,7 @@ func (e typeDependencyEdge) hasSingleNamedTypeArg(additionalCond func(named *typ
 
 type typeDependencyEdgePointer struct {
 	kind typeDependencyEdgeKind
-	pos  int
+	pos  option.Option[int]
 }
 
 type typeArg struct {
@@ -360,27 +363,27 @@ func visitToNamed(
 	case *types.Alias:
 		// TODO: check for type param after go1.24
 		// see https://github.com/golang/go/issues/46477
-		return visitToNamed(x.Rhs(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindAlias, pos: -1}))
+		return visitToNamed(x.Rhs(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindAlias}))
 	case *types.Array:
-		return visitToNamed(x.Elem(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindArray, pos: -1}))
+		return visitToNamed(x.Elem(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindArray}))
 	case *types.Basic:
 		return nil
 	case *types.Chan:
-		return visitToNamed(x.Elem(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindChan, pos: -1}))
+		return visitToNamed(x.Elem(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindChan}))
 	case *types.Interface:
 		return nil
 	case *types.Map:
-		return visitToNamed(x.Elem(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindMap, pos: -1}))
+		return visitToNamed(x.Elem(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindMap}))
 	case *types.Pointer:
-		return visitToNamed(x.Elem(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindPointer, pos: -1}))
+		return visitToNamed(x.Elem(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindPointer}))
 	case *types.Slice:
-		return visitToNamed(x.Elem(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindSlice, pos: -1}))
+		return visitToNamed(x.Elem(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindSlice}))
 	case *types.Struct:
 		// We don't support type-parametrized struct fields.
 		// Thus not checking type args.
 		for i := range x.NumFields() {
 			f := x.Field(i)
-			err := visitToNamed(f.Type(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindStruct, pos: i}))
+			err := visitToNamed(f.Type(), cb, append(stack, typeDependencyEdgePointer{kind: typeDependencyEdgeKindStruct, pos: option.Some(i)}))
 			if err != nil {
 				return err
 			}
@@ -435,6 +438,10 @@ func (g *typeGraph) iterUpward(includeMatched bool, edgeFilter func(edge typeDep
 		visited := make(map[*typeNode]bool)
 		for _, n := range g.external {
 			for ii, nn := range visitUpward(n, edgeFilter, visited) {
+				if visited[n] {
+					continue
+				}
+				visited[n] = true
 				if !yield(ii, nn) {
 					return
 				}
@@ -448,6 +455,10 @@ func (g *typeGraph) iterUpward(includeMatched bool, edgeFilter func(edge typeDep
 				}
 			}
 			for ii, nn := range visitUpward(n, edgeFilter, visited) {
+				if visited[n] {
+					continue
+				}
+				visited[n] = true
 				if !yield(ii, nn) {
 					return
 				}
@@ -486,12 +497,10 @@ func visitNodes(
 					return
 				}
 
-				if visited[node] {
-					continue
-				}
-				visited[node] = true
-
 				for i, n := range visitNodes(node, up, edgeFilter, visited) {
+					if visited[n] {
+						continue
+					}
 					if !yield(i, n) {
 						return
 					}
@@ -508,7 +517,7 @@ func (n *typeNode) fields() iter.Seq2[int, typeDependencyEdge] {
 	return func(yield func(int, typeDependencyEdge) bool) {
 		for _, edges := range n.children {
 			for _, e := range edges {
-				if !yield(e.stack[0].pos, e) {
+				if !yield(e.stack[0].pos.Value(), e) {
 					return
 				}
 			}
@@ -521,7 +530,7 @@ func (n *typeNode) fieldsName() iter.Seq2[string, typeDependencyEdge] {
 	return func(yield func(string, typeDependencyEdge) bool) {
 		for _, edges := range n.children {
 			for _, e := range edges {
-				if !yield(structTy.Field(e.stack[0].pos).Name(), e) {
+				if !yield(structTy.Field(e.stack[0].pos.Value()).Name(), e) {
 					return
 				}
 			}
@@ -533,10 +542,10 @@ func (n *typeNode) byFieldName(name string) (typeDependencyEdge, *types.Var, ref
 	structObj := n.typeInfo.Underlying().(*types.Struct)
 	for _, edges := range n.children {
 		for _, e := range edges {
-			if e.stack[0].pos < 0 {
+			if e.stack[0].pos.IsNone() {
 				return typeDependencyEdge{}, nil, "", false
 			}
-			pos := e.stack[0].pos
+			pos := e.stack[0].pos.Value()
 			v := structObj.Field(pos)
 			if v.Name() == name {
 				return e, v, reflect.StructTag(structObj.Tag(pos)), true

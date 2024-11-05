@@ -297,14 +297,16 @@ func typeToAst(ty types.Type, pkgPath string, importMap importDecls) ast.Expr {
 			Index: typeToAst(named.TypeArgs().At(0), pkgPath, importMap),
 		}
 	default:
-		args := named.TypeArgs()
-		var exprs []ast.Expr
-		for _, ty := range hiter.AtterAll(args) {
-			exprs = append(exprs, typeToAst(ty, pkgPath, importMap))
-		}
 		return &ast.IndexListExpr{
-			X:       exp,
-			Indices: exprs,
+			X: exp,
+			Indices: slices.Collect(
+				xiter.Map(
+					func(ty types.Type) ast.Expr {
+						return typeToAst(ty, pkgPath, importMap)
+					},
+					hiter.OmitF(hiter.AtterAll(named.TypeArgs())),
+				),
+			),
 		}
 	}
 }

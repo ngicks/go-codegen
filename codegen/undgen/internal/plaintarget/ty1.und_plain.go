@@ -226,3 +226,29 @@ func (v IncludesImplementorArraySliceMapPlain) UndRaw() IncludesImplementorArray
 		}(v.M2),
 	}
 }
+
+//undgen:generated
+type WrappedPlain map[string][3][]sub.FooPlain[string]
+
+func (v Wrapped) UndPlain() WrappedPlain {
+	return (func(v Wrapped) map[string][3][]sub.FooPlain[string] {
+		out := make(map[string][3][]sub.FooPlain[string], len(v))
+
+		inner := out
+		for k, v := range v {
+			outer := &inner
+			inner := [3][]sub.FooPlain[string]{}
+			for k, v := range v {
+				outer := &inner
+				inner := make([]sub.FooPlain[string], len(v))
+				for k, v := range v {
+					inner[k] = v.UndPlain()
+				}
+				(*outer)[k] = inner
+			}
+			(*outer)[k] = inner
+		}
+
+		return out
+	})(v)
+}
