@@ -7,7 +7,6 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
-	"go/types"
 	"iter"
 	"log/slog"
 	"maps"
@@ -128,33 +127,6 @@ func GeneratePlain(
 		}
 	}
 	return nil
-}
-
-func conversionTargetOfImplementorAst(target RawMatchedType, fieldTypeNamed *types.Named, importMap importDecls) ast.Expr {
-	ty, ok := ConstUnd.ConversionMethod.ConvertedType(fieldTypeNamed)
-	if ok {
-		return typeToAst(
-			ty,
-			target.TypeInfo.Type().(*types.Named).Obj().Pkg().Path(),
-			importMap,
-		)
-	} else {
-		return typeToAst(
-			types.NewNamed(
-				types.NewTypeName(
-					0,
-					fieldTypeNamed.Obj().Pkg(),
-					fieldTypeNamed.Obj().Name()+"Plain",
-					nil,
-				),
-				nil,
-				nil,
-			),
-			fieldTypeNamed.Obj().Pkg().Path(),
-			importMap,
-		)
-	}
-
 }
 
 func sliceSuffix(isSlice bool) string {

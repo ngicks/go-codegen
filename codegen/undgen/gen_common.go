@@ -2,7 +2,6 @@ package undgen
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/printer"
@@ -12,10 +11,8 @@ import (
 	"reflect"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/dave/dst"
-	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/structtag"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -81,73 +78,6 @@ func bufPrintf(w io.Writer) (func(format string, args ...any), func() error) {
 		}, func() error {
 			return bufw.Flush()
 		}
-}
-
-func printFieldTypesAst(fset *token.FileSet, ts *ast.TypeSpec) map[string]string {
-	out := make(map[string]string)
-	st, ok := ts.Type.(*ast.StructType)
-	if !ok {
-		return nil
-	}
-	buf := new(bytes.Buffer)
-	for _, f := range st.Fields.List {
-		buf.Reset()
-		err := printer.Fprint(buf, fset, f.Type)
-		if err != nil {
-			panic(err)
-		}
-		for _, name := range f.Names {
-			out[name.Name] = buf.String()
-		}
-	}
-	return out
-}
-
-func printFieldTypesDst(file *dst.File, ts *dst.TypeSpec) map[string]string {
-	rec := decorator.NewRestorer()
-	_, err := rec.RestoreFile(file)
-	if err != nil {
-		panic(err)
-	}
-
-	ats := rec.Ast.Nodes[ts].(*ast.TypeSpec)
-
-	return printFieldTypesAst(rec.Fset, ats)
-}
-
-func printTypeParamForField(fset *token.FileSet, ts *ast.TypeSpec, fieldName string) (string, error) {
-	st := ts.Type.(*ast.StructType) // panic if not a struct
-	if st.Fields == nil {
-		return "", fmt.Errorf("struct has no field")
-	}
-	for _, field := range st.Fields.List {
-		if !slices.ContainsFunc(field.Names, func(n *ast.Ident) bool { return n.Name == fieldName }) {
-			continue
-		}
-		var node ast.Node
-		switch t := field.Type.(type) {
-		default:
-			return "", nil
-		case *ast.ArrayType:
-			node = t.Elt
-		case *ast.MapType:
-			node = t.Value
-		case *ast.IndexExpr:
-			node = t // this includes field type itself; IndexExpr is X[Index]
-		case *ast.IndexListExpr:
-			node = t
-		}
-		buf := new(bytes.Buffer)
-		err := printer.Fprint(buf, fset, node)
-		if err != nil {
-			return "", err
-		}
-		s := buf.String()
-		// Instead of removing non-index part from node(it might interfere with other part of code)
-		// just trim down output string.
-		return s[strings.Index(s, "[")+1 : len(s)-1], nil
-	}
-	return "", fmt.Errorf("field not found: %q", fieldName)
 }
 
 func importIdent(ty TargetType, imports importDecls) string {

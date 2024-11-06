@@ -6,11 +6,20 @@ import (
 	"iter"
 	"slices"
 
+	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 )
+
+type replaceData struct {
+	filename    string
+	dec         *decorator.Decorator
+	df          *dst.File
+	importMap   importDecls
+	targetNodes []*typeNode
+}
 
 func gatherPlainUndTypes(
 	pkgs []*packages.Package,

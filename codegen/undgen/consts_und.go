@@ -84,15 +84,6 @@ var (
 	}
 )
 
-func targetTypeIsSlice(t TargetType) bool {
-	switch t {
-	default:
-		return false
-	case UndTargetTypeSliceUnd, UndTargetTypeSliceElastic:
-		return true
-	}
-}
-
 const (
 	UndPathConversion = "github.com/ngicks/und/conversion"
 	UndPathUndTag     = "github.com/ngicks/und/undtag"
