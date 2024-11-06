@@ -223,7 +223,9 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 				},
 				nil,
 			)
-			return found, nil
+			if found {
+				return found, nil
+			}
 			// untagged und fields are allowed. they'll be simply just ignored.
 		}
 	}
