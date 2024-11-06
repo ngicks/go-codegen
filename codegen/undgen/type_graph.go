@@ -438,10 +438,6 @@ func (g *typeGraph) iterUpward(includeMatched bool, edgeFilter func(edge typeDep
 		visited := make(map[*typeNode]bool)
 		for _, n := range g.external {
 			for ii, nn := range visitUpward(n, edgeFilter, visited) {
-				if visited[n] {
-					continue
-				}
-				visited[n] = true
 				if !yield(ii, nn) {
 					return
 				}
@@ -455,10 +451,6 @@ func (g *typeGraph) iterUpward(includeMatched bool, edgeFilter func(edge typeDep
 				}
 			}
 			for ii, nn := range visitUpward(n, edgeFilter, visited) {
-				if visited[n] {
-					continue
-				}
-				visited[n] = true
 				if !yield(ii, nn) {
 					return
 				}
@@ -493,14 +485,15 @@ func visitNodes(
 					node = edge.childNode
 				}
 
-				if (edgeFilter == nil || edgeFilter(edge)) && !yield(i, node) {
-					return
+				if edgeFilter == nil || edgeFilter(edge) {
+					if !visited[edge.parentNode] &&
+						!yield(i, edge.parentNode) {
+						return
+					}
+					visited[edge.parentNode] = true
 				}
 
 				for i, n := range visitNodes(node, up, edgeFilter, visited) {
-					if visited[n] {
-						continue
-					}
 					if !yield(i, n) {
 						return
 					}

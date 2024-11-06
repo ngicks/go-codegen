@@ -77,13 +77,24 @@ func isConversionMethodImplementor(ty *types.Named, conversionMethod ConversionM
 					return toType, false
 				}
 
-				objStr1 := ty.String() // Assigning to a value just to inspect the string in the debugger.
+				objStr1 := ty.String()
 				objStr2 := supposeToBeFromType.String()
-				// simple pointer comparison should not suffice since
-				// if types are instantiated, they can be same type but different pointer.
-				// Am I correct? At least if I replace the line below with `return ty == named`
-				// Test_isImplementor fails.
-				return toType, objStr1 == objStr2
+				_ = objStr1 // just for debugger...
+				_ = objStr2
+				if types.Identical(ty, supposeToBeFromType) {
+					return toType, true
+				}
+				// If ty is un-instantiated type then, supposeToBeFromType is same
+				// only if is it instantiated with type param which ty has in same order.
+				if ty.TypeArgs().Len() == 0 && supposeToBeFromType.TypeArgs().Len() > 0 {
+					// try again with instantiated version.
+					toType2, ok := isConversionMethodImplementor(supposeToBeFromType, conversionMethod, fromPlain)
+					if !ok {
+						return toType, false
+					}
+					return toType, toType == toType2
+				}
+				return toType, false
 			}
 		}
 	}

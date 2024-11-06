@@ -114,27 +114,10 @@ func GeneratePlain(
 			}
 			buf.WriteString("\n\n")
 
-			err = generateMethodToPlain(buf, data, node, astExprMap)
+			err = generateConversionMethod(buf, data, node, astExprMap)
 			if err != nil {
 				return err
 			}
-
-			// buf.WriteString("\n\n")
-
-			// err = generateMethodToRaw(
-			// 	buf,
-			// 	data.dec,
-			// 	dts,
-			// 	ats.Name.Name[:len(ats.Name.Name)-len("Plain")]+printTypeParamVars(dts),
-			// 	ats.Name.Name+printTypeParamVars(dts),
-			// 	s,
-			// 	data.importMap,
-			// 	data.rawFields[idx],
-			// 	data.plainFields[idx],
-			// )
-			// if err != nil {
-			// 	return err
-			// }
 
 			buf.WriteString("\n\n")
 		}

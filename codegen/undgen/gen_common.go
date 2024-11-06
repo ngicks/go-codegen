@@ -22,6 +22,14 @@ import (
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
 
+func or[T any](left bool, l, r T) T {
+	if left {
+		return l
+	} else {
+		return r
+	}
+}
+
 func printPackage(w io.Writer, af *ast.File) error {
 	if _, err := io.WriteString(w, (token.PACKAGE.String())); err != nil {
 		return err

@@ -70,15 +70,15 @@ func unwrapExprOne(expr ast.Expr, kind typeDependencyEdgeKind) ast.Expr {
 }
 
 func unwrapFieldAlongPath(
-	rawExpr, plainExpr ast.Expr,
+	fromExpr, toExpr ast.Expr,
 	edge typeDependencyEdge,
 	skip int,
 ) func(wrappee func(string) string, fieldExpr string) string {
-	if rawExpr == nil || plainExpr == nil {
+	if fromExpr == nil || toExpr == nil {
 		return nil
 	}
-	input := printAstExprPanicking(rawExpr)
-	output := printAstExprPanicking(plainExpr)
+	input := printAstExprPanicking(fromExpr)
+	output := printAstExprPanicking(toExpr)
 
 	s := edge.stack[skip:]
 	if len(s) == 0 {
@@ -95,7 +95,7 @@ func unwrapFieldAlongPath(
 	}
 
 	var wrappers []func(string) string
-	unwrapped := plainExpr
+	unwrapped := toExpr
 	for p := range hiter.Window(s, 2) {
 		unwrapped = unwrapExprOne(unwrapped, p[0].kind)
 		initializerExpr := initializer(unwrapped, p[1].kind)
@@ -134,7 +134,7 @@ func unwrapFieldAlongPath(
 
 	return out
 })(%s)`,
-			input, output, initializer(plainExpr, s[0].kind), expr, fieldExpr)
+			input, output, initializer(toExpr, s[0].kind), expr, fieldExpr)
 	}
 
 }
@@ -145,58 +145,7 @@ func generateMethodToPlainElemTypes(
 	importMap importDecls,
 	exprMap map[string]fieldAstExprSet,
 ) {
-	conversionIndent, _ := importMap.Ident(UndPathConversion)
-
-	var plainExpr ast.Expr
-	for _, v := range exprMap {
-		plainExpr = v.Wrapped
-	}
-
-	_, edge := firstTypeIdent(node.children) // must be only one.
-
-	unwrapper := unwrapFieldAlongPath(
-		typeToAst(
-			edge.parentNode.typeInfo,
-			edge.parentNode.typeInfo.Obj().Pkg().Path(),
-			importMap,
-		),
-		plainExpr,
-		edge,
-		0,
-	)
-
-	if isUndType(edge.childType) {
-		// matched, wrapped implementor
-		printf(`return ` + unwrapper(
-			func(s string) string {
-				return fmt.Sprintf(
-					`%s.Map(
-						%s,
-						%s.ToPlain,
-					)`,
-					importIdent(namedTypeToTargetType(edge.childType), importMap),
-					s,
-					conversionIndent,
-				)
-			},
-			"v",
-		) + `
-`)
-		return
-	} else {
-		// implementor
-		printf(`return ` + unwrapper(
-			func(s string) string {
-				return fmt.Sprintf(
-					`%s.UndPlain()`,
-					s,
-				)
-			},
-			"v",
-		) + `
-`)
-		return
-	}
+	_generateConversionMethodElemTypes(true, printf, node, importMap, exprMap)
 }
 
 func generateMethodToPlainStructFields(
@@ -232,7 +181,6 @@ func generateMethodToPlainStructFields(
 							return ident
 						}
 					}
-					// TODO: move this line to somewhere when adding conversion other than "direct".
 					for _, n := range field.Names {
 						printf("\t%s: %s,\n", n.Name, fieldConverter("v."+n.Name))
 					}
@@ -304,36 +252,13 @@ func generateMethodToPlainStructFields(
 	)
 }
 
-func generateMethodToPlainDirect(edge typeDependencyEdge, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (convert func(ident string) string, needsArg bool) {
-	matchUndTypeBool(
-		namedTypeToTargetType(edge.childType),
-		false,
-		func() {
-			convert, needsArg = optionToPlain(undOpt)
-		},
-		func(isSlice bool) {
-			convert, needsArg = undToPlain(undOpt, importMap)
-		},
-		func(isSlice bool) {
-			convert, needsArg = elasticToPlain(isSlice, undOpt, typeParam, importMap)
-		},
-	)
-	if edge.hasSingleNamedTypeArg(isUndConversionImplementor) {
-		conversionIdent, _ := importMap.Ident(UndPathConversion)
-		pkgIdent := importIdent(namedTypeToTargetType(edge.childType), importMap)
-		inner := convert
-		convert = func(ident string) string {
-			return inner(fmt.Sprintf(
-				`%s.Map(
-				%s,
-				%s.ToPlain,
-			)`,
-				pkgIdent, ident, conversionIdent,
-			))
-		}
-		needsArg = true
-	}
-	return
+func generateMethodToPlainDirect(
+	edge typeDependencyEdge,
+	undOpt undtag.UndOpt,
+	typeParam string,
+	importMap importDecls,
+) (convert func(ident string) string, needsArg bool) {
+	return generateConversionMethodDirect(true, edge, undOpt, typeParam, importMap)
 }
 
 func optionToPlain(undOpt undtag.UndOpt) (func(ident string) string, bool) {
