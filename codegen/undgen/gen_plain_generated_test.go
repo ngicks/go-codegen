@@ -2,6 +2,7 @@ package undgen
 
 import (
 	"bytes"
+	"encoding/json"
 	"slices"
 	"testing"
 	"time"
@@ -371,4 +372,117 @@ func Test_plain_IncludesImplementorArraySliceMap(t *testing.T) {
 		},
 		p.UndRaw(),
 	)
+}
+
+func Test_plain_Wrapper(t *testing.T) {
+	w := plaintarget.Wrapped{
+		"1": [3][]sub.Foo[string]{nil, {sub.Foo[string]{T: "1", Yay: "yay"}, sub.Foo[string]{T: "2", Yay: "mah"}}, nil},
+		"2": [3][]sub.Foo[string]{{sub.Foo[string]{T: "3", Yay: "huh"}, sub.Foo[string]{T: "4", Yay: "what"}, sub.Foo[string]{T: "5", Yay: "oh"}}, nil, nil},
+		"3": [3][]sub.Foo[string]{{}, {}, {sub.Foo[string]{T: "6", Yay: "mm"}}},
+	}
+
+	wp := w.UndPlain()
+	bin, _ := json.MarshalIndent(wp, "", "    ")
+	expected := []byte(
+		`{
+    "1": [
+        [],
+        [
+            {
+                "T": "1",
+                "Nay": "nay"
+            },
+            {
+                "T": "2",
+                "Nay": "mah"
+            }
+        ],
+        []
+    ],
+    "2": [
+        [
+            {
+                "T": "3",
+                "Nay": "huh"
+            },
+            {
+                "T": "4",
+                "Nay": "what"
+            },
+            {
+                "T": "5",
+                "Nay": "oh"
+            }
+        ],
+        [],
+        []
+    ],
+    "3": [
+        [],
+        [],
+        [
+            {
+                "T": "6",
+                "Nay": "mm"
+            }
+        ]
+    ]
+}`)
+
+	if string(expected) != string(bin) {
+		t.Errorf("not same: %s", bin)
+	}
+
+	wr := wp.UndRaw()
+	bin, _ = json.MarshalIndent(wr, "", "    ")
+
+	expected = []byte(
+		`{
+    "1": [
+        [],
+        [
+            {
+                "T": "1",
+                "Yay": "yay"
+            },
+            {
+                "T": "2",
+                "Yay": "mah"
+            }
+        ],
+        []
+    ],
+    "2": [
+        [
+            {
+                "T": "3",
+                "Yay": "huh"
+            },
+            {
+                "T": "4",
+                "Yay": "what"
+            },
+            {
+                "T": "5",
+                "Yay": "oh"
+            }
+        ],
+        [],
+        []
+    ],
+    "3": [
+        [],
+        [],
+        [
+            {
+                "T": "6",
+                "Yay": "mm"
+            }
+        ]
+    ]
+}`)
+
+	if string(expected) != string(bin) {
+		t.Errorf("not same: %s", bin)
+	}
 }

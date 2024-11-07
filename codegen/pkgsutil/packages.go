@@ -31,6 +31,32 @@ func EnumeratePackages(pkgs []*packages.Package) iter.Seq2[*packages.Package, it
 	}
 }
 
+func EnumerateGenDecls(pkgs []*packages.Package) iter.Seq2[*packages.Package, iter.Seq2[*ast.File, iter.Seq[*ast.GenDecl]]] {
+	return func(yield func(*packages.Package, iter.Seq2[*ast.File, iter.Seq[*ast.GenDecl]]) bool) {
+		for _, pkg := range pkgs {
+			if !yield(pkg, func(yield func(*ast.File, iter.Seq[*ast.GenDecl]) bool) {
+				for _, file := range pkg.Syntax {
+					if !yield(file, func(yield func(*ast.GenDecl) bool) {
+						for _, decl := range file.Decls {
+							genDecl, ok := decl.(*ast.GenDecl)
+							if !ok {
+								continue
+							}
+							if !yield(genDecl) {
+								return
+							}
+						}
+					}) {
+						return
+					}
+				}
+			}) {
+				return
+			}
+		}
+	}
+}
+
 func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string, dry bool) iter.Seq2[string, error] {
 	return func(yield func(string, error) bool) {
 		if cwd == "" {

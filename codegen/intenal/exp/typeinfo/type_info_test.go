@@ -66,13 +66,13 @@ PKG:
 	}
 
 	mset := types.NewMethodSet(fooObj.Type())
-	for i, sel := range hiter.IndexAccessible(mset, hiter.Range(0, mset.Len())) {
+	for i, sel := range hiter.AtterAll(mset) {
 		t.Logf("%d: %s", i, sel.Obj().Name())
 		// type_info_test.go:70: 0: MethodOnNonPointer
 	}
 
 	mset = types.NewMethodSet(types.NewPointer(fooObj.Type().(*types.Named)))
-	for i, sel := range hiter.IndexAccessible(mset, hiter.Range(0, mset.Len())) {
+	for i, sel := range hiter.AtterAll(mset) {
 		t.Logf("%d: %s", i, sel.Obj().Name())
 		// type_info_test.go:75: 0: MethodOnNonPointer
 		// type_info_test.go:75: 1: MethodOnPointer

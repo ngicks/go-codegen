@@ -10,7 +10,7 @@ import (
 func EnumerateTypeParams(n *types.Named) iter.Seq[types.Type] {
 	return func(yield func(types.Type) bool) {
 		args := n.TypeArgs()
-		for _, arg := range hiter.IndexAccessible(args, hiter.Range(0, args.Len())) {
+		for _, arg := range hiter.AtterAll(args) {
 			if !yield(arg) {
 				return
 			}
@@ -22,6 +22,16 @@ func EnumerateTypeParams(n *types.Named) iter.Seq[types.Type] {
 				if !yield(ty) {
 					return
 				}
+			}
+		}
+	}
+}
+
+func EnumerateFields(n *types.Struct) iter.Seq2[int, *types.Var] {
+	return func(yield func(int, *types.Var) bool) {
+		for i := range n.NumFields() {
+			if !yield(i, n.Field(i)) {
+				return
 			}
 		}
 	}

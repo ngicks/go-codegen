@@ -7,17 +7,16 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
-	"go/types"
+	"iter"
 	"log/slog"
-	"strconv"
+	"maps"
+	"slices"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
-	"github.com/dave/dst/dstutil"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
-	"github.com/ngicks/und/undtag"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -32,46 +31,47 @@ func GeneratePlain(
 	pkgs []*packages.Package,
 	imports []TargetImport,
 ) error {
-	rawTypes, err := FindRawTypes(
+	replacerData, err := gatherPlainUndTypes(
 		pkgs,
 		imports,
-		ConstUnd.ConversionMethod,
-		func(pkg *packages.Package, file *ast.File, mt RawMatchedType) bool {
-			switch mt.Variant {
-			case MatchedAsStruct:
-				for _, mf := range mt.Field {
-					if mf.UndTag.IsSome() || mf.As == MatchedAsImplementor {
-						return true
-					}
-					if mf.Elem != nil && mf.Elem.As == MatchedAsImplementor {
-						return true
-					}
-				}
-				return false
-				// case MatchedAsArray, MatchedAsSlice, MatchedAsMap:
-				// 	if mt.Field[0].Elem.As == MatchedAsImplementor {
-				// 		return true
-				// 	}
-			}
-			return true
+		isUndPlainAllowedEdge,
+		func(g *typeGraph) iter.Seq2[typeIdent, *typeNode] {
+			return g.iterUpward(true, isUndPlainAllowedEdge)
 		},
 	)
 	if err != nil {
 		return err
 	}
-	for data, err := range xiter.Map2(
-		replaceToPlainTypes,
-		preprocessRawTypes(imports, rawTypes),
-	) {
-		if err != nil {
-			return err
-		}
 
+	for _, data := range xiter.Filter2(
+		func(f *ast.File, data *replaceData) bool { return f != nil && data != nil },
+		hiter.MapKeys(replacerData, enumerateFile(pkgs)),
+	) {
 		if verbose {
 			slog.Debug(
 				"found",
 				slog.String("filename", data.filename),
 			)
+		}
+
+		modified := hiter.Collect2(xiter.Filter2(
+			func(node *typeNode, exprMap map[string]fieldDstExprSet) bool {
+				return node != nil && exprMap != nil
+			},
+			hiter.Divide(
+				func(node *typeNode) (*typeNode, map[string]fieldDstExprSet) {
+					exprMap, ok := _replaceToPlainTypes(data, node)
+					if !ok {
+						return nil, nil
+					}
+					return node, exprMap
+				},
+				slices.Values(data.targetNodes),
+			),
+		))
+
+		if len(modified) == 0 {
+			continue
 		}
 
 		res := decorator.NewRestorer()
@@ -88,46 +88,32 @@ func GeneratePlain(
 			return fmt.Errorf("%q: %w", data.filename, err)
 		}
 
-		for idx, s := range hiter.Values2(data.targets) {
-			dts := data.dec.Dst.Nodes[s.TypeSpec].(*dst.TypeSpec)
-			ts := res.Ast.Nodes[dts].(*ast.TypeSpec)
+		for node, exprMap := range hiter.Values2(modified) {
+			dts := data.dec.Dst.Nodes[node.ts].(*dst.TypeSpec)
+			ats := res.Ast.Nodes[dts].(*ast.TypeSpec)
+
+			astExprMap := maps.Collect(
+				xiter.Map2(
+					func(s string, expr fieldDstExprSet) (string, fieldAstExprSet) {
+						return s, fieldAstExprSet{
+							Wrapped:   res.Ast.Nodes[expr.Wrapped].(ast.Expr),
+							Unwrapped: res.Ast.Nodes[expr.Unwrapped].(ast.Expr),
+						}
+					},
+					maps.All(exprMap),
+				),
+			)
+
 			buf.WriteString("//" + UndDirectivePrefix + UndDirectiveCommentGenerated + "\n")
 			buf.WriteString(token.TYPE.String())
 			buf.WriteByte(' ')
-			err = printer.Fprint(buf, res.Fset, ts)
+			err = printer.Fprint(buf, res.Fset, ats)
 			if err != nil {
-				return fmt.Errorf("print.Fprint failed for type %s in file %q: %w", data.filename, ts.Name.Name, err)
+				return fmt.Errorf("print.Fprint failed for type %s in file %q: %w", data.filename, ats.Name.Name, err)
 			}
 			buf.WriteString("\n\n")
 
-			err = generateMethodToPlain(
-				buf,
-				data.dec,
-				dts,
-				ts.Name.Name[:len(ts.Name.Name)-len("Plain")]+printTypeParamVars(dts),
-				ts.Name.Name+printTypeParamVars(dts),
-				s,
-				data.importMap,
-				data.rawFields[idx],
-				data.plainFields[idx],
-			)
-			if err != nil {
-				return err
-			}
-
-			buf.WriteString("\n\n")
-
-			err = generateMethodToRaw(
-				buf,
-				data.dec,
-				dts,
-				ts.Name.Name[:len(ts.Name.Name)-len("Plain")]+printTypeParamVars(dts),
-				ts.Name.Name+printTypeParamVars(dts),
-				s,
-				data.importMap,
-				data.rawFields[idx],
-				data.plainFields[idx],
-			)
+			err = generateConversionMethod(buf, data, node, astExprMap)
 			if err != nil {
 				return err
 			}
@@ -135,344 +121,12 @@ func GeneratePlain(
 			buf.WriteString("\n\n")
 		}
 
-		if len(data.targets) > 0 {
-			err = sourcePrinter.Write(context.Background(), data.filename, buf.Bytes())
-			if err != nil {
-				return err
-			}
+		err = sourcePrinter.Write(context.Background(), data.filename, buf.Bytes())
+		if err != nil {
+			return err
 		}
 	}
 	return nil
-}
-
-// replaceToPlainTypes replaces type spec in *dst.File. Later replaced types are printed to output file.
-func replaceToPlainTypes(ty rawTypeReplacerData, err error) (rawTypeReplacerData, error) {
-	if err != nil {
-		return ty, err
-	}
-
-	if ty.rawFields == nil {
-		ty.rawFields = make(map[int]map[string]string)
-	}
-	if ty.plainFields == nil {
-		ty.plainFields = make(map[int]map[string]string)
-	}
-
-	var targets hiter.KeyValues[int, RawMatchedType]
-	for idx, rawTy := range hiter.Values2(ty.targets) {
-		ts := ty.dec.Dst.Nodes[rawTy.TypeSpec].(*dst.TypeSpec)
-		modified, err := unwrapUndFields(ts, rawTy, ty.importMap)
-		if err != nil {
-			return ty, err
-		}
-		if !modified {
-			continue
-		}
-		ty.rawFields[idx] = printFieldTypesAst(token.NewFileSet(), rawTy.TypeSpec)
-		ty.plainFields[idx] = printFieldTypesDst(ty.df, ts)
-		targets = append(targets, hiter.KeyValue[int, RawMatchedType]{K: idx, V: rawTy})
-	}
-	ty.targets = targets
-	return ty, err
-}
-
-func unwrapUndFields(ts *dst.TypeSpec, target RawMatchedType, importMap importDecls) (bool, error) {
-	if target.Variant != MatchedAsStruct { //TODO remove this constraint
-		return false, nil
-	}
-
-	// typeName := ts.Name.Name
-	ts.Name.Name = ts.Name.Name + "Plain"
-
-	var (
-		err        error
-		atLeastOne bool
-	)
-	dstutil.Apply(
-		ts.Type,
-		func(c *dstutil.Cursor) bool {
-			if err != nil {
-				return false
-			}
-
-			node := c.Node()
-			switch field := node.(type) {
-			default:
-				return true
-			case *dst.Field:
-				if len(field.Names) == 0 {
-					return false
-				}
-
-				mf, ok := target.FieldByName(field.Names[0].Name)
-				if !ok {
-					return false
-				}
-
-				if mf.UndTag.IsNone() && mf.As != MatchedAsImplementor && (mf.Elem != nil && mf.Elem.As != MatchedAsImplementor) {
-					return false
-				}
-
-				var undOpt undtag.UndOpt
-				if mf.UndTag.IsSome() {
-					undOptParseResult := mf.UndTag.Value()
-					if undOptParseResult.Err != nil {
-						if err == nil {
-							err = undOptParseResult.Err
-						}
-						return false
-					}
-					undOpt = undOptParseResult.Opt
-				}
-
-				// later mutated
-				// We need allocate one since field.Tag is nil when no tag is set.
-				tag := &dst.BasicLit{}
-				if field.Tag != nil {
-					tag = field.Tag
-				}
-				field.Tag = tag
-
-				switch mf.As {
-				// TODO add more match pattern
-				case MatchedAsDirect:
-					field, modified := unwrapUndFieldsDirect(field, target, mf, undOpt, importMap)
-					if modified {
-						atLeastOne = true
-					}
-					c.Replace(field)
-				case MatchedAsArray, MatchedAsSlice:
-					sTy := field.Type.(*dst.ArrayType)
-					if mf.Elem.As == MatchedAsImplementor {
-						var elem types.Type
-						switch x := mf.TypeInfo.(type) {
-						case *types.Named:
-							elem = x
-						case *types.Array:
-							elem = x.Elem()
-						case *types.Slice:
-							elem = x.Elem()
-						}
-						sTy.Elt = conversionTargetOfImplementorDst(target, elem.(*types.Named), importMap)
-					} else {
-						expr, modified := unwrapUndType(sTy.Elt.(*dst.IndexExpr), target, *mf.Elem, undOpt, importMap)
-						if modified {
-							atLeastOne = true
-							sTy.Elt = expr
-						}
-					}
-					c.Replace(field)
-				case MatchedAsMap:
-					mTy := field.Type.(*dst.MapType)
-					if mf.Elem.As == MatchedAsImplementor {
-						mTy.Value = conversionTargetOfImplementorDst(target, mf.TypeInfo.(*types.Named), importMap)
-					} else {
-						expr, modified := unwrapUndType(mTy.Value.(*dst.IndexExpr), target, *mf.Elem, undOpt, importMap)
-						if modified {
-							atLeastOne = true
-							mTy.Value = expr
-						}
-					}
-					c.Replace(field)
-				case MatchedAsImplementor:
-					atLeastOne = true
-					field.Type = conversionTargetOfImplementorDst(target, mf.TypeInfo.(*types.Named), importMap)
-					c.Replace(field)
-				}
-			}
-			return false
-		},
-		nil,
-	)
-	return atLeastOne, err
-}
-
-func unwrapUndFieldsDirect(field *dst.Field, target RawMatchedType, mf MatchedField, undOpt undtag.UndOpt, importMap importDecls) (*dst.Field, bool) {
-	expr, modified := unwrapUndType(field.Type.(*dst.IndexExpr), target, mf, undOpt, importMap)
-	if modified {
-		field.Type = expr
-	}
-	return field, modified
-}
-
-func unwrapUndType(fieldTy *dst.IndexExpr, target RawMatchedType, mf MatchedField, undOpt undtag.UndOpt, importMap importDecls) (expr dst.Expr, modified bool) {
-	modified = true
-
-	// fieldTy -> X.Sel[Index]
-	sel := fieldTy.X.(*dst.SelectorExpr) // X.Sel
-
-	if mf.Elem != nil && mf.Elem.As == MatchedAsImplementor {
-		fieldTy.Index = conversionTargetOfImplementorDst(
-			target,
-			mf.TypeInfo.(*types.Named).TypeArgs().At(0).(*types.Named),
-			importMap,
-		)
-	}
-
-	switch mf.Type {
-	case UndTargetTypeOption:
-		switch s := undOpt.States().Value(); {
-		default:
-			modified = false
-		case s.Def && (s.Null || s.Und):
-			modified = false
-		case s.Def:
-			expr = fieldTy.Index // unwrap, simply T.
-		case s.Null || s.Und:
-			expr = conversionEmptyExpr(importMap)
-		}
-	case UndTargetTypeUnd, UndTargetTypeSliceUnd:
-		switch s := undOpt.States().Value(); {
-		case s.Def && s.Null && s.Und:
-			modified = false
-		case s.Def && (s.Null || s.Und):
-			*sel = *importMap.DstExpr(UndTargetTypeOption)
-		case s.Null && s.Und:
-			fieldTy.Index = conversionEmptyExpr(importMap)
-			*sel = *importMap.DstExpr(UndTargetTypeOption)
-		case s.Def:
-			// unwrap
-			expr = fieldTy.Index
-		case s.Null || s.Und:
-			expr = conversionEmptyExpr(importMap)
-		}
-	case UndTargetTypeElastic, UndTargetTypeSliceElastic:
-		isSlice := targetTypeIsSlice(mf.Type)
-
-		// early return if nothing to change
-		if (undOpt.States().IsSomeAnd(func(s undtag.StateValidator) bool {
-			return s.Def && s.Null && s.Und
-		})) && (undOpt.Len().IsNone() || undOpt.Len().IsSomeAnd(func(lv undtag.LenValidator) bool {
-			// when opt is eq, we'll narrow its type to [n]T. but otherwise it remains []T
-			return lv.Op != undtag.LenOpEqEq
-		})) && (undOpt.Values().IsNone()) {
-			return expr, false
-		}
-
-		// Generally for other cases, replace types
-		// und.Und[[]option.Option[T]]
-		if isSlice {
-			fieldTy.X = importMap.DstExpr(UndTargetTypeSliceUnd)
-		} else {
-			fieldTy.X = importMap.DstExpr(UndTargetTypeUnd)
-		}
-		fieldTy.Index = &dst.ArrayType{ // []option.Option[T]
-			Elt: &dst.IndexExpr{
-				X:     importMap.DstExpr(UndTargetTypeOption),
-				Index: fieldTy.Index,
-			},
-		}
-
-		if undOpt.Len().IsSome() {
-			lv := undOpt.Len().Value()
-			if lv.Op == undtag.LenOpEqEq {
-				if lv.Len == 1 {
-					// und.Und[[]option.Option[T]] -> und.Und[option.Option[T]]
-					fieldTy.Index = fieldTy.Index.(*dst.ArrayType).Elt
-				} else {
-					// und.Und[[]option.Option[T]] -> und.Und[[n]option.Option[T]]
-					fieldTy.Index.(*dst.ArrayType).Len = &dst.BasicLit{
-						Kind:  token.INT,
-						Value: strconv.FormatInt(int64(undOpt.Len().Value().Len), 10),
-					}
-				}
-			}
-		}
-
-		if undOpt.Values().IsSome() {
-			switch x := undOpt.Values().Value(); {
-			case x.Nonnull:
-				switch x := fieldTy.Index.(type) {
-				case *dst.ArrayType:
-					// und.Und[[n]option.Option[T]] -> und.Und[[n]T]
-					x.Elt = x.Elt.(*dst.IndexExpr).Index
-				case *dst.IndexExpr:
-					// und.Und[option.Option[T]] -> und.Und[T]
-					fieldTy.Index = x.Index
-				default:
-					panic("implementation error")
-				}
-			}
-		}
-
-		states := undOpt.States().Value()
-
-		switch s := states; {
-		default:
-		case s.Def && s.Null && s.Und:
-			// no conversion
-		case s.Def && (s.Null || s.Und):
-			// und.Und[[]option.Option[T]] -> option.Option[[]option.Option[T]]
-			fieldTy.X = importMap.DstExpr(UndTargetTypeOption)
-		case s.Null && s.Und:
-			// option.Option[*struct{}]
-			fieldTy.Index = conversionEmptyExpr(importMap)
-			fieldTy.X = importMap.DstExpr(UndTargetTypeOption)
-		case s.Def:
-			// und.Und[[]option.Option[T]] -> []option.Option[T]
-			expr = fieldTy.Index
-		case s.Null || s.Und:
-			expr = conversionEmptyExpr(importMap)
-		}
-	}
-
-	if expr == nil {
-		expr = fieldTy
-	}
-	return expr, modified
-}
-
-func conversionTargetOfImplementorAst(target RawMatchedType, fieldTypeNamed *types.Named, importMap importDecls) ast.Expr {
-	ty, ok := ConstUnd.ConversionMethod.ConvertedType(fieldTypeNamed)
-	if ok {
-		return typeToAst(
-			ty,
-			target.TypeInfo.Type().(*types.Named).Obj().Pkg().Path(),
-			importMap,
-		)
-	} else {
-		return typeToAst(
-			types.NewNamed(
-				types.NewTypeName(
-					0,
-					fieldTypeNamed.Obj().Pkg(),
-					fieldTypeNamed.Obj().Name()+"Plain",
-					nil,
-				),
-				nil,
-				nil,
-			),
-			fieldTypeNamed.Obj().Pkg().Path(),
-			importMap,
-		)
-	}
-
-}
-
-func conversionTargetOfImplementorDst(target RawMatchedType, fieldTypeNamed *types.Named, importMap importDecls) dst.Expr {
-	ty, ok := ConstUnd.ConversionMethod.ConvertedType(fieldTypeNamed)
-	if ok {
-		return typeToDst(
-			ty,
-			target.TypeInfo.Type().(*types.Named).Obj().Pkg().Path(),
-			importMap,
-		)
-	} else {
-		return typeToDst(
-			types.NewNamed(
-				types.NewTypeName(
-					0,
-					fieldTypeNamed.Obj().Pkg(),
-					fieldTypeNamed.Obj().Name()+"Plain",
-					nil,
-				),
-				nil,
-				nil,
-			),
-			fieldTypeNamed.Obj().Pkg().Path(),
-			importMap,
-		)
-	}
 }
 
 func sliceSuffix(isSlice bool) string {

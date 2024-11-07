@@ -11,7 +11,7 @@ import (
 )
 
 //undgen:generated
-func (v All) UndValidate() error {
+func (v All) UndValidate() (err error) {
 	{
 		validator := undtag.UndOptExport{
 			States: &undtag.StateValidator{
@@ -20,8 +20,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.Baz) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Baz))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Baz)),
+				err,
 				"Baz",
 			)
 		}
@@ -35,8 +38,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidUnd(v.Qux) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Qux))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Qux)),
+				err,
 				"Qux",
 			)
 		}
@@ -54,8 +60,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.Quux) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Quux))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Quux)),
+				err,
 				"Quux",
 			)
 		}
@@ -69,8 +78,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidUnd(v.Corge) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Corge))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Corge)),
+				err,
 				"Corge",
 			)
 		}
@@ -91,18 +103,20 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.Grault) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Grault))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Grault)),
+				err,
 				"Grault",
 			)
 		}
 	}
-
-	return nil
+	return
 }
 
 //undgen:generated
-func (v MapSliceArray) UndValidate() error {
+func (v MapSliceArray) UndValidate() (err error) {
 	{
 		validator := undtag.UndOptExport{
 			States: &undtag.StateValidator{
@@ -110,16 +124,27 @@ func (v MapSliceArray) UndValidate() error {
 			},
 		}.Into()
 
-		for i, val := range v.Foo {
-			if !validator.ValidOpt(val) {
-				return validate.AppendValidationErrorDot(
-					validate.AppendValidationErrorIndex(
-						fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(i)),
-						fmt.Sprintf("%v", i),
-					),
-					"foo",
-				)
+		v := v.Foo
+
+	LOOP_Foo:
+		for k, v := range v {
+			if !validator.ValidOpt(v) {
+				err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
 			}
+			if err != nil {
+				err = validate.AppendValidationErrorIndex(
+					err,
+					fmt.Sprintf("%v", k),
+				)
+				break LOOP_Foo
+			}
+		}
+
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"foo",
+			)
 		}
 	}
 	{
@@ -129,16 +154,27 @@ func (v MapSliceArray) UndValidate() error {
 			},
 		}.Into()
 
-		for i, val := range v.Bar {
-			if !validator.ValidUnd(val) {
-				return validate.AppendValidationErrorDot(
-					validate.AppendValidationErrorIndex(
-						fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(i)),
-						fmt.Sprintf("%v", i),
-					),
-					"bar",
-				)
+		v := v.Bar
+
+	LOOP_Bar:
+		for k, v := range v {
+			if !validator.ValidUnd(v) {
+				err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
 			}
+			if err != nil {
+				err = validate.AppendValidationErrorIndex(
+					err,
+					fmt.Sprintf("%v", k),
+				)
+				break LOOP_Bar
+			}
+		}
+
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"bar",
+			)
 		}
 	}
 	{
@@ -153,26 +189,42 @@ func (v MapSliceArray) UndValidate() error {
 			},
 		}.Into()
 
-		for i, val := range v.Baz {
-			if !validator.ValidElastic(val) {
-				return validate.AppendValidationErrorDot(
-					validate.AppendValidationErrorIndex(
-						fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(i)),
-						fmt.Sprintf("%v", i),
-					),
-					"baz",
+		v := v.Baz
+
+	LOOP_Baz:
+		for k, v := range v {
+			if !validator.ValidElastic(v) {
+				err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
+			}
+			if err != nil {
+				err = validate.AppendValidationErrorIndex(
+					err,
+					fmt.Sprintf("%v", k),
 				)
+				break LOOP_Baz
 			}
 		}
-	}
 
-	return nil
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"baz",
+			)
+		}
+	}
+	return
 }
 
 //undgen:generated
-func (v ContainsImplementor) UndValidate() error {
-	if err := v.I.UndValidate(); err != nil {
-		return validate.AppendValidationErrorDot(err, "I")
+func (v ContainsImplementor) UndValidate() (err error) {
+	{
+		err = v.I.UndValidate()
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"I",
+			)
+		}
 	}
 	{
 		validator := undtag.UndOptExport{
@@ -182,24 +234,24 @@ func (v ContainsImplementor) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.O) {
-			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.O)),
-				"O",
-			)
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.O))
 		}
-		if err := option.UndValidate(v.O); err != nil {
+		if err == nil {
+			err = option.UndValidate(v.O)
+		}
+
+		if err != nil {
 			return validate.AppendValidationErrorDot(
 				err,
 				"O",
 			)
 		}
 	}
-
-	return nil
+	return
 }
 
 //undgen:generated
-func (v MapSliceArrayContainsImplementor) UndValidate() error {
+func (v MapSliceArrayContainsImplementor) UndValidate() (err error) {
 	{
 		validator := undtag.UndOptExport{
 			States: &undtag.StateValidator{
@@ -207,25 +259,31 @@ func (v MapSliceArrayContainsImplementor) UndValidate() error {
 			},
 		}.Into()
 
-		for i, val := range v.Foo {
-			if !validator.ValidOpt(val) {
-				return validate.AppendValidationErrorDot(
-					validate.AppendValidationErrorIndex(
-						fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(i)),
-						fmt.Sprintf("%v", i),
-					),
-					"Foo",
-				)
+		v := v.Foo
+
+	LOOP_Foo:
+		for k, v := range v {
+			if !validator.ValidOpt(v) {
+				err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
 			}
-			if err := option.UndValidate(val); err != nil {
-				return validate.AppendValidationErrorDot(
-					validate.AppendValidationErrorIndex(
-						err,
-						fmt.Sprintf("%v", i),
-					),
-					"Foo",
-				)
+			if err == nil {
+				err = option.UndValidate(v)
 			}
+
+			if err != nil {
+				err = validate.AppendValidationErrorIndex(
+					err,
+					fmt.Sprintf("%v", k),
+				)
+				break LOOP_Foo
+			}
+		}
+
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"Foo",
+			)
 		}
 	}
 	{
@@ -235,25 +293,31 @@ func (v MapSliceArrayContainsImplementor) UndValidate() error {
 			},
 		}.Into()
 
-		for i, val := range v.Bar {
-			if !validator.ValidUnd(val) {
-				return validate.AppendValidationErrorDot(
-					validate.AppendValidationErrorIndex(
-						fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(i)),
-						fmt.Sprintf("%v", i),
-					),
-					"Bar",
-				)
+		v := v.Bar
+
+	LOOP_Bar:
+		for k, v := range v {
+			if !validator.ValidUnd(v) {
+				err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
 			}
-			if err := und.UndValidate(val); err != nil {
-				return validate.AppendValidationErrorDot(
-					validate.AppendValidationErrorIndex(
-						err,
-						fmt.Sprintf("%v", i),
-					),
-					"Bar",
-				)
+			if err == nil {
+				err = und.UndValidate(v)
 			}
+
+			if err != nil {
+				err = validate.AppendValidationErrorIndex(
+					err,
+					fmt.Sprintf("%v", k),
+				)
+				break LOOP_Bar
+			}
+		}
+
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"Bar",
+			)
 		}
 	}
 	{
@@ -268,27 +332,32 @@ func (v MapSliceArrayContainsImplementor) UndValidate() error {
 			},
 		}.Into()
 
-		for i, val := range v.Baz {
-			if !validator.ValidElastic(val) {
-				return validate.AppendValidationErrorDot(
-					validate.AppendValidationErrorIndex(
-						fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(i)),
-						fmt.Sprintf("%v", i),
-					),
-					"Baz",
-				)
+		v := v.Baz
+
+	LOOP_Baz:
+		for k, v := range v {
+			if !validator.ValidElastic(v) {
+				err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
 			}
-			if err := elastic.UndValidate(val); err != nil {
-				return validate.AppendValidationErrorDot(
-					validate.AppendValidationErrorIndex(
-						err,
-						fmt.Sprintf("%v", i),
-					),
-					"Baz",
+			if err == nil {
+				err = elastic.UndValidate(v)
+			}
+
+			if err != nil {
+				err = validate.AppendValidationErrorIndex(
+					err,
+					fmt.Sprintf("%v", k),
 				)
+				break LOOP_Baz
 			}
 		}
-	}
 
-	return nil
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"Baz",
+			)
+		}
+	}
+	return
 }

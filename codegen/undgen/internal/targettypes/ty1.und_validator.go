@@ -8,7 +8,7 @@ import (
 )
 
 //undgen:generated
-func (v All) UndValidate() error {
+func (v All) UndValidate() (err error) {
 	{
 		validator := undtag.UndOptExport{
 			States: &undtag.StateValidator{
@@ -17,8 +17,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.OptRequired) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptRequired))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptRequired)),
+				err,
 				"opt_required",
 			)
 		}
@@ -32,8 +35,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.OptNullish) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptNullish))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptNullish)),
+				err,
 				"OptNullish",
 			)
 		}
@@ -46,8 +52,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.OptDef) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptDef))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptDef)),
+				err,
 				"OptDef",
 			)
 		}
@@ -60,8 +69,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.OptNull) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptNull))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptNull)),
+				err,
 				"OptNull",
 			)
 		}
@@ -74,8 +86,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.OptUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptUnd)),
+				err,
 				"OptUnd",
 			)
 		}
@@ -89,8 +104,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.OptDefOrUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptDefOrUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptDefOrUnd)),
+				err,
 				"OptDefOrUnd",
 			)
 		}
@@ -104,8 +122,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.OptDefOrNull) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptDefOrNull))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptDefOrNull)),
+				err,
 				"OptDefOrNull",
 			)
 		}
@@ -119,8 +140,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.OptNullOrUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptNullOrUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptNullOrUnd)),
+				err,
 				"OptNullOrUnd",
 			)
 		}
@@ -135,8 +159,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.OptDefOrNullOrUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptDefOrNullOrUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.OptDefOrNullOrUnd)),
+				err,
 				"OptDefOrNullOrUnd",
 			)
 		}
@@ -149,8 +176,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidUnd(v.UndRequired) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndRequired))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndRequired)),
+				err,
 				"UndRequired",
 			)
 		}
@@ -164,8 +194,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidUnd(v.UndNullish) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndNullish))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndNullish)),
+				err,
 				"UndNullish",
 			)
 		}
@@ -178,8 +211,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidUnd(v.UndDef) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndDef))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndDef)),
+				err,
 				"UndDef",
 			)
 		}
@@ -192,8 +228,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidUnd(v.UndNull) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndNull))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndNull)),
+				err,
 				"UndNull",
 			)
 		}
@@ -206,8 +245,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidUnd(v.UndUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndUnd)),
+				err,
 				"UndUnd",
 			)
 		}
@@ -221,8 +263,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidUnd(v.UndDefOrUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndDefOrUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndDefOrUnd)),
+				err,
 				"UndDefOrUnd",
 			)
 		}
@@ -236,8 +281,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidUnd(v.UndDefOrNull) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndDefOrNull))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndDefOrNull)),
+				err,
 				"UndDefOrNull",
 			)
 		}
@@ -251,8 +299,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidUnd(v.UndNullOrUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndNullOrUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndNullOrUnd)),
+				err,
 				"UndNullOrUnd",
 			)
 		}
@@ -267,8 +318,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidUnd(v.UndDefOrNullOrUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndDefOrNullOrUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.UndDefOrNullOrUnd)),
+				err,
 				"UndDefOrNullOrUnd",
 			)
 		}
@@ -281,8 +335,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaRequired) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaRequired))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaRequired)),
+				err,
 				"ElaRequired",
 			)
 		}
@@ -296,8 +353,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaNullish) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaNullish))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaNullish)),
+				err,
 				"ElaNullish",
 			)
 		}
@@ -310,8 +370,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaDef) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaDef))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaDef)),
+				err,
 				"ElaDef",
 			)
 		}
@@ -324,8 +387,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaNull) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaNull))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaNull)),
+				err,
 				"ElaNull",
 			)
 		}
@@ -338,8 +404,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaUnd)),
+				err,
 				"ElaUnd",
 			)
 		}
@@ -353,8 +422,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaDefOrUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaDefOrUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaDefOrUnd)),
+				err,
 				"ElaDefOrUnd",
 			)
 		}
@@ -368,8 +440,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaDefOrNull) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaDefOrNull))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaDefOrNull)),
+				err,
 				"ElaDefOrNull",
 			)
 		}
@@ -383,8 +458,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaNullOrUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaNullOrUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaNullOrUnd)),
+				err,
 				"ElaNullOrUnd",
 			)
 		}
@@ -399,8 +477,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaDefOrNullOrUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaDefOrNullOrUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaDefOrNullOrUnd)),
+				err,
 				"ElaDefOrNullOrUnd",
 			)
 		}
@@ -417,8 +498,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaEqEq) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEq))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEq)),
+				err,
 				"ElaEqEq",
 			)
 		}
@@ -435,8 +519,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaGr) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaGr))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaGr)),
+				err,
 				"ElaGr",
 			)
 		}
@@ -453,8 +540,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaGrEq) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaGrEq))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaGrEq)),
+				err,
 				"ElaGrEq",
 			)
 		}
@@ -471,8 +561,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaLe) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaLe))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaLe)),
+				err,
 				"ElaLe",
 			)
 		}
@@ -489,8 +582,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaLeEq) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaLeEq))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaLeEq)),
+				err,
 				"ElaLeEq",
 			)
 		}
@@ -507,8 +603,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaEqEquRequired) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEquRequired))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEquRequired)),
+				err,
 				"ElaEqEquRequired",
 			)
 		}
@@ -527,8 +626,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaEqEquNullish) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEquNullish))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEquNullish)),
+				err,
 				"ElaEqEquNullish",
 			)
 		}
@@ -545,8 +647,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaEqEquDef) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEquDef))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEquDef)),
+				err,
 				"ElaEqEquDef",
 			)
 		}
@@ -564,8 +669,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaEqEquNull) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEquNull))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEquNull)),
+				err,
 				"ElaEqEquNull",
 			)
 		}
@@ -583,8 +691,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaEqEquUnd) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEquUnd))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEquUnd)),
+				err,
 				"ElaEqEquUnd",
 			)
 		}
@@ -597,8 +708,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaEqEqNonNullSlice) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEqNonNullSlice))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEqNonNullSlice)),
+				err,
 				"ElaEqEqNonNullSlice",
 			)
 		}
@@ -614,8 +728,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaEqEqNonNullNullSlice) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEqNonNullNullSlice))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEqNonNullNullSlice)),
+				err,
 				"ElaEqEqNonNullNullSlice",
 			)
 		}
@@ -635,8 +752,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaEqEqNonNullSingle) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEqNonNullSingle))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEqNonNullSingle)),
+				err,
 				"ElaEqEqNonNullSingle",
 			)
 		}
@@ -657,8 +777,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaEqEqNonNullNullSingle) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEqNonNullNullSingle))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEqNonNullNullSingle)),
+				err,
 				"ElaEqEqNonNullNullSingle",
 			)
 		}
@@ -678,8 +801,11 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaEqEqNonNull) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEqNonNull))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEqNonNull)),
+				err,
 				"ElaEqEqNonNull",
 			)
 		}
@@ -700,18 +826,20 @@ func (v All) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidElastic(v.ElaEqEqNonNullNull) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEqNonNullNull))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.ElaEqEqNonNullNull)),
+				err,
 				"ElaEqEqNonNullNull",
 			)
 		}
 	}
-
-	return nil
+	return
 }
 
 //undgen:generated
-func (v WithTypeParam[T]) UndValidate() error {
+func (v WithTypeParam[T]) UndValidate() (err error) {
 	{
 		validator := undtag.UndOptExport{
 			States: &undtag.StateValidator{
@@ -720,12 +848,14 @@ func (v WithTypeParam[T]) UndValidate() error {
 		}.Into()
 
 		if !validator.ValidOpt(v.Baz) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Baz))
+		}
+		if err != nil {
 			return validate.AppendValidationErrorDot(
-				fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Baz)),
+				err,
 				"Baz",
 			)
 		}
 	}
-
-	return nil
+	return
 }

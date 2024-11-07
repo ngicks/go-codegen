@@ -3,6 +3,7 @@ package undgen
 type ConstSet struct {
 	Imports          []TargetImport
 	ConversionMethod ConversionMethodsSet
+	ValidatorMethod  ValidatorMethod
 }
 
 var ConstUnd = ConstSet{
@@ -44,6 +45,9 @@ var ConstUnd = ConstSet{
 		ToRaw:   "UndRaw",
 		ToPlain: "UndPlain",
 	},
+	ValidatorMethod: ValidatorMethod{
+		Name: "UndValidate",
+	},
 }
 
 var (
@@ -79,15 +83,6 @@ var (
 		Name:       "Empty",
 	}
 )
-
-func targetTypeIsSlice(t TargetType) bool {
-	switch t {
-	default:
-		return false
-	case UndTargetTypeSliceUnd, UndTargetTypeSliceElastic:
-		return true
-	}
-}
 
 const (
 	UndPathConversion = "github.com/ngicks/und/conversion"

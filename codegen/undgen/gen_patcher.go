@@ -11,6 +11,7 @@ import (
 	"io"
 	"iter"
 	"log/slog"
+	"maps"
 	"reflect"
 	"slices"
 	"strconv"
@@ -22,7 +23,6 @@ import (
 	"github.com/ngicks/go-codegen/codegen/structtag"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-iterator-helper/hiter"
-	"github.com/ngicks/go-iterator-helper/hiter/iterable"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 )
@@ -43,25 +43,42 @@ func GeneratePatcher(
 			slog.Any("names", targetTypeNames),
 		)
 	}
-	for data, err := range xiter.Map2(
-		wrapNonUndFields,
-		generatorIter(
-			imports,
-			findTypes(pkg, targetTypeNames...),
-		),
-	) {
-		if err != nil {
-			return err
-		}
 
-		if len(data.targets) == 0 {
-			continue
-		}
+	replacerData, err := gatherPlainUndTypes(
+		[]*packages.Package{pkg},
+		imports,
+		nil, // no transitive type marking; it is not needed here.
+		func(g *typeGraph) iter.Seq2[typeIdent, *typeNode] {
+			return g.enumerateTypesKeys(
+				xiter.Map(func(s string) typeIdent {
+					return typeIdent{pkgPath: pkg.PkgPath, typeName: s}
+				},
+					slices.Values(targetTypeNames),
+				),
+			)
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	for _, data := range xiter.Filter2(
+		func(f *ast.File, data *replaceData) bool { return f != nil && data != nil },
+		hiter.MapKeys(replacerData, slices.Values(pkg.Syntax)),
+	) {
+		wrapNonUndFields(data)
+
 		if verbose {
 			slog.Debug(
 				"found",
 				slog.String("filename", data.filename),
-				slog.Any("typesNames", slices.Collect(data.targets.typeNames())),
+				slog.Any(
+					"typesNames",
+					slices.Collect(xiter.Map(
+						func(n *typeNode) string { return n.typeInfo.Obj().Name() },
+						slices.Values(data.targetNodes),
+					)),
+				),
 			)
 		}
 
@@ -79,13 +96,9 @@ func GeneratePatcher(
 			return fmt.Errorf("%q: %w", data.filename, err)
 		}
 
-		for i, spec := range hiter.Enumerate(data.targets.typeSpecs()) {
-			astSpec, ok := res.Ast.Nodes[spec]
-			if !ok {
-				panic(fmt.Errorf("implementation error: restored file does not contain type spec corresponding to %q", spec.Name.Name))
-			}
-			ts := astSpec.(*ast.TypeSpec)
-
+		for _, node := range data.targetNodes {
+			dts := data.dec.Dst.Nodes[node.ts].(*dst.TypeSpec)
+			ts := res.Ast.Nodes[dts].(*ast.TypeSpec)
 			// type keyword is attached to *ast.GenDecl
 			// But we are not printing gen decl itself since
 			// it could have multiple specs inside it (type (spec1; spec2;...))
@@ -127,9 +140,8 @@ func GeneratePatcher(
 			} {
 				err = gen.fn(
 					buf,
-					spec,
-					data.targets[i].tsi.TypeInfo,
-					data.targets[i].mt.Value(),
+					dts,
+					node,
 					data.importMap,
 					"Patch",
 				)
@@ -143,6 +155,7 @@ func GeneratePatcher(
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -151,23 +164,19 @@ type methodGenSet struct {
 	errFunc func() error
 }
 
-type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, typeInfo types.Object, matchedFields RawMatchedType, imports importDecls, typeSuffix string) error
+type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, node *typeNode, imports importDecls, typeSuffix string) error
 
-func wrapNonUndFields(data replaceData, err error) (replaceData, error) {
-	if err != nil {
-		return data, err
-	}
-	for i, ts := range hiter.Enumerate(data.targets.typeSpecs()) {
-		wrapNonUndFieldsWithSliceUnd(ts, data.targets[i].replacerPerTypeData, data.importMap)
+func wrapNonUndFields(data *replaceData) {
+	for _, node := range data.targetNodes {
+		wrapNonUndFieldsWithSliceUnd(data.dec.Dst.Nodes[node.ts].(*dst.TypeSpec), node, data.importMap)
 	}
 	addMissingImports(data.df, data.importMap)
-
-	return data, nil
 }
 
-func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, importMap importDecls) {
+func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *typeNode, importMap importDecls) {
 	typeName := ts.Name.Name
 	ts.Name.Name = ts.Name.Name + "Patch"
+	edges := edgesDirectFields(target)
 	dstutil.Apply(
 		ts.Type,
 		func(c *dstutil.Cursor) bool {
@@ -180,31 +189,39 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, 
 					return false
 				}
 
-				// later mutated
-				// We need allocate one since field.Tag is nil when no tag is set.
-				tag := &dst.BasicLit{}
-				if field.Tag != nil {
-					tag = field.Tag
+				edge, ok := edges[field.Names[0].Name]
+
+				if field.Tag == nil {
+					field.Tag = &dst.BasicLit{}
 				}
-				field.Tag = tag
+				tag := field.Tag
 
 				isSliceType := true
-				if f, ok := target.Field(field.Names[0].Name); ok && slices.Contains(UndTargetTypes, f.Type) {
-					switch f.Type {
-					case UndTargetTypeOption:
-						c.Replace(&dst.Field{
-							Names: field.Names,
-							Type: &dst.IndexExpr{
-								X:     importMap.DstExpr(UndTargetTypeSliceUnd),
-								Index: field.Type.(*dst.IndexExpr).Index,
-							},
-							Tag:  field.Tag,
-							Decs: field.Decs,
-						})
-					case UndTargetTypeUnd, UndTargetTypeElastic:
-						isSliceType = false
-					case UndTargetTypeSliceUnd, UndTargetTypeSliceElastic:
-					}
+				if ok {
+					matchUndType(
+						namedTypeToTargetType(edge.childType),
+						false,
+						func() bool {
+							c.Replace(&dst.Field{
+								Names: field.Names,
+								Type: &dst.IndexExpr{
+									X:     importMap.DstExpr(UndTargetTypeSliceUnd),
+									Index: field.Type.(*dst.IndexExpr).Index,
+								},
+								Tag:  field.Tag,
+								Decs: field.Decs,
+							})
+							return true
+						},
+						func(isSlice bool) bool {
+							isSliceType = isSlice
+							return true
+						},
+						func(isSlice bool) bool {
+							isSliceType = isSlice
+							return true
+						},
+					)
 				} else {
 					c.Replace(
 						&dst.Field{
@@ -218,30 +235,37 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target replacerPerTypeData, 
 						},
 					)
 				}
-				if tag != nil {
-					tagOpt, err := structtag.ParseStructTag(
-						reflect.StructTag(unquoteBasicLitString(tag.Value)),
-					)
-					if err != nil {
-						panic(fmt.Errorf(
-							"malformed struct tag on field %s of type %q: %w",
-							concatFieldNames(field), typeName, err,
-						))
-					}
-					tagOpt, _ = tagOpt.Delete("json", "omitempty")
-					tagOpt, _ = tagOpt.Delete("json", "omitzero")
-					omitOpt := "omitempty"
-					if !isSliceType {
-						omitOpt = "omitzero"
-					}
-					tagOpt, _ = tagOpt.Add("json", omitOpt, "")
-					tag.Value = "`" + string(tagOpt.StructTag()) + "`"
+				tagOpt, err := structtag.ParseStructTag(
+					reflect.StructTag(unquoteBasicLitString(tag.Value)),
+				)
+				if err != nil {
+					panic(fmt.Errorf(
+						"malformed struct tag on field %s of type %q: %w",
+						concatFieldNames(field), typeName, err,
+					))
 				}
+				tagOpt, _ = tagOpt.Delete("json", "omitempty")
+				tagOpt, _ = tagOpt.Delete("json", "omitzero")
+				omitOpt := "omitempty"
+				if !isSliceType {
+					omitOpt = "omitzero"
+				}
+				tagOpt, _ = tagOpt.Add("json", omitOpt, "")
+				tag.Value = "`" + string(tagOpt.StructTag()) + "`"
 				return false
 			}
 		},
 		nil,
 	)
+}
+
+func edgesDirectFields(node *typeNode) map[string]typeDependencyEdge {
+	return maps.Collect(xiter.Filter2(
+		func(_ string, edge typeDependencyEdge) bool {
+			return len(edge.stack) == 1 && edge.stack[0].kind == typeDependencyEdgeKindStruct
+		},
+		node.fieldsName(),
+	))
 }
 
 func concatFieldNames(field *dst.Field) string {
@@ -251,7 +275,7 @@ func concatFieldNames(field *dst.Field) string {
 			1,
 			hiter.Decorate(
 				nil,
-				iterable.Repeatable[string]{V: ",", N: -1},
+				hiter.WrapSeqIterable(hiter.Once(",")),
 				xiter.Map(
 					func(i *dst.Ident) string { return strconv.Quote(i.Name) },
 					slices.Values(field.Names),
@@ -314,9 +338,9 @@ func printTypeParamVars(ts *dst.TypeSpec) string {
 	return "[" + typeParams.String() + "]"
 }
 
-func typeObjectFieldsIter(typeInfo types.Object) iter.Seq2[int, *types.Var] {
+func typeObjectFieldsIter(typeInfo types.Type) iter.Seq2[int, *types.Var] {
 	return func(yield func(int, *types.Var) bool) {
-		structTy, ok := typeInfo.Type().Underlying().(*types.Struct)
+		structTy, ok := typeInfo.Underlying().(*types.Struct)
 		if !ok {
 			return
 		}
@@ -337,15 +361,10 @@ func typeObjectFieldsIter(typeInfo types.Object) iter.Seq2[int, *types.Var] {
 //		}
 //	}
 func generateFromValue(
-	w io.Writer,
-	ts *dst.TypeSpec,
-	typeInfo types.Object,
-	matchedFields RawMatchedType,
-	imports importDecls,
-	patcherTypeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, node *typeNode, imports importDecls, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
-	orgTypeName := strings.TrimSuffix(ts.Name.Name, patcherTypeSuffix) + printTypeParamVars(ts)
+	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
 
 	printf, flush := bufPrintf(w)
 	defer func() {
@@ -358,38 +377,44 @@ func generateFromValue(
 	// It is possible that the patch type is exactly same as org type.
 	printf("\t//nolint\n")
 	printf("\t*p = %s{\n", patchTypeName)
-	for i, f := range typeObjectFieldsIter(typeInfo) {
+
+	edges := edgesDirectFields(node)
+	for _, f := range typeObjectFieldsIter(node.typeInfo) {
 		printf("\t\t")
 		// There's 3 possible conversions.
 		// T -> sliceund.Und[T]
 		// option.Option[T] -> sliceund.Und[T]
 		// conserve type other than that e.g. for und.Und, elastic.Elastic.
-		j := slices.IndexFunc(matchedFields.Field, func(mf MatchedField) bool { return mf.Pos == i })
-		if j < 0 {
+		edge, ok := edges[f.Name()]
+		if !ok || !matchUndType(
+			namedTypeToTargetType(edge.childType),
+			false,
+			func() bool {
+				// convert option -> und
+				t := f.Type().(*types.Named).TypeArgs().At(0).String()
+				sliceUndImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
+				optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
+				printf(
+					"%[1]s: %[2]s.MapOr("+
+						"v.%[1]s,"+
+						" %[3]s.Null[%[4]s](),"+
+						"%[3]s.Defined[%[4]s]),\n",
+					f.Name(), optionImportIdent, sliceUndImportIdent, t,
+				)
+				return true
+			},
+			func(isSlice bool) bool {
+				printf("%[1]s: v.%[1]s,\n", f.Name())
+				return true
+			},
+			func(isSlice bool) bool {
+				printf("%[1]s: v.%[1]s,\n", f.Name())
+				return true
+			},
+		) {
 			// T -> sliceund.Und[T]
 			sliceUndImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
 			printf("%[1]s: %[2]s.Defined(v.%[1]s),\n", f.Name(), sliceUndImportIdent)
-			continue
-		}
-		undTypeField := matchedFields.Field[j]
-		switch undTypeField.Type {
-		case UndTargetTypeOption:
-			// convert option -> und
-			t := f.Type().(*types.Named).TypeArgs().At(0).String()
-			sliceUndImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
-			optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
-			printf(
-				"%[1]s: %[2]s.MapOr("+
-					"v.%[1]s,"+
-					" %[3]s.Null[%[4]s](),"+
-					"%[3]s.Defined[%[4]s]),\n",
-				f.Name(), optionImportIdent, sliceUndImportIdent, t,
-			)
-			continue
-		case UndTargetTypeUnd, UndTargetTypeSliceUnd,
-			UndTargetTypeElastic, UndTargetTypeSliceElastic:
-			printf("%[1]s: v.%[1]s,\n", f.Name())
-			continue
 		}
 	}
 	printf("\t}\n")
@@ -407,15 +432,10 @@ func generateFromValue(
 //		}
 //	}
 func generateToValue(
-	w io.Writer,
-	ts *dst.TypeSpec,
-	typeInfo types.Object,
-	matchedFields RawMatchedType,
-	imports importDecls,
-	patcherTypeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, node *typeNode, imports importDecls, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
-	orgTypeName := strings.TrimSuffix(ts.Name.Name, patcherTypeSuffix) + printTypeParamVars(ts)
+	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
 
 	printf, flush := bufPrintf(w)
 	defer func() {
@@ -427,29 +447,35 @@ func generateToValue(
 	// Same as FromValue, shut up linter. always explicitly note type params.
 	printf("\t//nolint\n")
 	printf("\treturn %s{\n", orgTypeName)
-	for i, f := range typeObjectFieldsIter(typeInfo) {
+
+	edges := edgesDirectFields(node)
+	for _, f := range typeObjectFieldsIter(node.typeInfo) {
 		printf("\t\t")
+		edge, ok := edges[f.Name()]
 		// Like FromValue, there's 3 possible back-conversions.
 		// sliceund.Und[T] -> T
 		// sliceund.Und[T] -> option.Option[T]
 		// conserve type other than that e.g. for und.Und, elastic.Elastic.
-		j := slices.IndexFunc(matchedFields.Field, func(mf MatchedField) bool { return mf.Pos == i })
-		if j < 0 {
+		if !ok || !matchUndType(
+			namedTypeToTargetType(edge.childType),
+			false,
+			func() bool {
+				// sliceund.Und[T] -> option.Option[T]
+				optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
+				printf("%[1]s: %[2]s.Flatten(p.%[1]s.Unwrap()),\n", f.Name(), optionImportIdent)
+				return true
+			},
+			func(isSlice bool) bool {
+				printf("%[1]s: p.%[1]s,\n", f.Name())
+				return true
+			},
+			func(isSlice bool) bool {
+				printf("%[1]s: p.%[1]s,\n", f.Name())
+				return true
+			},
+		) {
 			// sliceund.Und[T] -> T
 			printf("%[1]s: p.%[1]s.Value(),\n", f.Name())
-			continue
-		}
-		undTypeField := matchedFields.Field[j]
-		switch undTypeField.Type {
-		case UndTargetTypeOption:
-			// sliceund.Und[T] -> option.Option[T]
-			optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
-			printf("%[1]s: %[2]s.Flatten(p.%[1]s.Unwrap()),\n", f.Name(), optionImportIdent)
-			continue
-		case UndTargetTypeUnd, UndTargetTypeSliceUnd,
-			UndTargetTypeElastic, UndTargetTypeSliceElastic:
-			printf("%[1]s: p.%[1]s,\n", f.Name())
-			continue
 		}
 	}
 	printf("\t}\n")
@@ -467,12 +493,7 @@ func generateToValue(
 //		}
 //	}
 func generateMerge(
-	w io.Writer,
-	ts *dst.TypeSpec,
-	typeInfo types.Object,
-	matchedFields RawMatchedType,
-	imports importDecls,
-	_ /*patcherTypeSuffix*/ string,
+	w io.Writer, ts *dst.TypeSpec, node *typeNode, imports importDecls, _ string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 
@@ -486,39 +507,47 @@ func generateMerge(
 	// Same as FromValue, shut up linter. always explicitly note type params.
 	printf("\t//nolint\n")
 	printf("\treturn %s{\n", patchTypeName)
-	for i, f := range typeObjectFieldsIter(typeInfo) {
+	edges := edgesDirectFields(node)
+	for _, f := range typeObjectFieldsIter(node.typeInfo) {
 		printf("\t\t")
+		edge, ok := edges[f.Name()]
 		// Like FromValue, there's 2 possible Or logic.
 		// both und like type.
 		// both elastic like type.
-		j := slices.IndexFunc(matchedFields.Field, func(mf MatchedField) bool { return mf.Pos == i })
-
 		undImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
-		if j >= 0 {
-			undTypeField := matchedFields.Field[j]
-			switch undTypeField.Type {
-			case UndTargetTypeUnd:
-				undImportIdent, _ = imports.Ident(UndTargetTypeUnd.ImportPath)
-			case UndTargetTypeElastic, UndTargetTypeSliceElastic:
-				elasticImportIdent, _ := imports.Ident(UndTargetTypeElastic.ImportPath)
-				undImportIdent, _ = imports.Ident(UndTargetTypeUnd.ImportPath)
-				if undTypeField.Type == UndTargetTypeSliceElastic {
-					elasticImportIdent, _ = imports.Ident(UndTargetTypeSliceElastic.ImportPath)
-					undImportIdent, _ = imports.Ident(UndTargetTypeSliceUnd.ImportPath)
+		if !ok || !matchUndType(
+			namedTypeToTargetType(edge.childType),
+			false,
+			func() bool {
+				return false
+			},
+			func(isSlice bool) bool {
+				if !isSlice {
+					undImportIdent, _ = imports.Ident(UndTargetTypeUnd.ImportPath)
+				}
+				return false
+			},
+			func(isSlice bool) bool {
+				elasticImportIdent, _ := imports.Ident(UndTargetTypeSliceElastic.ImportPath)
+				undImportIdent, _ = imports.Ident(UndTargetTypeSliceUnd.ImportPath)
+				if !isSlice {
+					elasticImportIdent, _ = imports.Ident(UndTargetTypeElastic.ImportPath)
+					undImportIdent, _ = imports.Ident(UndTargetTypeUnd.ImportPath)
 				}
 				// or(elastic, elastic)
 				printf(
 					"%[1]s: %[2]s.FromUnd(%[3]s.FromOption(r.%[1]s.Unwrap().Unwrap().Or(p.%[1]s.Unwrap().Unwrap()))),\n",
 					f.Name(), elasticImportIdent, undImportIdent,
 				)
-				continue
-			}
+				return true
+			},
+		) {
+			// or(und,und)
+			printf(
+				"%[1]s: %[2]s.FromOption(r.%[1]s.Unwrap().Or(p.%[1]s.Unwrap())),\n",
+				f.Name(), undImportIdent,
+			)
 		}
-		// or(und,und)
-		printf(
-			"%[1]s: %[2]s.FromOption(r.%[1]s.Unwrap().Or(p.%[1]s.Unwrap())),\n",
-			f.Name(), undImportIdent,
-		)
 	}
 	printf("\t}\n")
 	printf("}\n\n")
@@ -535,15 +564,10 @@ func generateMerge(
 //		return merged.ToValue()
 //	}
 func generateApplyPatch(
-	w io.Writer,
-	ts *dst.TypeSpec,
-	_ /*typeInfo*/ types.Object,
-	_ /*matchedFields*/ RawMatchedType,
-	_ /*imports*/ importDecls,
-	patcherTypeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, _ *typeNode, _ importDecls, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
-	orgTypeName := strings.TrimSuffix(ts.Name.Name, patcherTypeSuffix) + printTypeParamVars(ts)
+	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
 
 	printf, flush := bufPrintf(w)
 	defer func() {
