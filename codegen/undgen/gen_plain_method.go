@@ -277,6 +277,9 @@ func generateConversionMethodStructFields(
 				if !ok {
 					return false
 				}
+				if !isUndPlainAllowedEdge(edge) {
+					return false
+				}
 
 				plainExpr := exprMap[typeVar.Name()]
 

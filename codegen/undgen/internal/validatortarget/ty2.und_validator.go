@@ -90,5 +90,22 @@ func (v D) UndValidate() (err error) {
 			)
 		}
 	}
+	{
+		validator := undtag.UndOptExport{
+			States: &undtag.StateValidator{
+				Def: true,
+			},
+		}.Into()
+
+		if !validator.ValidOpt(v.BarP) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.BarP))
+		}
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"BarP",
+			)
+		}
+	}
 	return
 }

@@ -13,6 +13,8 @@ type B map[string]sliceelastic.Elastic[Implementor]
 type C [3]option.Option[All]
 
 type D struct {
-	Foo All
-	Bar option.Option[All] `und:"required"`
+	Foo  All
+	Bar  option.Option[All] `und:"required"`
+	FooP *All
+	BarP option.Option[*All] `und:"required"`
 }

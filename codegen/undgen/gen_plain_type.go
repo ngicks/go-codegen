@@ -98,6 +98,9 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typeNode, importMap importDecls)
 					// not found
 					return false
 				}
+				if !isUndPlainAllowedEdge(edge) {
+					return false
+				}
 
 				unwrapped := unwrapExprAlongPath(&field.Type, edge, 1)
 

@@ -42,8 +42,10 @@ func (v CPlain) UndRaw() C {
 
 //undgen:generated
 type DPlain struct {
-	Foo AllPlain
-	Bar AllPlain `und:"required"`
+	Foo  AllPlain
+	Bar  AllPlain `und:"required"`
+	FooP *All
+	BarP *All `und:"required"`
 }
 
 func (v D) UndPlain() DPlain {
@@ -53,6 +55,8 @@ func (v D) UndPlain() DPlain {
 			v.Bar,
 			conversion.ToPlain,
 		).Value(),
+		FooP: v.FooP,
+		BarP: v.BarP.Value(),
 	}
 }
 
@@ -63,5 +67,7 @@ func (v DPlain) UndRaw() D {
 			option.Some(v.Bar),
 			conversion.ToRaw,
 		),
+		FooP: v.FooP,
+		BarP: option.Some(v.BarP),
 	}
 }

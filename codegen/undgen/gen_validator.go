@@ -217,6 +217,9 @@ func generateUndValidate(
 				// nothing to validate
 				continue
 			}
+			if !isUndValidatorAllowedEdge(edge) {
+				continue
+			}
 
 			undTagValue, hasTag := reflect.StructTag(x.Tag(i)).Lookup(undtag.TagName)
 
