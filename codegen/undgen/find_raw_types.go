@@ -1,13 +1,8 @@
 package undgen
 
 import (
-	"go/types"
 	"slices"
 )
-
-type IsImplementor interface {
-	IsImplementor(ty *types.Named) bool
-}
 
 type TargetImport struct {
 	ImportPath string
