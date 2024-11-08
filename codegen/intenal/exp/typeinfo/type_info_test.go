@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	targetPackages []*packages.Package
+	targetPackages, builtinsPackages []*packages.Package
 )
 
 func init() {
@@ -34,11 +34,15 @@ func init() {
 		// 	fmt.Println()
 		// },
 	}
-	var err error
-	targetPackages, err = packages.Load(cfg, "./target/...")
-	if err != nil {
-		panic(err)
+	loadPanicking := func(pat ...string) []*packages.Package {
+		pkgs, err := packages.Load(cfg, pat...)
+		if err != nil {
+			panic(err)
+		}
+		return pkgs
 	}
+	targetPackages = loadPanicking("./target/...")
+	builtinsPackages = loadPanicking("./builtins/...")
 }
 
 func Test_target(t *testing.T) {
@@ -76,5 +80,46 @@ PKG:
 		t.Logf("%d: %s", i, sel.Obj().Name())
 		// type_info_test.go:75: 0: MethodOnNonPointer
 		// type_info_test.go:75: 1: MethodOnPointer
+	}
+}
+
+func Test_builtins(t *testing.T) {
+	pkg := builtinsPackages[0]
+
+	{
+		obj := pkg.Types.Scope().Lookup("Aaaa")
+		named := obj.Type().(*types.Named)
+		t.Logf("name: %s", named.Obj().Name())
+		t.Logf("pkgPath: %s", named.Obj().Pkg().Path())
+	}
+	{
+		obj := pkg.Types.Scope().Lookup("BuiltIns")
+		named := obj.Type().(*types.Named)
+		t.Logf("name: %s", named.Obj().Name())
+		t.Logf("pkgPath: %s", named.Obj().Pkg().Path())
+		st := named.Underlying().(*types.Struct)
+		for i := range st.NumFields() {
+			f := st.Field(i)
+			t.Logf("%v", f.Type())
+			switch x := f.Type().(type) {
+			case *types.Alias:
+				t.Logf("alias: obj:%v", x.Obj())
+			case *types.Array:
+			case *types.Basic:
+			case *types.Chan:
+			case *types.Interface:
+			case *types.Map:
+			case *types.Named:
+				t.Logf("named: obj:%v", x.Obj())
+				t.Logf("named: pkg:%v", x.Obj().Pkg())
+			case *types.Pointer:
+			case *types.Signature:
+			case *types.Slice:
+			case *types.Struct:
+			case *types.Tuple:
+			case *types.TypeParam:
+			case *types.Union:
+			}
+		}
 	}
 }
