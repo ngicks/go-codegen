@@ -157,6 +157,9 @@ func generateUndValidate(
 	// unwrappers to reach final destination type(implementor or und types.)
 	validatorUnwrappers := func(fieldName string, pointer []typeDependencyEdgePointer) []func(exp string) string {
 		var wrappers []func(exp string) string
+		if len(pointer) > 0 && pointer[len(pointer)-1].kind == typeDependencyEdgeKindPointer {
+			pointer = pointer[:len(pointer)-1]
+		}
 		for range pointer {
 			wrappers = append(wrappers, func(exp string) string {
 				return fmt.Sprintf(
@@ -192,13 +195,29 @@ func generateUndValidate(
 	case *types.Map, *types.Array, *types.Slice:
 		// should be only one since we prohibit struct literals.
 		ident, edge := firstTypeIdent(node.children)
+		isPointer := edge.lastPointer().IsSomeAnd(func(tdep typeDependencyEdgePointer) bool { return tdep.kind == typeDependencyEdgeKindPointer })
 		// An implementor or implementor wrapped in und types
-		exp := `err = v.UndValidate()`
+		exp := fmt.Sprintf(
+			`%s err = v.UndValidate() %s`,
+			or(isPointer, fmt.Sprintf("if %s {\n", _printUndValidateCallableChecker(namedTypeToTargetType(edge.childType), "v")), ""),
+			or(isPointer, "\n}", ""),
+		)
 		_ = matchUndTypeBool(
 			ident.targetType(),
 			false,
 			func() {
-				exp = fmt.Sprintf("err = %s.UndValidate(v)", importIdent(ident.targetType(), imports))
+				_, isPointer := edge.hasSingleNamedTypeArg(nil)
+				exp = fmt.Sprintf(
+					`%s err = %s.UndValidate(v,%s) %s`,
+					or(
+						isPointer,
+						fmt.Sprintf("if %s {\n", _printUndValidateCallableChecker(namedTypeToTargetType(edge.childType), "v")),
+						"",
+					),
+					importIdent(ident.targetType(), imports),
+					or(isPointer, _printUndValidateElasticSkipIndices(namedTypeToTargetType(edge.childType), "v"), ""),
+					or(isPointer, "\n}", ""),
+				)
 			},
 			nil,
 			nil,
@@ -217,6 +236,9 @@ func generateUndValidate(
 				// nothing to validate
 				continue
 			}
+			if !isUndValidatorAllowedEdge(edge) {
+				continue
+			}
 
 			undTagValue, hasTag := reflect.StructTag(x.Tag(i)).Lookup(undtag.TagName)
 
@@ -224,8 +246,7 @@ func generateUndValidate(
 			// 1. not tagged, being und filed, type arg is not a implementor
 			// TODO: remove this line and check test result.
 			// For now this guard is supposed to have been done by transitive edge filtering.
-			if !hasTag && isUndType(edge.childType) &&
-				!edge.hasSingleNamedTypeArg(isUndValidatorImplementor) {
+			if ok, _ := edge.hasSingleNamedTypeArg(isUndValidatorImplementor); !hasTag && isUndType(edge.childType) && !ok {
 				continue
 			}
 
@@ -276,19 +297,21 @@ func generateUndValidate(
 					}
 
 					var wrappeeValidator func(ident string) string
-					if edge.hasSingleNamedTypeArg(isUndValidatorImplementor) {
+					if ok, isPointer := edge.hasSingleNamedTypeArg(isUndValidatorImplementor); ok {
 						wrappeeValidator = func(ident string) string {
 							return fmt.Sprintf(
 								`
-								if err == nil {
-									err = %s.UndValidate(%s)
+								if err == nil %s {
+									err = %s.UndValidate(%s%s)
 								}
 `,
+								or(isPointer, "&&"+_printUndValidateCallableChecker(namedTypeToTargetType(edge.childType), ident), ""),
 								importIdent(
 									namedTypeToTargetType(edge.childType),
 									imports,
 								),
 								ident,
+								or(isPointer, ","+_printUndValidateElasticSkipIndices(namedTypeToTargetType(edge.childType), ident), ""),
 							)
 						}
 					}
@@ -302,7 +325,14 @@ func generateUndValidate(
 					}
 				} else {
 					nodeValidator = func(ident string) string {
-						return fmt.Sprintf(`err = %s.UndValidate()`, ident)
+						isPointer := edge.lastPointer().IsSomeAnd(func(tdep typeDependencyEdgePointer) bool { return tdep.kind == typeDependencyEdgeKindPointer })
+						// An implementor or implementor wrapped in und types
+						return fmt.Sprintf(
+							`%s err = %s.UndValidate() %s`,
+							or(isPointer, fmt.Sprintf("if %s != nil {\n", ident), ""),
+							ident,
+							or(isPointer, "\n}", ""),
+						)
 					}
 				}
 
@@ -384,4 +414,42 @@ func printValidator(undtagImportIdent string, tagOpt undtag.UndOpt) string {
 	}
 	builder.WriteString("}.Into()")
 	return builder.String()
+}
+
+func _printUndValidateCallableChecker(ty TargetType, ident string) string {
+	return matchUndType(
+		ty,
+		true,
+		func() string {
+			return ident + ".Value() != nil"
+		},
+		nil,
+		func(isSlice bool) string {
+			return "true"
+		},
+	)
+}
+
+func _printUndValidateElasticSkipIndices(ty TargetType, ident string) string {
+	return matchUndType(
+		ty,
+		true,
+		func() string {
+			return ""
+		},
+		nil,
+		func(isSlice bool) string {
+			return fmt.Sprintf(`func() []int {
+				var skip []int
+				for i, v := range %s.Values() {
+					if v == nil {
+						skip = append(skip, i)
+					}
+				}
+				return skip
+			}()...`,
+				ident,
+			)
+		},
+	)
 }

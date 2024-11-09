@@ -90,5 +90,73 @@ func (v D) UndValidate() (err error) {
 			)
 		}
 	}
+	{
+		if v.FooP != nil {
+			err = v.FooP.UndValidate()
+		}
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"FooP",
+			)
+		}
+	}
+	{
+		validator := undtag.UndOptExport{
+			States: &undtag.StateValidator{
+				Def: true,
+			},
+		}.Into()
+
+		if !validator.ValidOpt(v.BarP) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.BarP))
+		}
+		if err == nil && v.BarP.Value() != nil {
+			err = option.UndValidate(v.BarP)
+		}
+
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"BarP",
+			)
+		}
+	}
+	{
+		validator := undtag.UndOptExport{
+			States: &undtag.StateValidator{
+				Def: true,
+			},
+			Len: &undtag.LenValidator{
+				Len: 3,
+				Op:  undtag.LenOpEqEq,
+			},
+			Values: &undtag.ValuesValidator{
+				Nonnull: true,
+			},
+		}.Into()
+
+		if !validator.ValidElastic(v.BazP) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.BazP))
+		}
+		if err == nil && true {
+			err = elastic.UndValidate(v.BazP, func() []int {
+				var skip []int
+				for i, v := range v.BazP.Values() {
+					if v == nil {
+						skip = append(skip, i)
+					}
+				}
+				return skip
+			}()...)
+		}
+
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"BazP",
+			)
+		}
+	}
 	return
 }

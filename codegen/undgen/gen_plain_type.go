@@ -98,6 +98,9 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typeNode, importMap importDecls)
 					// not found
 					return false
 				}
+				if !isUndPlainAllowedEdge(edge) {
+					return false
+				}
 
 				unwrapped := unwrapExprAlongPath(&field.Type, edge, 1)
 
@@ -123,8 +126,12 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typeNode, importMap importDecls)
 
 				if named := edge.childType; ConstUnd.ConversionMethod.IsImplementor(named) {
 					converted, _ := ConstUnd.ConversionMethod.ConvertedType(named)
+					var ty types.Type = converted
+					if len(edge.stack) > 0 && edge.stack[len(edge.stack)-1].kind == typeDependencyEdgeKindPointer {
+						ty = types.NewPointer(ty)
+					}
 					*unwrapped = typeToDst(
-						converted,
+						ty,
 						edge.parentNode.typeInfo.Obj().Pkg().Path(),
 						importMap,
 					)
@@ -155,11 +162,15 @@ func unwrapUndType(fieldTy *dst.IndexExpr, edge typeDependencyEdge, undOpt undta
 	// fieldTy -> X.Sel[Index]
 	sel := fieldTy.X.(*dst.SelectorExpr) // X.Sel
 
-	if edge.hasSingleNamedTypeArg(isUndConversionImplementor) {
+	if ok, isPointer := edge.hasSingleNamedTypeArg(isUndConversionImplementor); ok {
 		arg := edge.typeArgs[0].ty
 		named, _ := ConstUnd.ConversionMethod.ConvertedType(arg)
+		var ty types.Type = named
+		if isPointer {
+			ty = types.NewPointer(ty)
+		}
 		fieldTy.Index = typeToDst(
-			named,
+			ty,
 			edge.parentNode.typeInfo.Obj().Pkg().Path(),
 			importMap,
 		)

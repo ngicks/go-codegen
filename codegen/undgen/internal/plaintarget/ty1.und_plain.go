@@ -28,24 +28,39 @@ func (v IncludesImplementor) UndPlain() IncludesImplementorPlain {
 		Impl: v.Impl.UndPlain(),
 		Opt: option.Map(
 			v.Opt,
-			conversion.ToPlain,
+			func(v sub.Foo[time.Time]) sub.FooPlain[time.Time] {
+				vv := v.UndPlain()
+				return vv
+			},
 		).Value(),
 		Und: und.Map(
 			v.Und,
-			conversion.ToPlain,
+			func(v sub.Foo[*bytes.Buffer]) sub.FooPlain[*bytes.Buffer] {
+				vv := v.UndPlain()
+				return vv
+			},
 		).Value(),
 		Elastic: elastic.Map(
 			v.Elastic,
-			conversion.ToPlain,
+			func(v sub.Foo[string]) sub.FooPlain[string] {
+				vv := v.UndPlain()
+				return vv
+			},
 		).Unwrap().Value(),
 		SliceUnd: sliceund.Map(
 			v.SliceUnd,
-			conversion.ToPlain,
+			func(v sub.Foo[int]) sub.FooPlain[int] {
+				vv := v.UndPlain()
+				return vv
+			},
 		).Value(),
 		SliceElastic: sliceund.Map(
 			conversion.UnwrapElasticSlice(sliceelastic.Map(
 				v.SliceElastic,
-				conversion.ToPlain,
+				func(v sub.Foo[bool]) sub.FooPlain[bool] {
+					vv := v.UndPlain()
+					return vv
+				},
 			)),
 			func(o []option.Option[sub.FooPlain[bool]]) (out [2]option.Option[sub.FooPlain[bool]]) {
 				copy(out[:], o)
@@ -60,19 +75,31 @@ func (v IncludesImplementorPlain) UndRaw() IncludesImplementor {
 		Impl: v.Impl.UndRaw(),
 		Opt: option.Map(
 			option.Some(v.Opt),
-			conversion.ToRaw,
+			func(v sub.FooPlain[time.Time]) sub.Foo[time.Time] {
+				vv := v.UndRaw()
+				return vv
+			},
 		),
 		Und: und.Map(
 			und.Defined(v.Und),
-			conversion.ToRaw,
+			func(v sub.FooPlain[*bytes.Buffer]) sub.Foo[*bytes.Buffer] {
+				vv := v.UndRaw()
+				return vv
+			},
 		),
 		Elastic: elastic.Map(
 			elastic.FromOptions(v.Elastic...),
-			conversion.ToRaw,
+			func(v sub.FooPlain[string]) sub.Foo[string] {
+				vv := v.UndRaw()
+				return vv
+			},
 		),
 		SliceUnd: sliceund.Map(
 			sliceund.Defined(v.SliceUnd),
-			conversion.ToRaw,
+			func(v sub.FooPlain[int]) sub.Foo[int] {
+				vv := v.UndRaw()
+				return vv
+			},
 		),
 		SliceElastic: sliceelastic.Map(
 			sliceelastic.FromUnd(sliceund.Map(
@@ -81,7 +108,10 @@ func (v IncludesImplementorPlain) UndRaw() IncludesImplementor {
 					return s[:]
 				},
 			)),
-			conversion.ToRaw,
+			func(v sub.FooPlain[bool]) sub.Foo[bool] {
+				vv := v.UndRaw()
+				return vv
+			},
 		),
 	}
 }
@@ -115,7 +145,10 @@ func (v IncludesImplementorArraySliceMap) UndPlain() IncludesImplementorArraySli
 			for k, v := range v {
 				(*inner)[k] = option.Map(
 					v,
-					conversion.ToPlain,
+					func(v sub.Foo[time.Time]) sub.FooPlain[time.Time] {
+						vv := v.UndPlain()
+						return vv
+					},
 				).Value()
 			}
 
@@ -128,7 +161,10 @@ func (v IncludesImplementorArraySliceMap) UndPlain() IncludesImplementorArraySli
 			for k, v := range v {
 				(*inner)[k] = und.Map(
 					v,
-					conversion.ToPlain,
+					func(v sub.Foo[*bytes.Buffer]) sub.FooPlain[*bytes.Buffer] {
+						vv := v.UndPlain()
+						return vv
+					},
 				).Value()
 			}
 
@@ -141,7 +177,10 @@ func (v IncludesImplementorArraySliceMap) UndPlain() IncludesImplementorArraySli
 			for k, v := range v {
 				(*inner)[k] = conversion.LenNAtMost(2, conversion.UnwrapElastic(elastic.Map(
 					v,
-					conversion.ToPlain,
+					func(v sub.Foo[string]) sub.FooPlain[string] {
+						vv := v.UndPlain()
+						return vv
+					},
 				))).Value()
 			}
 
@@ -154,7 +193,10 @@ func (v IncludesImplementorArraySliceMap) UndPlain() IncludesImplementorArraySli
 			for k, v := range v {
 				(*inner)[k] = sliceund.Map(
 					v,
-					conversion.ToPlain,
+					func(v sub.Foo[int]) sub.FooPlain[int] {
+						vv := v.UndPlain()
+						return vv
+					},
 				).Value()
 			}
 
@@ -168,7 +210,10 @@ func (v IncludesImplementorArraySliceMap) UndPlain() IncludesImplementorArraySli
 				(*inner)[k] = sliceund.Map(
 					conversion.UnwrapElasticSlice(sliceelastic.Map(
 						v,
-						conversion.ToPlain,
+						func(v sub.Foo[bool]) sub.FooPlain[bool] {
+							vv := v.UndPlain()
+							return vv
+						},
 					)),
 					func(o []option.Option[sub.FooPlain[bool]]) (out [2]option.Option[sub.FooPlain[bool]]) {
 						copy(out[:], o)
@@ -201,7 +246,10 @@ func (v IncludesImplementorArraySliceMapPlain) UndRaw() IncludesImplementorArray
 			for k, v := range v {
 				(*inner)[k] = option.Map(
 					option.Some(v),
-					conversion.ToRaw,
+					func(v sub.FooPlain[time.Time]) sub.Foo[time.Time] {
+						vv := v.UndRaw()
+						return vv
+					},
 				)
 			}
 
@@ -214,7 +262,10 @@ func (v IncludesImplementorArraySliceMapPlain) UndRaw() IncludesImplementorArray
 			for k, v := range v {
 				(*inner)[k] = und.Map(
 					und.Defined(v),
-					conversion.ToRaw,
+					func(v sub.FooPlain[*bytes.Buffer]) sub.Foo[*bytes.Buffer] {
+						vv := v.UndRaw()
+						return vv
+					},
 				)
 			}
 
@@ -227,7 +278,10 @@ func (v IncludesImplementorArraySliceMapPlain) UndRaw() IncludesImplementorArray
 			for k, v := range v {
 				(*inner)[k] = elastic.Map(
 					elastic.FromUnd(und.Defined(v)),
-					conversion.ToRaw,
+					func(v sub.FooPlain[string]) sub.Foo[string] {
+						vv := v.UndRaw()
+						return vv
+					},
 				)
 			}
 
@@ -240,7 +294,10 @@ func (v IncludesImplementorArraySliceMapPlain) UndRaw() IncludesImplementorArray
 			for k, v := range v {
 				(*inner)[k] = sliceund.Map(
 					sliceund.Defined(v),
-					conversion.ToRaw,
+					func(v sub.FooPlain[int]) sub.Foo[int] {
+						vv := v.UndRaw()
+						return vv
+					},
 				)
 			}
 
@@ -258,7 +315,10 @@ func (v IncludesImplementorArraySliceMapPlain) UndRaw() IncludesImplementorArray
 							return s[:]
 						},
 					)),
-					conversion.ToRaw,
+					func(v sub.FooPlain[bool]) sub.Foo[bool] {
+						vv := v.UndRaw()
+						return vv
+					},
 				)
 			}
 

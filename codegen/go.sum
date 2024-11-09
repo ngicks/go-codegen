@@ -15,6 +15,8 @@ github.com/ngicks/go-iterator-helper v0.0.16-0.20241102133946-d622279c83c3 h1:G1
 github.com/ngicks/go-iterator-helper v0.0.16-0.20241102133946-d622279c83c3/go.mod h1:g++KxWVGEkOnIhXVvpNNOdn7ON57aOpfu80ccBvPVHI=
 github.com/ngicks/und v1.0.0-alpha4.0.20241031183207-91d5b4df69a0 h1:9/M7AONcfqxNxvhT4yAwaEyIgw+3q1qkk2nAIL4i2CY=
 github.com/ngicks/und v1.0.0-alpha4.0.20241031183207-91d5b4df69a0/go.mod h1:1udS2lIWwVwFA2TvsZs9gz5o01fyTkgR4wsThinKX/g=
+github.com/ngicks/und v1.0.0-alpha5.0.20241108225608-67d88238795b h1:eBbNPUdWitypKPSBWI7arZKgm0cGO9FBn/IshxQ9fNU=
+github.com/ngicks/und v1.0.0-alpha5.0.20241108225608-67d88238795b/go.mod h1:1udS2lIWwVwFA2TvsZs9gz5o01fyTkgR4wsThinKX/g=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/sergi/go-diff v1.2.0 h1:XU+rvMAioB0UC3q1MFrIQy4Vo5/4VsRDQQXHsEya6xQ=
 github.com/sergi/go-diff v1.2.0/go.mod h1:STckp+ISIX8hZLjrqAeVduY0gWCT9IjLuqbuNXdaHfM=

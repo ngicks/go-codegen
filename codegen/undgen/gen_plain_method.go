@@ -36,9 +36,10 @@ func unwrapExprOne(expr ast.Expr, kind typeDependencyEdgeKind) ast.Expr {
 	switch kind {
 	case typeDependencyEdgeKindArray, typeDependencyEdgeKindSlice:
 		return expr.(*ast.ArrayType).Elt
-	default:
+	case typeDependencyEdgeKindMap:
 		return expr.(*ast.MapType).Value
 	}
+	return expr
 }
 
 func unwrapFieldAlongPath(
@@ -53,6 +54,9 @@ func unwrapFieldAlongPath(
 	output := printAstExprPanicking(toExpr)
 
 	s := edge.stack[skip:]
+	if len(s) > 0 && s[len(s)-1].kind == typeDependencyEdgeKindPointer {
+		s = s[:len(s)-1]
+	}
 	if len(s) == 0 {
 		return nil
 	}
@@ -175,8 +179,6 @@ func generateConversionMethodElemTypes(
 	importMap importDecls,
 	exprMap map[string]fieldAstExprSet,
 ) {
-	conversionIndent, _ := importMap.Ident(UndPathConversion)
-
 	_, edge := firstTypeIdent(node.children) // must be only one.
 
 	rawExpr := typeToAst(
@@ -185,53 +187,59 @@ func generateConversionMethodElemTypes(
 		importMap,
 	)
 
-	var plainExpr ast.Expr
+	var plainExprWrapped, plainExprUnwrapped ast.Expr
 	for _, v := range exprMap {
-		plainExpr = v.Wrapped
+		plainExprWrapped = v.Wrapped
+		plainExprUnwrapped = v.Unwrapped
 	}
 
 	unwrapper := unwrapFieldAlongPath(
-		or(toPlain, rawExpr, plainExpr),
-		or(toPlain, plainExpr, rawExpr),
+		or(toPlain, rawExpr, plainExprWrapped),
+		or(toPlain, plainExprWrapped, rawExpr),
 		edge,
 		0,
 	)
 
 	if isUndType(edge.childType) {
+		_, isPointer := edge.hasSingleNamedTypeArg(func(named *types.Named) bool { return true })
 		// matched, wrapped implementor
-		printf(`return ` + unwrapper(
-			func(s string) string {
-				return fmt.Sprintf(
-					`%s.Map(
-						%s,
-						%s.%s,
-					)`,
-					importIdent(namedTypeToTargetType(edge.childType), importMap),
-					s,
-					conversionIndent,
-					or(toPlain, "ToPlain", "ToRaw"),
-				)
+		converter, _ := _generateConversionMethodImplementorMapper(
+			toPlain,
+			edge,
+			prefixPointer(isPointer, edge.printChildArg(0, importMap)),
+			prefixPointer(isPointer, edge.printChildArgConverted(ConstUnd.ConversionMethod.ConvertedType, importMap)),
+			importMap,
+			isPointer,
+			func(ident string) string {
+				return ident
 			},
-			"v",
-		) + `
-`)
+		)
+		printf(`return ` + unwrapper(converter, "v"))
 		return
 	} else {
+		isPointer := edge.lastPointer().IsSomeAnd(func(tdep typeDependencyEdgePointer) bool {
+			return tdep.kind == typeDependencyEdgeKindPointer
+		})
 		// implementor
 		printf(`return ` + unwrapper(
-			func(s string) string {
-				return fmt.Sprintf(
-					`%s.%s()`,
-					s,
-					or(toPlain, "UndPlain", "UndRaw"),
-				)
-			},
-			"v",
-		) + `
-`)
+			_generateConversionMethodInvocationExpr(
+				toPlain,
+				isPointer,
+				prefixPointer(isPointer, edge.printChildType(importMap)),
+				printAstExprPanicking(plainExprUnwrapped),
+			),
+			"v"),
+		)
 		return
 	}
 
+}
+
+func prefixPointer(isPointer bool, s string) string {
+	if isPointer {
+		return "*" + s
+	}
+	return s
 }
 
 func generateConversionMethodStructFields(
@@ -277,6 +285,9 @@ func generateConversionMethodStructFields(
 				if !ok {
 					return false
 				}
+				if !isUndPlainAllowedEdge(edge) {
+					return false
+				}
 
 				plainExpr := exprMap[typeVar.Name()]
 
@@ -288,22 +299,18 @@ func generateConversionMethodStructFields(
 						panic(err)
 					}
 
-					var plainParam types.Type
-					if edge.hasSingleNamedTypeArg(isUndConversionImplementor) {
-						plainParam, _ = ConstUnd.ConversionMethod.ConvertedType(edge.typeArgs[0].org.(*types.Named))
-					} else {
-						plainParam = edge.typeArgs[0].org
-					}
-					ty := printAstExprPanicking(typeToAst(
-						plainParam,
-						edge.parentNode.typeInfo.Obj().Pkg().Path(),
-						importMap,
-					))
+					ty := edge.printChildArgConverted(ConstUnd.ConversionMethod.ConvertedType, importMap)
 					fieldConverter, needsArg = generateConversionMethodDirect(toPlain, edge, undOpt, ty, importMap)
 				} else if isUndConversionImplementor(edge.childType) {
-					fieldConverter = func(ident string) string {
-						return ident + or(toPlain, ".UndPlain()", ".UndRaw()")
-					}
+					isPointer := edge.lastPointer().IsSomeAnd(func(tdep typeDependencyEdgePointer) bool {
+						return tdep.kind == typeDependencyEdgeKindPointer
+					})
+					fieldConverter = _generateConversionMethodInvocationExpr(
+						toPlain,
+						isPointer,
+						prefixPointer(isPointer, edge.printChildType(importMap)),
+						printAstExprPanicking(plainExpr.Wrapped),
+					)
 					needsArg = true
 				}
 
@@ -368,32 +375,88 @@ func generateConversionMethodDirect(toPlain bool, edge typeDependencyEdge, undOp
 		},
 	)
 
-	if edge.hasSingleNamedTypeArg(isUndConversionImplementor) {
-		conversionIdent, _ := importMap.Ident(UndPathConversion)
-		pkgIdent := importIdent(namedTypeToTargetType(edge.childType), importMap)
-		inner := convert
-		convert = or(
+	if ok, isPointer := edge.hasSingleNamedTypeArg(isUndConversionImplementor); ok {
+		convert, needsArg = _generateConversionMethodImplementorMapper(
 			toPlain,
-			func(ident string) string {
-				return inner(fmt.Sprintf(
-					`%s.Map(
-				%s,
-				%s.%s,
-			)`,
-					pkgIdent, ident, conversionIdent, or(toPlain, "ToPlain", "ToRaw"),
-				))
-			},
-			func(ident string) string {
-				return fmt.Sprintf(
-					`%s.Map(
-				%s,
-				%s.%s,
-			)`,
-					pkgIdent, inner(ident), conversionIdent, or(toPlain, "ToPlain", "ToRaw"),
-				)
-			},
+			edge,
+			edge.printChildArg(0, importMap),
+			typeParam,
+			importMap,
+			isPointer,
+			convert,
 		)
-		needsArg = true
 	}
 	return
+}
+
+func _generateConversionMethodImplementorMapper(
+	toPlain bool,
+	edge typeDependencyEdge,
+	rawType, plainTy string,
+	importMap importDecls,
+	isPointer bool,
+	inner func(ident string) string,
+) (func(ident string) string, bool) {
+	pkgIdent := importIdent(namedTypeToTargetType(edge.childType), importMap)
+
+	return or(
+		toPlain,
+		func(ident string) string {
+			return inner(fmt.Sprintf(
+				`%s.Map(
+						%s,
+						func(v %s) %s {
+							%s vv := v.UndPlain()
+							%s
+						},
+					)`,
+				pkgIdent, ident,
+				rawType, plainTy,
+				or(isPointer, "if v == nil { return nil }\n", ""),
+				or(isPointer, "return &vv", "return vv"),
+			))
+		},
+		func(ident string) string {
+			return fmt.Sprintf(
+				`%s.Map(
+						%s,
+						func(v %s) %s {
+							%s vv := v.UndRaw()
+							%s
+						},
+					)`,
+				pkgIdent, inner(ident),
+				plainTy, rawType,
+				or(isPointer, "if v == nil { return nil }\n", ""),
+				or(isPointer, "return &vv", "return vv"),
+			)
+		},
+	), true
+}
+
+func _generateConversionMethodInvocationExpr(
+	toPlain bool, isPointer bool,
+	rawTy, plainTy string,
+) func(expr string) string {
+	if !isPointer {
+		return func(expr string) string {
+			return expr + or(toPlain, ".UndPlain()", ".UndRaw()")
+		}
+	} else {
+		return func(expr string) string {
+			return fmt.Sprintf(
+				`func(v %s) %s {
+					if v == nil {
+						return nil
+					}
+					vv := v.%s()
+					return &vv
+				}(%s)`,
+				or(toPlain, rawTy, plainTy),
+				or(toPlain, plainTy, rawTy),
+				or(toPlain, "UndPlain", "UndRaw"),
+				expr,
+			)
+		}
+	}
 }
