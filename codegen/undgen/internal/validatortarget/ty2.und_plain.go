@@ -1,7 +1,9 @@
 package validatortarget
 
 import (
+	"github.com/ngicks/und"
 	"github.com/ngicks/und/conversion"
+	"github.com/ngicks/und/elastic"
 	"github.com/ngicks/und/option"
 )
 
@@ -16,7 +18,10 @@ func (v C) UndPlain() CPlain {
 		for k, v := range v {
 			(*inner)[k] = option.Map(
 				v,
-				conversion.ToPlain,
+				func(v All) AllPlain {
+					vv := v.UndPlain()
+					return vv
+				},
 			)
 		}
 
@@ -32,7 +37,10 @@ func (v CPlain) UndRaw() C {
 		for k, v := range v {
 			(*inner)[k] = option.Map(
 				v,
-				conversion.ToRaw,
+				func(v AllPlain) All {
+					vv := v.UndRaw()
+					return vv
+				},
 			)
 		}
 
@@ -44,8 +52,9 @@ func (v CPlain) UndRaw() C {
 type DPlain struct {
 	Foo  AllPlain
 	Bar  AllPlain `und:"required"`
-	FooP *All
-	BarP *All `und:"required"`
+	FooP *AllPlain
+	BarP *AllPlain    `und:"required"`
+	BazP [3]*AllPlain `und:"required,len==3,values:nonnull"`
 }
 
 func (v D) UndPlain() DPlain {
@@ -53,10 +62,52 @@ func (v D) UndPlain() DPlain {
 		Foo: v.Foo.UndPlain(),
 		Bar: option.Map(
 			v.Bar,
-			conversion.ToPlain,
+			func(v All) AllPlain {
+				vv := v.UndPlain()
+				return vv
+			},
 		).Value(),
-		FooP: v.FooP,
-		BarP: v.BarP.Value(),
+		FooP: func(v *All) *AllPlain {
+			if v == nil {
+				return nil
+			}
+			vv := v.UndPlain()
+			return &vv
+		}(v.FooP),
+		BarP: option.Map(
+			v.BarP,
+			func(v *All) *AllPlain {
+				if v == nil {
+					return nil
+				}
+				vv := v.UndPlain()
+				return &vv
+			},
+		).Value(),
+		BazP: und.Map(
+			und.Map(
+				conversion.UnwrapElastic(elastic.Map(
+					v.BazP,
+					func(v *All) *AllPlain {
+						if v == nil {
+							return nil
+						}
+						vv := v.UndPlain()
+						return &vv
+					},
+				)),
+				func(o []option.Option[*AllPlain]) (out [3]option.Option[*AllPlain]) {
+					copy(out[:], o)
+					return out
+				},
+			),
+			func(s [3]option.Option[*AllPlain]) (r [3]*AllPlain) {
+				for i := 0; i < 3; i++ {
+					r[i] = s[i].Value()
+				}
+				return
+			},
+		).Value(),
 	}
 }
 
@@ -65,9 +116,50 @@ func (v DPlain) UndRaw() D {
 		Foo: v.Foo.UndRaw(),
 		Bar: option.Map(
 			option.Some(v.Bar),
-			conversion.ToRaw,
+			func(v AllPlain) All {
+				vv := v.UndRaw()
+				return vv
+			},
 		),
-		FooP: v.FooP,
-		BarP: option.Some(v.BarP),
+		FooP: func(v *AllPlain) *All {
+			if v == nil {
+				return nil
+			}
+			vv := v.UndRaw()
+			return &vv
+		}(v.FooP),
+		BarP: option.Map(
+			option.Some(v.BarP),
+			func(v *AllPlain) *All {
+				if v == nil {
+					return nil
+				}
+				vv := v.UndRaw()
+				return &vv
+			},
+		),
+		BazP: elastic.Map(
+			elastic.FromUnd(und.Map(
+				und.Map(
+					und.Defined(v.BazP),
+					func(s [3]*AllPlain) (out [3]option.Option[*AllPlain]) {
+						for i := 0; i < 3; i++ {
+							out[i] = option.Some(s[i])
+						}
+						return
+					},
+				),
+				func(s [3]option.Option[*AllPlain]) []option.Option[*AllPlain] {
+					return s[:]
+				},
+			)),
+			func(v *AllPlain) *All {
+				if v == nil {
+					return nil
+				}
+				vv := v.UndRaw()
+				return &vv
+			},
+		),
 	}
 }

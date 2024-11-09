@@ -118,7 +118,7 @@ func Test_search_type_tree(t *testing.T) {
 		),
 	)
 
-	graph.markTransitive(func(edge typeDependencyEdge) bool { return isUndAllowedPointer(edge.stack) })
+	graph.markTransitive(func(edge typeDependencyEdge) bool { return isUndAllowedPointer(edge.childType, edge.stack) })
 
 	transitive = slices.SortedFunc(
 		hiter.OmitL(
@@ -136,6 +136,7 @@ func Test_search_type_tree(t *testing.T) {
 		t,
 		slices.Equal(
 			[]typeIdent{
+				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree", "HasAlias"},
 				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub1", "HasAlias"},
 			},
 			transitive,

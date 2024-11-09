@@ -238,7 +238,7 @@ func Test_validator_MapSliceArrayContainsImplementor(t *testing.T) {
 		func(a validatortarget.MapSliceArrayContainsImplementor) (validatortarget.MapSliceArrayContainsImplementor, string) {
 			a.Baz = [5]elastic.Elastic[validatortarget.Implementor]{}
 			a.Baz[4] = elastic.FromValues(validatortarget.Implementor{Foo: "aa"}, validatortarget.Implementor{})
-			return a, "Baz[4]"
+			return a, "Baz[4][1]"
 		},
 	} {
 		modified, chain := mod(tgt)
@@ -318,8 +318,24 @@ func Test_validator_C(t *testing.T) {
 }
 
 func Test_validator_D(t *testing.T) {
-	tgt := validatortarget.D{Foo: validAll, Bar: option.Some(validAll)}
+	tgt := validatortarget.D{
+		Foo:  validAll,
+		Bar:  option.Some(validAll),
+		BarP: option.Some(&validAll),
+		BazP: elastic.FromValues(&validAll, &validAll, &validAll),
+	}
 	assert.NilError(t, tgt.UndValidate())
 	tgt.Bar = option.Some(validatortarget.All{})
 	assert.Assert(t, tgt.UndValidate() != nil)
+
+	tgt = validatortarget.D{
+		Foo:  validAll,
+		Bar:  option.Some(validAll),
+		BarP: option.Some[*validatortarget.All](nil),
+		BazP: elastic.FromValues(&validAll, nil, &validAll),
+	}
+	assert.NilError(t, tgt.UndValidate())
+	tgt.Bar = option.Some(validatortarget.All{})
+	assert.Assert(t, tgt.UndValidate() != nil)
+
 }

@@ -16,5 +16,6 @@ type D struct {
 	Foo  All
 	Bar  option.Option[All] `und:"required"`
 	FooP *All
-	BarP option.Option[*All] `und:"required"`
+	BarP option.Option[*All]   `und:"required"`
+	BazP elastic.Elastic[*All] `und:"required,len==3,values:nonnull"`
 }

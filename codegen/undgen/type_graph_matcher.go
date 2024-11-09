@@ -25,17 +25,31 @@ func isUndAllowedEdgeKind(k typeDependencyEdgeKind) bool {
 	return slices.Contains(undFieldAllowedEdges, k)
 }
 
-func isUndAllowedPointer(p []typeDependencyEdgePointer) bool {
-	return len(p) == 0 ||
-		// input p should be attached directly named types.
-		// struct kind is only allowed as underlying of the named type.
-		((p[0].kind == typeDependencyEdgeKindStruct || slices.Contains(undFieldAllowedEdges, p[0].kind)) &&
-			hiter.Every(
-				func(p typeDependencyEdgePointer) bool {
-					return isUndAllowedEdgeKind(p.kind)
-				},
-				slices.Values(p[1:]),
-			))
+func isUndAllowedPointer(ty *types.Named, p []typeDependencyEdgePointer) bool {
+	if len(p) == 0 {
+		// directly attached named type.
+		// Basically for type param.
+		return true
+	}
+	if p[0].kind == typeDependencyEdgeKindStruct {
+		p = p[1:]
+	}
+	if len(p) == 0 {
+		return true
+	}
+	rest, last := p[:len(p)-1], p[len(p)-1]
+	if !slices.Contains(undFieldAllowedEdges, last.kind) &&
+		// non und type is allowed to be pointer.
+		// but only for the last element
+		last.kind != typeDependencyEdgeKindPointer && isUndType(ty) {
+		return false
+	}
+	return hiter.Every(
+		func(p typeDependencyEdgePointer) bool {
+			return isUndAllowedEdgeKind(p.kind)
+		},
+		slices.Values(rest),
+	)
 }
 
 func isUndPlainAllowedEdge(edge typeDependencyEdge) bool {
@@ -47,7 +61,7 @@ func isUndValidatorAllowedEdge(edge typeDependencyEdge) bool {
 }
 
 func _isUndAllowedEdge(edge typeDependencyEdge, implementorOf func(named *types.Named) bool) bool {
-	if !isUndAllowedPointer(edge.stack) {
+	if !isUndAllowedPointer(edge.childType, edge.stack) {
 		return false
 	}
 	// struct field
@@ -64,7 +78,7 @@ func _isUndAllowedEdge(edge typeDependencyEdge, implementorOf func(named *types.
 			return true
 		}
 		// case 3. implementor wrapped in und types.
-		if isOnlySingleImplementorTypeArg(edge, implementorOf) {
+		if ok, _ := edge.hasSingleNamedTypeArg(implementorOf); ok {
 			return true
 		}
 		return false
@@ -88,22 +102,11 @@ func _isUndAllowedEdge(edge typeDependencyEdge, implementorOf func(named *types.
 		if implementorOf(named) {
 			return true
 		}
-
-		if isOnlySingleImplementorTypeArg(edge, implementorOf) {
+		if ok, _ := edge.hasSingleNamedTypeArg(implementorOf); ok {
 			return true
 		}
 	}
 
-	return false
-}
-
-func isOnlySingleImplementorTypeArg(edge typeDependencyEdge, implementorOf func(named *types.Named) bool) bool {
-	if len(edge.typeArgs) == 1 {
-		arg := edge.typeArgs[0]
-		if arg.ty != nil && len(arg.stack) == 0 && implementorOf(arg.ty) {
-			return true
-		}
-	}
 	return false
 }
 
@@ -117,10 +120,10 @@ func isUndValidatorTarget(named *types.Named, external bool) (bool, error) {
 
 func _isUndTarget(named *types.Named, external bool, implementorOf func(named *types.Named) bool) (bool, error) {
 	if external {
-		return matchUndType(
+		return matchUndTypeBool(
 			namedTypeToTargetType(named),
 			false,
-			func() bool { return true }, nil, nil,
+			func() {}, nil, nil,
 		) || implementorOf(named), nil
 	}
 	switch x := named.Underlying().(type) {
@@ -135,7 +138,7 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 		_ = visitToNamed(
 			elem,
 			func(named *types.Named, stack []typeDependencyEdgePointer) error {
-				if !isUndAllowedPointer(stack) {
+				if !isUndAllowedPointer(named, stack) {
 					return nil
 				}
 
@@ -178,7 +181,7 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 				_ = visitToNamed(
 					f.Type(),
 					func(named *types.Named, stack []typeDependencyEdgePointer) error {
-						if isUndAllowedPointer(stack) && isUndType(named) {
+						if isUndAllowedPointer(named, stack) && isUndType(named) {
 							found = true
 							targetType = namedTypeToTargetType(named)
 						}
@@ -216,7 +219,7 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 			_ = visitToNamed(
 				f.Type(),
 				func(named *types.Named, stack []typeDependencyEdgePointer) error {
-					if isUndAllowedPointer(stack) && implementorOf(named) {
+					if isUndAllowedPointer(named, stack) && implementorOf(named) {
 						found = true
 					}
 					return nil

@@ -94,22 +94,67 @@ type typeDependencyEdge struct {
 	childNode *typeNode
 }
 
-func (e typeDependencyEdge) hasSingleNamedTypeArg(additionalCond func(named *types.Named) bool) bool {
+func (e typeDependencyEdge) hasSingleNamedTypeArg(additionalCond func(named *types.Named) bool) (ok bool, pointer bool) {
 	if len(e.typeArgs) != 1 {
-		return false
+		return false, false
 	}
 	arg := e.typeArgs[0]
-	if arg.org != arg.ty { // current implementation restriction: type params where []T or map[string]T is not allowed.
-		return false
-	}
-	named, ok := arg.org.(*types.Named)
-	if !ok {
-		return false
+	isPointer := (len(arg.stack) == 1 && arg.stack[0].kind == typeDependencyEdgeKindPointer)
+	if arg.ty == nil || len(arg.stack) > 1 || (len(arg.stack) != 0 && !isPointer) {
+		return false, isPointer
 	}
 	if additionalCond != nil {
-		return additionalCond(named)
+		return additionalCond(arg.ty), isPointer
 	}
-	return true
+	return true, isPointer
+}
+
+func (e typeDependencyEdge) lastPointer() option.Option[typeDependencyEdgePointer] {
+	return option.GetSlice(e.stack, len(e.stack)-1)
+}
+
+func (e typeDependencyEdge) printChildType(importMap importDecls) string {
+	return printAstExprPanicking(
+		typeToAst(
+			e.childType,
+			e.parentNode.typeInfo.Obj().Pkg().Path(),
+			importMap,
+		),
+	)
+}
+
+func (e typeDependencyEdge) printChildArg(i int, importMap importDecls) string {
+	return printAstExprPanicking(
+		typeToAst(
+			e.typeArgs[i].org,
+			e.parentNode.typeInfo.Obj().Pkg().Path(),
+			importMap,
+		),
+	)
+}
+
+func (e typeDependencyEdge) printChildArgConverted(converter func(ty *types.Named) (*types.Named, bool), importMap importDecls) string {
+	isConverter := func(named *types.Named) bool {
+		_, ok := converter(named)
+		return ok
+	}
+
+	var plainParam types.Type
+	if ok, isPointer := e.hasSingleNamedTypeArg(isConverter); ok {
+		converted, _ := converter(e.typeArgs[0].ty)
+		plainParam = converted
+		if isPointer {
+			plainParam = types.NewPointer(plainParam)
+		}
+	} else {
+		plainParam = e.typeArgs[0].org
+	}
+
+	return printAstExprPanicking(typeToAst(
+		plainParam,
+		e.parentNode.typeInfo.Obj().Pkg().Path(),
+		importMap,
+	))
 }
 
 type typeDependencyEdgePointer struct {
