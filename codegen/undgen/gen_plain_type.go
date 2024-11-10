@@ -7,7 +7,9 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/dstutil"
+	"github.com/ngicks/go-codegen/codegen/astutil"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/und/undtag"
 )
 
@@ -16,7 +18,7 @@ type fieldDstExprSet struct {
 	Unwrapped dst.Expr
 }
 
-func _replaceToPlainTypes(data *replaceData, node *TypeNode) (map[string]fieldDstExprSet, bool) {
+func _replaceToPlainTypes(data *replaceData, node *typegraph.TypeNode) (map[string]fieldDstExprSet, bool) {
 	ts := data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
 	ts.Name.Name += "Plain"
 	named := node.Type
@@ -30,14 +32,14 @@ func _replaceToPlainTypes(data *replaceData, node *TypeNode) (map[string]fieldDs
 	return nil, false
 }
 
-func unwrapExprAlongPath(expr *dst.Expr, edge TypeDependencyEdge, skip int) *dst.Expr {
+func unwrapExprAlongPath(expr *dst.Expr, edge typegraph.TypeDependencyEdge, skip int) *dst.Expr {
 	unwrapped := expr
 	for _, p := range edge.Stack[skip:] {
-		switch p.kind {
-		case TypeDependencyEdgeKindArray, TypeDependencyEdgeKindSlice:
+		switch p.Kind {
+		case typegraph.TypeDependencyEdgeKindArray, typegraph.TypeDependencyEdgeKindSlice:
 			next := (*unwrapped).(*dst.ArrayType)
 			unwrapped = &next.Elt
-		case TypeDependencyEdgeKindMap:
+		case typegraph.TypeDependencyEdgeKindMap:
 			next := (*unwrapped).(*dst.MapType)
 			unwrapped = &next.Value
 		}
@@ -45,7 +47,7 @@ func unwrapExprAlongPath(expr *dst.Expr, edge TypeDependencyEdge, skip int) *dst
 	return unwrapped
 }
 
-func unwrapElemTypes(ts *dst.TypeSpec, node *TypeNode, importMap imports.ImportMap) (wrapped dst.Expr, unwrapped dst.Expr) {
+func unwrapElemTypes(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap imports.ImportMap) (wrapped dst.Expr, unwrapped dst.Expr) {
 	var elem *dst.Expr
 	switch x := ts.Type.(type) {
 	case *dst.ArrayType: // slice or array. difference is Len expr.
@@ -54,13 +56,13 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *TypeNode, importMap imports.ImportM
 		elem = &x.Value
 	}
 	// should be only one since we prohibit struct literals.
-	_, edge := FirstTypeIdent(node.Children)
+	_, edge := typegraph.FirstTypeIdent(node.Children)
 	if isUndType(edge.ChildType) {
 		// matched, wrapped implementor
 		unwrapped := unwrapExprAlongPath(elem, edge, 1)
 		index := (*unwrapped).(*dst.IndexExpr)
 		converted, _ := ConstUnd.ConversionMethod.ConvertedType(edge.TypeArgs[0].Ty)
-		index.Index = typeToDst(
+		index.Index = astutil.TypeToDst(
 			converted,
 			node.Type.Obj().Pkg().Path(),
 			importMap,
@@ -70,7 +72,7 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *TypeNode, importMap imports.ImportM
 		// implementor
 		unwrapped := unwrapExprAlongPath(elem, edge, 1)
 		converted, _ := ConstUnd.ConversionMethod.ConvertedType(edge.ChildType)
-		*unwrapped = typeToDst(
+		*unwrapped = astutil.TypeToDst(
 			converted,
 			node.Type.Obj().Pkg().Path(),
 			importMap,
@@ -79,7 +81,7 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *TypeNode, importMap imports.ImportM
 	}
 }
 
-func unwrapStructFields(ts *dst.TypeSpec, node *TypeNode, importMap imports.ImportMap) (map[string]fieldDstExprSet, bool) {
+func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap imports.ImportMap) (map[string]fieldDstExprSet, bool) {
 	exprMap := make(map[string]fieldDstExprSet)
 	var atLeastOne bool
 	dstutil.Apply(
@@ -128,10 +130,10 @@ func unwrapStructFields(ts *dst.TypeSpec, node *TypeNode, importMap imports.Impo
 				if named := edge.ChildType; ConstUnd.ConversionMethod.IsImplementor(named) {
 					converted, _ := ConstUnd.ConversionMethod.ConvertedType(named)
 					var ty types.Type = converted
-					if len(edge.Stack) > 0 && edge.Stack[len(edge.Stack)-1].kind == TypeDependencyEdgeKindPointer {
+					if len(edge.Stack) > 0 && edge.Stack[len(edge.Stack)-1].Kind == typegraph.TypeDependencyEdgeKindPointer {
 						ty = types.NewPointer(ty)
 					}
-					*unwrapped = typeToDst(
+					*unwrapped = astutil.TypeToDst(
 						ty,
 						edge.ParentNode.Type.Obj().Pkg().Path(),
 						importMap,
@@ -153,7 +155,7 @@ func unwrapStructFields(ts *dst.TypeSpec, node *TypeNode, importMap imports.Impo
 	return exprMap, atLeastOne
 }
 
-func unwrapUndType(fieldTy *dst.IndexExpr, edge TypeDependencyEdge, undOpt undtag.UndOpt, importMap imports.ImportMap) (expr dst.Expr, modified bool) {
+func unwrapUndType(fieldTy *dst.IndexExpr, edge typegraph.TypeDependencyEdge, undOpt undtag.UndOpt, importMap imports.ImportMap) (expr dst.Expr, modified bool) {
 	modified = true
 
 	// default: unchanged.
@@ -170,7 +172,7 @@ func unwrapUndType(fieldTy *dst.IndexExpr, edge TypeDependencyEdge, undOpt undta
 		if isPointer {
 			ty = types.NewPointer(ty)
 		}
-		fieldTy.Index = typeToDst(
+		fieldTy.Index = astutil.TypeToDst(
 			ty,
 			edge.ParentNode.Type.Obj().Pkg().Path(),
 			importMap,

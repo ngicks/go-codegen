@@ -1,7 +1,7 @@
 package sub1
 
 import (
-	"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub2"
+	"github.com/ngicks/go-codegen/codegen/typegraph/internal/searchtypetree/sub2"
 	"github.com/ngicks/und/option"
 )
 

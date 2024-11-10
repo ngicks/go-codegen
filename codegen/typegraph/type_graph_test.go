@@ -1,7 +1,8 @@
-package undgen
+package typegraph
 
 import (
 	"cmp"
+	"go/types"
 	"maps"
 	"slices"
 	"testing"
@@ -13,11 +14,11 @@ import (
 )
 
 func compareGraphIdent(i, j TypeIdent) int {
-	p := cmp.Compare(i.pkgPath, j.pkgPath)
+	p := cmp.Compare(i.PkgPath, j.PkgPath)
 	if p != 0 {
 		return p
 	}
-	return cmp.Compare(i.typeName, j.typeName)
+	return cmp.Compare(i.TypeName, j.TypeName)
 }
 
 func Test_search_type_tree(t *testing.T) {
@@ -45,7 +46,11 @@ func Test_search_type_tree(t *testing.T) {
 
 	graph, err := NewTypeGraph(
 		pkgs,
-		isUndPlainTarget,
+		func(typeInfo *types.Named, within bool) (bool, error) {
+			// later whole test will be re-implemented
+			// for now, it always fail.
+			return false, nil
+		},
 		nil,
 		nil,
 	)
@@ -67,15 +72,15 @@ func Test_search_type_tree(t *testing.T) {
 					"Foo",
 				},
 				{
-					"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub1",
+					"github.com/ngicks/go-codegen/codegen/typegraph/internal/searchtypetree/sub1",
 					"Bar",
 				},
 				{
-					"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub1",
+					"github.com/ngicks/go-codegen/codegen/typegraph/internal/searchtypetree/sub1",
 					"Foo",
 				},
 				{
-					"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub1",
+					"github.com/ngicks/go-codegen/codegen/typegraph/internal/searchtypetree/sub1",
 					"HasAliasToImplementor",
 				},
 			},
@@ -86,14 +91,14 @@ func Test_search_type_tree(t *testing.T) {
 		t,
 		slices.Equal(
 			[]TypeIdent{
-				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub2", "Foo"},
+				{"github.com/ngicks/go-codegen/codegen/typegraph/internal/searchtypetree/sub2", "Foo"},
 				{"github.com/ngicks/und/option", "Option"},
 			},
 			externals,
 		),
 	)
 
-	graph.markTransitive(nil)
+	graph.MarkTransitive(nil)
 
 	transitive := slices.SortedFunc(
 		hiter.OmitL(
@@ -112,13 +117,13 @@ func Test_search_type_tree(t *testing.T) {
 		slices.Equal(
 			[]TypeIdent{
 				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree", "HasAlias"},
-				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub1", "HasAlias"},
+				{"github.com/ngicks/go-codegen/codegen/typegraph/internal/searchtypetree/sub1", "HasAlias"},
 			},
 			transitive,
 		),
 	)
 
-	graph.markTransitive(func(edge TypeDependencyEdge) bool { return isUndAllowedPointer(edge.ChildType, edge.Stack) })
+	// graph.markTransitive(func(edge TypeDependencyEdge) bool { return isUndAllowedPointer(edge.ChildType, edge.Stack) })
 
 	transitive = slices.SortedFunc(
 		hiter.OmitL(
@@ -137,7 +142,7 @@ func Test_search_type_tree(t *testing.T) {
 		slices.Equal(
 			[]TypeIdent{
 				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree", "HasAlias"},
-				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub1", "HasAlias"},
+				{"github.com/ngicks/go-codegen/codegen/typegraph/internal/searchtypetree/sub1", "HasAlias"},
 			},
 			transitive,
 		),

@@ -10,6 +10,7 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
@@ -20,16 +21,16 @@ type replaceData struct {
 	dec         *decorator.Decorator
 	df          *dst.File
 	importMap   imports.ImportMap
-	targetNodes []*TypeNode
+	targetNodes []*typegraph.TypeNode
 }
 
 func gatherPlainUndTypes(
 	pkgs []*packages.Package,
 	parser *imports.ImportParser,
-	edgeFilter func(edge TypeDependencyEdge) bool,
-	seqFactory func(g *TypeGraph) iter.Seq2[TypeIdent, *TypeNode],
+	edgeFilter func(edge typegraph.TypeDependencyEdge) bool,
+	seqFactory func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode],
 ) (data map[*ast.File]*replaceData, err error) {
-	graph, err := NewTypeGraph(
+	graph, err := typegraph.NewTypeGraph(
 		pkgs,
 		isUndPlainTarget,
 		excludeUndIgnoredCommentedGenDecl,
@@ -44,10 +45,10 @@ func gatherPlainUndTypes(
 func gatherValidatableUndTypes(
 	pkgs []*packages.Package,
 	parser *imports.ImportParser,
-	edgeFilter func(edge TypeDependencyEdge) bool,
-	seqFactory func(g *TypeGraph) iter.Seq2[TypeIdent, *TypeNode],
+	edgeFilter func(edge typegraph.TypeDependencyEdge) bool,
+	seqFactory func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode],
 ) (data map[*ast.File]*replaceData, err error) {
-	graph, err := NewTypeGraph(
+	graph, err := typegraph.NewTypeGraph(
 		pkgs,
 		isUndValidatorTarget,
 		excludeUndIgnoredCommentedGenDecl,
@@ -60,13 +61,13 @@ func gatherValidatableUndTypes(
 }
 
 func gatherUndTypes(
-	graph *TypeGraph,
+	graph *typegraph.TypeGraph,
 	parser *imports.ImportParser,
-	edgeFilter func(edge TypeDependencyEdge) bool,
-	seqFactory func(g *TypeGraph) iter.Seq2[TypeIdent, *TypeNode],
+	edgeFilter func(edge typegraph.TypeDependencyEdge) bool,
+	seqFactory func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode],
 ) (data map[*ast.File]*replaceData, err error) {
 	if edgeFilter != nil {
-		graph.markTransitive(edgeFilter)
+		graph.MarkTransitive(edgeFilter)
 	}
 
 	type wrapped struct {
@@ -85,7 +86,7 @@ func gatherUndTypes(
 	}()
 
 	return hiter.ReduceGroup(
-		func(accumulator *replaceData, current *TypeNode) *replaceData {
+		func(accumulator *replaceData, current *typegraph.TypeNode) *replaceData {
 			if accumulator == nil {
 				importMap, err := parser.Parse(current.File.Imports)
 				if err != nil {
@@ -105,17 +106,17 @@ func gatherUndTypes(
 				}
 			}
 			accumulator.targetNodes = append(accumulator.targetNodes, current)
-			slices.SortFunc(accumulator.targetNodes, func(i, j *TypeNode) int { return cmp.Compare(i.Pos, j.Pos) })
-			accumulator.targetNodes = slices.CompactFunc(accumulator.targetNodes, func(i, j *TypeNode) bool { return i.Pos == j.Pos })
+			slices.SortFunc(accumulator.targetNodes, func(i, j *typegraph.TypeNode) int { return cmp.Compare(i.Pos, j.Pos) })
+			accumulator.targetNodes = slices.CompactFunc(accumulator.targetNodes, func(i, j *typegraph.TypeNode) bool { return i.Pos == j.Pos })
 			return accumulator
 		},
 		nil,
 		xiter.Map2(
-			func(_ TypeIdent, n *TypeNode) (*ast.File, *TypeNode) {
+			func(_ typegraph.TypeIdent, n *typegraph.TypeNode) (*ast.File, *typegraph.TypeNode) {
 				return n.File, n
 			},
 			xiter.Filter2(
-				func(_ TypeIdent, n *TypeNode) bool {
+				func(_ typegraph.TypeIdent, n *typegraph.TypeNode) bool {
 					return n != nil
 				},
 				seqFactory(graph),

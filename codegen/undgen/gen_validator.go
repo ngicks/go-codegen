@@ -19,6 +19,7 @@ import (
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
+	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"github.com/ngicks/und/undtag"
@@ -43,7 +44,7 @@ func GenerateValidator(
 		pkgs,
 		parser,
 		isUndValidatorAllowedEdge,
-		func(g *TypeGraph) iter.Seq2[TypeIdent, *TypeNode] {
+		func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode] {
 			return g.IterUpward(true, isUndValidatorAllowedEdge)
 		},
 	)
@@ -116,7 +117,7 @@ func GenerateValidator(
 func generateUndValidate(
 	w io.Writer,
 	ts *dst.TypeSpec,
-	node *TypeNode,
+	node *typegraph.TypeNode,
 	imports imports.ImportMap,
 ) (written bool, err error) {
 	typeName := ts.Name.Name + printTypeParamVars(ts)
@@ -158,9 +159,9 @@ func generateUndValidate(
 	}
 
 	// unwrappers to reach final destination type(implementor or und types.)
-	validatorUnwrappers := func(fieldName string, pointer []TypeDependencyEdgePointer) []func(exp string) string {
+	validatorUnwrappers := func(fieldName string, pointer []typegraph.TypeDependencyEdgePointer) []func(exp string) string {
 		var wrappers []func(exp string) string
-		if len(pointer) > 0 && pointer[len(pointer)-1].kind == TypeDependencyEdgeKindPointer {
+		if len(pointer) > 0 && pointer[len(pointer)-1].Kind == typegraph.TypeDependencyEdgeKindPointer {
 			pointer = pointer[:len(pointer)-1]
 		}
 		for range pointer {
@@ -197,8 +198,10 @@ func generateUndValidate(
 	switch x := node.Type.Underlying().(type) {
 	case *types.Map, *types.Array, *types.Slice:
 		// should be only one since we prohibit struct literals.
-		ident, edge := FirstTypeIdent(node.Children)
-		isPointer := edge.LastPointer().IsSomeAnd(func(tdep TypeDependencyEdgePointer) bool { return tdep.kind == TypeDependencyEdgeKindPointer })
+		ident, edge := typegraph.FirstTypeIdent(node.Children)
+		isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
+			return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
+		})
 		// An implementor or implementor wrapped in und types
 		exp := fmt.Sprintf(
 			`%s err = v.UndValidate() %s`,
@@ -328,7 +331,9 @@ func generateUndValidate(
 					}
 				} else {
 					nodeValidator = func(ident string) string {
-						isPointer := edge.LastPointer().IsSomeAnd(func(tdep TypeDependencyEdgePointer) bool { return tdep.kind == TypeDependencyEdgeKindPointer })
+						isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
+							return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
+						})
 						// An implementor or implementor wrapped in und types
 						return fmt.Sprintf(
 							`%s err = %s.UndValidate() %s`,

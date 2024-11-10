@@ -23,6 +23,7 @@ import (
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/structtag"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
+	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
@@ -51,10 +52,10 @@ func GeneratePatcher(
 		[]*packages.Package{pkg},
 		parser,
 		nil, // no transitive type marking; it is not needed here.
-		func(g *TypeGraph) iter.Seq2[TypeIdent, *TypeNode] {
+		func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode] {
 			return g.EnumerateTypesKeys(
-				xiter.Map(func(s string) TypeIdent {
-					return TypeIdent{pkgPath: pkg.PkgPath, typeName: s}
+				xiter.Map(func(s string) typegraph.TypeIdent {
+					return typegraph.TypeIdent{PkgPath: pkg.PkgPath, TypeName: s}
 				},
 					slices.Values(targetTypeNames),
 				),
@@ -78,7 +79,7 @@ func GeneratePatcher(
 				slog.Any(
 					"typesNames",
 					slices.Collect(xiter.Map(
-						func(n *TypeNode) string { return n.Type.Obj().Name() },
+						func(n *typegraph.TypeNode) string { return n.Type.Obj().Name() },
 						slices.Values(data.targetNodes),
 					)),
 				),
@@ -168,7 +169,7 @@ type methodGenSet struct {
 	errFunc func() error
 }
 
-type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, node *TypeNode, imports imports.ImportMap, typeSuffix string) error
+type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, typeSuffix string) error
 
 func wrapNonUndFields(data *replaceData) {
 	for _, node := range data.targetNodes {
@@ -176,7 +177,7 @@ func wrapNonUndFields(data *replaceData) {
 	}
 }
 
-func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *TypeNode, importMap imports.ImportMap) {
+func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *typegraph.TypeNode, importMap imports.ImportMap) {
 	typeName := ts.Name.Name
 	ts.Name.Name = ts.Name.Name + "Patch"
 	edges := edgesDirectFields(target)
@@ -279,10 +280,10 @@ func unquoteBasicLitString(s string) string {
 	}
 }
 
-func edgesDirectFields(node *TypeNode) map[string]TypeDependencyEdge {
+func edgesDirectFields(node *typegraph.TypeNode) map[string]typegraph.TypeDependencyEdge {
 	return maps.Collect(xiter.Filter2(
-		func(_ string, edge TypeDependencyEdge) bool {
-			return len(edge.Stack) == 1 && edge.Stack[0].kind == TypeDependencyEdgeKindStruct
+		func(_ string, edge typegraph.TypeDependencyEdge) bool {
+			return len(edge.Stack) == 1 && edge.Stack[0].Kind == typegraph.TypeDependencyEdgeKindStruct
 		},
 		node.FieldsName(),
 	))
@@ -344,7 +345,7 @@ func typeObjectFieldsIter(typeInfo types.Type) iter.Seq2[int, *types.Var] {
 //		}
 //	}
 func generateFromValue(
-	w io.Writer, ts *dst.TypeSpec, node *TypeNode, imports imports.ImportMap, typeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
@@ -415,7 +416,7 @@ func generateFromValue(
 //		}
 //	}
 func generateToValue(
-	w io.Writer, ts *dst.TypeSpec, node *TypeNode, imports imports.ImportMap, typeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
@@ -476,7 +477,7 @@ func generateToValue(
 //		}
 //	}
 func generateMerge(
-	w io.Writer, ts *dst.TypeSpec, node *TypeNode, imports imports.ImportMap, _ string,
+	w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, _ string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 
@@ -547,7 +548,7 @@ func generateMerge(
 //		return merged.ToValue()
 //	}
 func generateApplyPatch(
-	w io.Writer, ts *dst.TypeSpec, _ *TypeNode, _ imports.ImportMap, typeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, _ *typegraph.TypeNode, _ imports.ImportMap, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)

@@ -16,6 +16,7 @@ import (
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
+	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
@@ -38,7 +39,7 @@ func GeneratePlain(
 		pkgs,
 		parser,
 		isUndPlainAllowedEdge,
-		func(g *TypeGraph) iter.Seq2[TypeIdent, *TypeNode] {
+		func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode] {
 			return g.IterUpward(true, isUndPlainAllowedEdge)
 		},
 	)
@@ -58,11 +59,11 @@ func GeneratePlain(
 		}
 
 		modified := hiter.Collect2(xiter.Filter2(
-			func(node *TypeNode, exprMap map[string]fieldDstExprSet) bool {
+			func(node *typegraph.TypeNode, exprMap map[string]fieldDstExprSet) bool {
 				return node != nil && exprMap != nil
 			},
 			hiter.Divide(
-				func(node *TypeNode) (*TypeNode, map[string]fieldDstExprSet) {
+				func(node *typegraph.TypeNode) (*typegraph.TypeNode, map[string]fieldDstExprSet) {
 					exprMap, ok := _replaceToPlainTypes(data, node)
 					if !ok {
 						return nil, nil

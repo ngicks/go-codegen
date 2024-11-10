@@ -1,11 +1,8 @@
 package undgen
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
-	"go/printer"
-	"go/token"
 	"go/types"
 	"io"
 	"log/slog"
@@ -14,7 +11,9 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/dstutil"
+	"github.com/ngicks/go-codegen/codegen/astutil"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/undtag"
 )
@@ -24,20 +23,11 @@ type fieldAstExprSet struct {
 	Unwrapped ast.Expr
 }
 
-func printAstExprPanicking(expr ast.Expr) string {
-	buf := new(bytes.Buffer)
-	err := printer.Fprint(buf, token.NewFileSet(), expr)
-	if err != nil {
-		panic(err)
-	}
-	return buf.String()
-}
-
-func unwrapExprOne(expr ast.Expr, kind typeDependencyEdgeKind) ast.Expr {
+func unwrapExprOne(expr ast.Expr, kind typegraph.TypeDependencyEdgeKind) ast.Expr {
 	switch kind {
-	case TypeDependencyEdgeKindArray, TypeDependencyEdgeKindSlice:
+	case typegraph.TypeDependencyEdgeKindArray, typegraph.TypeDependencyEdgeKindSlice:
 		return expr.(*ast.ArrayType).Elt
-	case TypeDependencyEdgeKindMap:
+	case typegraph.TypeDependencyEdgeKindMap:
 		return expr.(*ast.MapType).Value
 	}
 	return expr
@@ -45,37 +35,37 @@ func unwrapExprOne(expr ast.Expr, kind typeDependencyEdgeKind) ast.Expr {
 
 func unwrapFieldAlongPath(
 	fromExpr, toExpr ast.Expr,
-	edge TypeDependencyEdge,
+	edge typegraph.TypeDependencyEdge,
 	skip int,
 ) func(wrappee func(string) string, fieldExpr string) string {
 	if fromExpr == nil || toExpr == nil {
 		return nil
 	}
-	input := printAstExprPanicking(fromExpr)
-	output := printAstExprPanicking(toExpr)
+	input := astutil.PrintAstExprPanicking(fromExpr)
+	output := astutil.PrintAstExprPanicking(toExpr)
 
 	s := edge.Stack[skip:]
-	if len(s) > 0 && s[len(s)-1].kind == TypeDependencyEdgeKindPointer {
+	if len(s) > 0 && s[len(s)-1].Kind == typegraph.TypeDependencyEdgeKindPointer {
 		s = s[:len(s)-1]
 	}
 	if len(s) == 0 {
 		return nil
 	}
 
-	initializer := func(expr ast.Expr, kind typeDependencyEdgeKind) string {
+	initializer := func(expr ast.Expr, kind typegraph.TypeDependencyEdgeKind) string {
 		switch kind {
-		case TypeDependencyEdgeKindArray:
-			return fmt.Sprintf("%s{}", printAstExprPanicking(expr))
+		case typegraph.TypeDependencyEdgeKindArray:
+			return fmt.Sprintf("%s{}", astutil.PrintAstExprPanicking(expr))
 		default:
-			return fmt.Sprintf("make(%s, len(v))", printAstExprPanicking(expr))
+			return fmt.Sprintf("make(%s, len(v))", astutil.PrintAstExprPanicking(expr))
 		}
 	}
 
 	var wrappers []func(string) string
 	unwrapped := toExpr
 	for p := range hiter.Window(s, 2) {
-		unwrapped = unwrapExprOne(unwrapped, p[0].kind)
-		initializerExpr := initializer(unwrapped, p[1].kind)
+		unwrapped = unwrapExprOne(unwrapped, p[0].Kind)
+		initializerExpr := initializer(unwrapped, p[1].Kind)
 		wrappers = append(wrappers, func(s string) string {
 			return fmt.Sprintf(
 				`for k, v := range v {
@@ -111,12 +101,12 @@ func unwrapFieldAlongPath(
 
 	return out
 })(%s)`,
-			input, output, initializer(toExpr, s[0].kind), expr, fieldExpr)
+			input, output, initializer(toExpr, s[0].Kind), expr, fieldExpr)
 	}
 
 }
 
-func generateConversionMethod(w io.Writer, data *replaceData, node *TypeNode, exprMap map[string]fieldAstExprSet) (err error) {
+func generateConversionMethod(w io.Writer, data *replaceData, node *typegraph.TypeNode, exprMap map[string]fieldAstExprSet) (err error) {
 	ts := data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
 	plainTyName := ts.Name.Name + printTypeParamVars(ts)
 	rawTyName, _ := strings.CutSuffix(ts.Name.Name, "Plain")
@@ -141,7 +131,7 @@ func generateToRawOrToPlain(
 	plainTyName, rawTyName string,
 	ts *dst.TypeSpec,
 	data *replaceData,
-	node *TypeNode,
+	node *typegraph.TypeNode,
 	exprMap map[string]fieldAstExprSet,
 ) {
 	printf(`func (v %s) %s() %s {
@@ -176,13 +166,13 @@ func generateToRawOrToPlain(
 func generateConversionMethodElemTypes(
 	toPlain bool,
 	printf func(format string, args ...any),
-	node *TypeNode,
+	node *typegraph.TypeNode,
 	importMap imports.ImportMap,
 	exprMap map[string]fieldAstExprSet,
 ) {
-	_, edge := FirstTypeIdent(node.Children) // must be only one.
+	_, edge := typegraph.FirstTypeIdent(node.Children) // must be only one.
 
-	rawExpr := typeToAst(
+	rawExpr := astutil.TypeToAst(
 		edge.ParentNode.Type.Underlying(),
 		edge.ParentNode.Type.Obj().Pkg().Path(),
 		importMap,
@@ -218,8 +208,8 @@ func generateConversionMethodElemTypes(
 		printf(`return ` + unwrapper(converter, "v"))
 		return
 	} else {
-		isPointer := edge.LastPointer().IsSomeAnd(func(tdep TypeDependencyEdgePointer) bool {
-			return tdep.kind == TypeDependencyEdgeKindPointer
+		isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
+			return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
 		})
 		// implementor
 		printf(`return ` + unwrapper(
@@ -227,7 +217,7 @@ func generateConversionMethodElemTypes(
 				toPlain,
 				isPointer,
 				prefixPointer(isPointer, edge.PrintChildType(importMap)),
-				printAstExprPanicking(plainExprUnwrapped),
+				astutil.PrintAstExprPanicking(plainExprUnwrapped),
 			),
 			"v"),
 		)
@@ -247,7 +237,7 @@ func generateConversionMethodStructFields(
 	toPlain bool,
 	printf func(format string, args ...any),
 	ts *dst.TypeSpec,
-	node *TypeNode,
+	node *typegraph.TypeNode,
 	rawTyName, plainTyName string,
 	importMap imports.ImportMap,
 	exprMap map[string]fieldAstExprSet,
@@ -303,20 +293,20 @@ func generateConversionMethodStructFields(
 					ty := edge.PrintChildArgConverted(ConstUnd.ConversionMethod.ConvertedType, importMap)
 					fieldConverter, needsArg = generateConversionMethodDirect(toPlain, edge, undOpt, ty, importMap)
 				} else if isUndConversionImplementor(edge.ChildType) {
-					isPointer := edge.LastPointer().IsSomeAnd(func(tdep TypeDependencyEdgePointer) bool {
-						return tdep.kind == TypeDependencyEdgeKindPointer
+					isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
+						return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
 					})
 					fieldConverter = _generateConversionMethodInvocationExpr(
 						toPlain,
 						isPointer,
 						prefixPointer(isPointer, edge.PrintChildType(importMap)),
-						printAstExprPanicking(plainExpr.Wrapped),
+						astutil.PrintAstExprPanicking(plainExpr.Wrapped),
 					)
 					needsArg = true
 				}
 
-				rawExpr := typeToAst(
-					edge.ParentNode.Type.Underlying().(*types.Struct).Field(edge.Stack[0].pos.Value()).Type(),
+				rawExpr := astutil.TypeToAst(
+					edge.ParentNode.Type.Underlying().(*types.Struct).Field(edge.Stack[0].Pos.Value()).Type(),
 					edge.ParentNode.Type.Obj().Pkg().Path(),
 					importMap,
 				)
@@ -349,7 +339,7 @@ func generateConversionMethodStructFields(
 	)
 }
 
-func generateConversionMethodDirect(toPlain bool, edge TypeDependencyEdge, undOpt undtag.UndOpt, typeParam string, importMap imports.ImportMap) (convert func(ident string) string, needsArg bool) {
+func generateConversionMethodDirect(toPlain bool, edge typegraph.TypeDependencyEdge, undOpt undtag.UndOpt, typeParam string, importMap imports.ImportMap) (convert func(ident string) string, needsArg bool) {
 	matchUndTypeBool(
 		namedTypeToTargetType(edge.ChildType),
 		false,
@@ -392,7 +382,7 @@ func generateConversionMethodDirect(toPlain bool, edge TypeDependencyEdge, undOp
 
 func _generateConversionMethodImplementorMapper(
 	toPlain bool,
-	edge TypeDependencyEdge,
+	edge typegraph.TypeDependencyEdge,
 	rawType, plainTy string,
 	importMap imports.ImportMap,
 	isPointer bool,

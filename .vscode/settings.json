@@ -12,6 +12,7 @@
         "sliceund",
         "suffixprinter",
         "Tmpl",
+        "typegraph",
         "undgen",
         "undtag"
     ]
