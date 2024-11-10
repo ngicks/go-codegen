@@ -239,7 +239,6 @@ func TestImports(t *testing.T) {
 	dec := decorator.NewDecorator(pkg1.Fset)
 	df, err := dec.DecorateFile(pkg1.Syntax[0])
 	assert.NilError(t, err)
-	im.AddMissingImports(df)
 	assertAddMissingImports := func() {
 		t.Helper()
 		assert.DeepEqual(
@@ -273,6 +272,7 @@ func TestImports(t *testing.T) {
 			df.Imports,
 		)
 	}
+	im.AddMissingImports(df)
 	assertAddMissingImports()
 	im.AddMissingImports(df)
 	assertAddMissingImports()
