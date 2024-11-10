@@ -23,6 +23,7 @@ import (
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/structtag"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
+	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
@@ -51,10 +52,10 @@ func GeneratePatcher(
 		[]*packages.Package{pkg},
 		parser,
 		nil, // no transitive type marking; it is not needed here.
-		func(g *typeGraph) iter.Seq2[typeIdent, *typeNode] {
-			return g.enumerateTypesKeys(
-				xiter.Map(func(s string) typeIdent {
-					return typeIdent{pkgPath: pkg.PkgPath, typeName: s}
+		func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode] {
+			return g.EnumerateTypesKeys(
+				xiter.Map(func(s string) typegraph.TypeIdent {
+					return typegraph.TypeIdent{PkgPath: pkg.PkgPath, TypeName: s}
 				},
 					slices.Values(targetTypeNames),
 				),
@@ -78,7 +79,7 @@ func GeneratePatcher(
 				slog.Any(
 					"typesNames",
 					slices.Collect(xiter.Map(
-						func(n *typeNode) string { return n.typeInfo.Obj().Name() },
+						func(n *typegraph.TypeNode) string { return n.Type.Obj().Name() },
 						slices.Values(data.targetNodes),
 					)),
 				),
@@ -101,7 +102,7 @@ func GeneratePatcher(
 		}
 
 		for _, node := range data.targetNodes {
-			dts := data.dec.Dst.Nodes[node.ts].(*dst.TypeSpec)
+			dts := data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
 			ts := res.Ast.Nodes[dts].(*ast.TypeSpec)
 			// type keyword is attached to *ast.GenDecl
 			// But we are not printing gen decl itself since
@@ -168,15 +169,15 @@ type methodGenSet struct {
 	errFunc func() error
 }
 
-type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, node *typeNode, imports imports.ImportMap, typeSuffix string) error
+type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, typeSuffix string) error
 
 func wrapNonUndFields(data *replaceData) {
 	for _, node := range data.targetNodes {
-		wrapNonUndFieldsWithSliceUnd(data.dec.Dst.Nodes[node.ts].(*dst.TypeSpec), node, data.importMap)
+		wrapNonUndFieldsWithSliceUnd(data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec), node, data.importMap)
 	}
 }
 
-func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *typeNode, importMap imports.ImportMap) {
+func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *typegraph.TypeNode, importMap imports.ImportMap) {
 	typeName := ts.Name.Name
 	ts.Name.Name = ts.Name.Name + "Patch"
 	edges := edgesDirectFields(target)
@@ -202,7 +203,7 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *typeNode, importMap 
 				isSliceType := true
 				if ok {
 					matchUndType(
-						namedTypeToTargetType(edge.childType),
+						namedTypeToTargetType(edge.ChildType),
 						false,
 						func() bool {
 							c.Replace(&dst.Field{
@@ -279,12 +280,12 @@ func unquoteBasicLitString(s string) string {
 	}
 }
 
-func edgesDirectFields(node *typeNode) map[string]typeDependencyEdge {
+func edgesDirectFields(node *typegraph.TypeNode) map[string]typegraph.TypeDependencyEdge {
 	return maps.Collect(xiter.Filter2(
-		func(_ string, edge typeDependencyEdge) bool {
-			return len(edge.stack) == 1 && edge.stack[0].kind == typeDependencyEdgeKindStruct
+		func(_ string, edge typegraph.TypeDependencyEdge) bool {
+			return len(edge.Stack) == 1 && edge.Stack[0].Kind == typegraph.TypeDependencyEdgeKindStruct
 		},
-		node.fieldsName(),
+		node.FieldsName(),
 	))
 }
 
@@ -344,7 +345,7 @@ func typeObjectFieldsIter(typeInfo types.Type) iter.Seq2[int, *types.Var] {
 //		}
 //	}
 func generateFromValue(
-	w io.Writer, ts *dst.TypeSpec, node *typeNode, imports imports.ImportMap, typeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
@@ -362,7 +363,7 @@ func generateFromValue(
 	printf("\t*p = %s{\n", patchTypeName)
 
 	edges := edgesDirectFields(node)
-	for _, f := range typeObjectFieldsIter(node.typeInfo) {
+	for _, f := range typeObjectFieldsIter(node.Type) {
 		printf("\t\t")
 		// There's 3 possible conversions.
 		// T -> sliceund.Und[T]
@@ -370,7 +371,7 @@ func generateFromValue(
 		// conserve type other than that e.g. for und.Und, elastic.Elastic.
 		edge, ok := edges[f.Name()]
 		if !ok || !matchUndType(
-			namedTypeToTargetType(edge.childType),
+			namedTypeToTargetType(edge.ChildType),
 			false,
 			func() bool {
 				// convert option -> und
@@ -415,7 +416,7 @@ func generateFromValue(
 //		}
 //	}
 func generateToValue(
-	w io.Writer, ts *dst.TypeSpec, node *typeNode, imports imports.ImportMap, typeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
@@ -432,7 +433,7 @@ func generateToValue(
 	printf("\treturn %s{\n", orgTypeName)
 
 	edges := edgesDirectFields(node)
-	for _, f := range typeObjectFieldsIter(node.typeInfo) {
+	for _, f := range typeObjectFieldsIter(node.Type) {
 		printf("\t\t")
 		edge, ok := edges[f.Name()]
 		// Like FromValue, there's 3 possible back-conversions.
@@ -440,7 +441,7 @@ func generateToValue(
 		// sliceund.Und[T] -> option.Option[T]
 		// conserve type other than that e.g. for und.Und, elastic.Elastic.
 		if !ok || !matchUndType(
-			namedTypeToTargetType(edge.childType),
+			namedTypeToTargetType(edge.ChildType),
 			false,
 			func() bool {
 				// sliceund.Und[T] -> option.Option[T]
@@ -476,7 +477,7 @@ func generateToValue(
 //		}
 //	}
 func generateMerge(
-	w io.Writer, ts *dst.TypeSpec, node *typeNode, imports imports.ImportMap, _ string,
+	w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, _ string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 
@@ -491,7 +492,7 @@ func generateMerge(
 	printf("\t//nolint\n")
 	printf("\treturn %s{\n", patchTypeName)
 	edges := edgesDirectFields(node)
-	for _, f := range typeObjectFieldsIter(node.typeInfo) {
+	for _, f := range typeObjectFieldsIter(node.Type) {
 		printf("\t\t")
 		edge, ok := edges[f.Name()]
 		// Like FromValue, there's 2 possible Or logic.
@@ -499,7 +500,7 @@ func generateMerge(
 		// both elastic like type.
 		undImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
 		if !ok || !matchUndType(
-			namedTypeToTargetType(edge.childType),
+			namedTypeToTargetType(edge.ChildType),
 			false,
 			func() bool {
 				return false
@@ -547,7 +548,7 @@ func generateMerge(
 //		return merged.ToValue()
 //	}
 func generateApplyPatch(
-	w io.Writer, ts *dst.TypeSpec, _ *typeNode, _ imports.ImportMap, typeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, _ *typegraph.TypeNode, _ imports.ImportMap, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)

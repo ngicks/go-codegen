@@ -7,7 +7,9 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/dstutil"
+	"github.com/ngicks/go-codegen/codegen/astutil"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/und/undtag"
 )
 
@@ -16,10 +18,10 @@ type fieldDstExprSet struct {
 	Unwrapped dst.Expr
 }
 
-func _replaceToPlainTypes(data *replaceData, node *typeNode) (map[string]fieldDstExprSet, bool) {
-	ts := data.dec.Dst.Nodes[node.ts].(*dst.TypeSpec)
+func _replaceToPlainTypes(data *replaceData, node *typegraph.TypeNode) (map[string]fieldDstExprSet, bool) {
+	ts := data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
 	ts.Name.Name += "Plain"
-	named := node.typeInfo
+	named := node.Type
 	switch named.Underlying().(type) {
 	case *types.Array, *types.Slice, *types.Map:
 		wrapped, unwrapped := unwrapElemTypes(ts, node, data.importMap)
@@ -30,14 +32,14 @@ func _replaceToPlainTypes(data *replaceData, node *typeNode) (map[string]fieldDs
 	return nil, false
 }
 
-func unwrapExprAlongPath(expr *dst.Expr, edge typeDependencyEdge, skip int) *dst.Expr {
+func unwrapExprAlongPath(expr *dst.Expr, edge typegraph.TypeDependencyEdge, skip int) *dst.Expr {
 	unwrapped := expr
-	for _, p := range edge.stack[skip:] {
-		switch p.kind {
-		case typeDependencyEdgeKindArray, typeDependencyEdgeKindSlice:
+	for _, p := range edge.Stack[skip:] {
+		switch p.Kind {
+		case typegraph.TypeDependencyEdgeKindArray, typegraph.TypeDependencyEdgeKindSlice:
 			next := (*unwrapped).(*dst.ArrayType)
 			unwrapped = &next.Elt
-		case typeDependencyEdgeKindMap:
+		case typegraph.TypeDependencyEdgeKindMap:
 			next := (*unwrapped).(*dst.MapType)
 			unwrapped = &next.Value
 		}
@@ -45,7 +47,7 @@ func unwrapExprAlongPath(expr *dst.Expr, edge typeDependencyEdge, skip int) *dst
 	return unwrapped
 }
 
-func unwrapElemTypes(ts *dst.TypeSpec, node *typeNode, importMap imports.ImportMap) (wrapped dst.Expr, unwrapped dst.Expr) {
+func unwrapElemTypes(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap imports.ImportMap) (wrapped dst.Expr, unwrapped dst.Expr) {
 	var elem *dst.Expr
 	switch x := ts.Type.(type) {
 	case *dst.ArrayType: // slice or array. difference is Len expr.
@@ -54,32 +56,32 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *typeNode, importMap imports.ImportM
 		elem = &x.Value
 	}
 	// should be only one since we prohibit struct literals.
-	_, edge := firstTypeIdent(node.children)
-	if isUndType(edge.childType) {
+	_, edge := typegraph.FirstTypeIdent(node.Children)
+	if isUndType(edge.ChildType) {
 		// matched, wrapped implementor
 		unwrapped := unwrapExprAlongPath(elem, edge, 1)
 		index := (*unwrapped).(*dst.IndexExpr)
-		converted, _ := ConstUnd.ConversionMethod.ConvertedType(edge.typeArgs[0].ty)
-		index.Index = typeToDst(
+		converted, _ := ConstUnd.ConversionMethod.ConvertedType(edge.TypeArgs[0].Ty)
+		index.Index = astutil.TypeToDst(
 			converted,
-			node.typeInfo.Obj().Pkg().Path(),
+			node.Type.Obj().Pkg().Path(),
 			importMap,
 		)
 		return ts.Type, index
 	} else {
 		// implementor
 		unwrapped := unwrapExprAlongPath(elem, edge, 1)
-		converted, _ := ConstUnd.ConversionMethod.ConvertedType(edge.childType)
-		*unwrapped = typeToDst(
+		converted, _ := ConstUnd.ConversionMethod.ConvertedType(edge.ChildType)
+		*unwrapped = astutil.TypeToDst(
 			converted,
-			node.typeInfo.Obj().Pkg().Path(),
+			node.Type.Obj().Pkg().Path(),
 			importMap,
 		)
 		return ts.Type, *elem
 	}
 }
 
-func unwrapStructFields(ts *dst.TypeSpec, node *typeNode, importMap imports.ImportMap) (map[string]fieldDstExprSet, bool) {
+func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap imports.ImportMap) (map[string]fieldDstExprSet, bool) {
 	exprMap := make(map[string]fieldDstExprSet)
 	var atLeastOne bool
 	dstutil.Apply(
@@ -94,7 +96,7 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typeNode, importMap imports.Impo
 					return false // is it even possible?
 				}
 
-				edge, _, tag, ok := node.byFieldName(field.Names[0].Name)
+				edge, _, tag, ok := node.ByFieldName(field.Names[0].Name)
 				if !ok {
 					// not found
 					return false
@@ -125,15 +127,15 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typeNode, importMap imports.Impo
 					return false
 				}
 
-				if named := edge.childType; ConstUnd.ConversionMethod.IsImplementor(named) {
+				if named := edge.ChildType; ConstUnd.ConversionMethod.IsImplementor(named) {
 					converted, _ := ConstUnd.ConversionMethod.ConvertedType(named)
 					var ty types.Type = converted
-					if len(edge.stack) > 0 && edge.stack[len(edge.stack)-1].kind == typeDependencyEdgeKindPointer {
+					if len(edge.Stack) > 0 && edge.Stack[len(edge.Stack)-1].Kind == typegraph.TypeDependencyEdgeKindPointer {
 						ty = types.NewPointer(ty)
 					}
-					*unwrapped = typeToDst(
+					*unwrapped = astutil.TypeToDst(
 						ty,
-						edge.parentNode.typeInfo.Obj().Pkg().Path(),
+						edge.ParentNode.Type.Obj().Pkg().Path(),
 						importMap,
 					)
 					atLeastOne = true
@@ -153,7 +155,7 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typeNode, importMap imports.Impo
 	return exprMap, atLeastOne
 }
 
-func unwrapUndType(fieldTy *dst.IndexExpr, edge typeDependencyEdge, undOpt undtag.UndOpt, importMap imports.ImportMap) (expr dst.Expr, modified bool) {
+func unwrapUndType(fieldTy *dst.IndexExpr, edge typegraph.TypeDependencyEdge, undOpt undtag.UndOpt, importMap imports.ImportMap) (expr dst.Expr, modified bool) {
 	modified = true
 
 	// default: unchanged.
@@ -163,22 +165,22 @@ func unwrapUndType(fieldTy *dst.IndexExpr, edge typeDependencyEdge, undOpt undta
 	// fieldTy -> X.Sel[Index]
 	sel := fieldTy.X.(*dst.SelectorExpr) // X.Sel
 
-	if ok, isPointer := edge.hasSingleNamedTypeArg(isUndConversionImplementor); ok {
-		arg := edge.typeArgs[0].ty
+	if ok, isPointer := edge.HasSingleNamedTypeArg(isUndConversionImplementor); ok {
+		arg := edge.TypeArgs[0].Ty
 		named, _ := ConstUnd.ConversionMethod.ConvertedType(arg)
 		var ty types.Type = named
 		if isPointer {
 			ty = types.NewPointer(ty)
 		}
-		fieldTy.Index = typeToDst(
+		fieldTy.Index = astutil.TypeToDst(
 			ty,
-			edge.parentNode.typeInfo.Obj().Pkg().Path(),
+			edge.ParentNode.Type.Obj().Pkg().Path(),
 			importMap,
 		)
 	}
 
 	_ = matchUndTypeBool(
-		namedTypeToTargetType(edge.childType),
+		namedTypeToTargetType(edge.ChildType),
 		false,
 		func() {
 			switch s := undOpt.States().Value(); {
