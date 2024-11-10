@@ -142,3 +142,17 @@ func LoadError(pkg *packages.Package) error {
 	}
 	return nil
 }
+
+func CheckLoadError(pkgs []*packages.Package) error {
+	var errs []any
+	for _, pkg := range pkgs {
+		if err := LoadError(pkg); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		msg, _ := strings.CutSuffix(strings.Repeat("%w, ", len(errs)), ", ")
+		return fmt.Errorf("load error: "+msg, errs...)
+	}
+	return nil
+}
