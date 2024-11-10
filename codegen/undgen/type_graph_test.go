@@ -12,7 +12,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func compareGraphIdent(i, j typeIdent) int {
+func compareGraphIdent(i, j TypeIdent) int {
 	p := cmp.Compare(i.pkgPath, j.pkgPath)
 	if p != 0 {
 		return p
@@ -43,7 +43,7 @@ func Test_search_type_tree(t *testing.T) {
 		panic(err)
 	}
 
-	graph, err := newTypeGraph(
+	graph, err := NewTypeGraph(
 		pkgs,
 		isUndPlainTarget,
 		nil,
@@ -57,7 +57,7 @@ func Test_search_type_tree(t *testing.T) {
 	assert.Assert(
 		t,
 		slices.Equal(
-			[]typeIdent{
+			[]TypeIdent{
 				{
 					"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree",
 					"Bar",
@@ -85,7 +85,7 @@ func Test_search_type_tree(t *testing.T) {
 	assert.Assert(
 		t,
 		slices.Equal(
-			[]typeIdent{
+			[]TypeIdent{
 				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub2", "Foo"},
 				{"github.com/ngicks/und/option", "Option"},
 			},
@@ -98,8 +98,8 @@ func Test_search_type_tree(t *testing.T) {
 	transitive := slices.SortedFunc(
 		hiter.OmitL(
 			xiter.Filter2(
-				func(_ typeIdent, n *typeNode) bool {
-					return n.matched.IsTransitive()
+				func(_ TypeIdent, n *TypeNode) bool {
+					return n.Matched.IsTransitive()
 				},
 				maps.All(graph.types),
 			),
@@ -110,7 +110,7 @@ func Test_search_type_tree(t *testing.T) {
 	assert.Assert(
 		t,
 		slices.Equal(
-			[]typeIdent{
+			[]TypeIdent{
 				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree", "HasAlias"},
 				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub1", "HasAlias"},
 			},
@@ -118,13 +118,13 @@ func Test_search_type_tree(t *testing.T) {
 		),
 	)
 
-	graph.markTransitive(func(edge typeDependencyEdge) bool { return isUndAllowedPointer(edge.childType, edge.stack) })
+	graph.markTransitive(func(edge TypeDependencyEdge) bool { return isUndAllowedPointer(edge.ChildType, edge.Stack) })
 
 	transitive = slices.SortedFunc(
 		hiter.OmitL(
 			xiter.Filter2(
-				func(_ typeIdent, n *typeNode) bool {
-					return n.matched.IsTransitive()
+				func(_ TypeIdent, n *TypeNode) bool {
+					return n.Matched.IsTransitive()
 				},
 				maps.All(graph.types),
 			),
@@ -135,7 +135,7 @@ func Test_search_type_tree(t *testing.T) {
 	assert.Assert(
 		t,
 		slices.Equal(
-			[]typeIdent{
+			[]TypeIdent{
 				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree", "HasAlias"},
 				{"github.com/ngicks/go-codegen/codegen/intenal/searchtypetree/sub1", "HasAlias"},
 			},
