@@ -18,6 +18,7 @@ type Writer struct {
 	preProcess  PreProcess
 	postProcess PostProcess
 	logf        func(format string, args ...any)
+	prefix      []byte
 }
 
 type PreProcess func(name string) error
@@ -72,6 +73,12 @@ func WithPostProcess(postProcess PostProcess) Option {
 func WithLogf(logf func(format string, args ...any)) Option {
 	return func(p *Writer) {
 		p.logf = logf
+	}
+}
+
+func WithPrefix(prefix []byte) Option {
+	return func(p *Writer) {
+		p.prefix = prefix
 	}
 }
 
@@ -132,10 +139,18 @@ func (p *Writer) Write(ctx context.Context, name string, b []byte) error {
 	if err != nil {
 		return fmt.Errorf("postprocessing input for %q: %w", filename, err)
 	}
-	_, err = w.Write(processed)
+
+	// write
+	if len(p.prefix) > 0 {
+		_, err = w.Write(p.prefix)
+	}
+	if err == nil {
+		_, err = w.Write(processed)
+	}
 	if err != nil {
 		return fmt.Errorf("writing to %q: %w", filename, err)
 	}
+
 	err = w.Close()
 	if err != nil {
 		return fmt.Errorf("closing %q: %w", filename, err)

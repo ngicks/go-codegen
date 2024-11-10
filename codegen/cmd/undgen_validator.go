@@ -32,7 +32,7 @@ var undgenValidatorCmd = &cobra.Command{
 		}
 
 		const suffix = ".und_validator"
-		writer, deferred := createWriter(dir, suffix, verbose, dry)
+		writer, deferred := createWriter(dir, suffix, "validate", verbose, dry)
 		defer deferred()
 
 		err = hiter.TryForEach(

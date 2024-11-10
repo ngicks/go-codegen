@@ -134,9 +134,14 @@ func loadPkgs(ctx context.Context, dir string, pkg []string, multiplePkg bool, v
 	return targetPkgs, nil
 }
 
-func createWriter(dir string, suffix string, verbose bool, dry bool) (writer *suffixwriter.Writer, deferred func()) {
+func createWriter(dir string, suffix string, subcommand string, verbose bool, dry bool) (writer *suffixwriter.Writer, deferred func()) {
 	writerOpts := []suffixwriter.Option{
 		suffixwriter.WithCwd(dir),
+		suffixwriter.WithPrefix([]byte(
+			generationNotice +
+				"// to regenerate the code, refer to help by invoking\n" +
+				"// go run github.com/ngicks/go-codegen/codegen " + subcommand + " --help\n",
+		)),
 	}
 	if verbose {
 		slog.SetDefault(

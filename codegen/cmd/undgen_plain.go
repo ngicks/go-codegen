@@ -36,7 +36,7 @@ var undgenPlainCmd = &cobra.Command{
 		}
 
 		const suffix = ".und_plain"
-		writer, deferred := createWriter(dir, suffix, verbose, dry)
+		writer, deferred := createWriter(dir, suffix, "plain", verbose, dry)
 		defer deferred()
 
 		err = hiter.TryForEach(
