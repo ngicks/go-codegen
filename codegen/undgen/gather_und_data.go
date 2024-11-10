@@ -97,7 +97,6 @@ func gatherUndTypes(
 				if err != nil {
 					panic(wrapped{err})
 				}
-				importMap.AddMissingImports(df)
 				accumulator = &replaceData{
 					filename:  current.pkg.Fset.Position(current.file.FileStart).Filename,
 					dec:       dec,

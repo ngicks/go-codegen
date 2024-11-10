@@ -77,6 +77,7 @@ func GeneratePlain(
 			continue
 		}
 
+		data.importMap.AddMissingImports(data.df)
 		res := decorator.NewRestorer()
 		af, err := res.RestoreFile(data.df)
 		if err != nil {

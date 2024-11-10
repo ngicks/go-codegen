@@ -85,6 +85,7 @@ func GeneratePatcher(
 			)
 		}
 
+		data.importMap.AddMissingImports(data.df)
 		res := decorator.NewRestorer()
 		af, err := res.RestoreFile(data.df)
 		if err != nil {
@@ -173,7 +174,6 @@ func wrapNonUndFields(data *replaceData) {
 	for _, node := range data.targetNodes {
 		wrapNonUndFieldsWithSliceUnd(data.dec.Dst.Nodes[node.ts].(*dst.TypeSpec), node, data.importMap)
 	}
-	data.importMap.AddMissingImports(data.df)
 }
 
 func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *typeNode, importMap imports.ImportMap) {
