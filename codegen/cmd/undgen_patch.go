@@ -41,7 +41,7 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 		}
 
 		const suffix = ".und_patch"
-		writer, deferred := createWriter(dir, suffix, verbose, dry)
+		writer, deferred := createWriter(dir, suffix, "patch", verbose, dry)
 		defer deferred()
 
 		err = hiter.TryForEach(
