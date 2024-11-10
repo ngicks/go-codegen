@@ -14,6 +14,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/dstutil"
+	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/undtag"
 )
@@ -176,7 +177,7 @@ func generateConversionMethodElemTypes(
 	toPlain bool,
 	printf func(format string, args ...any),
 	node *typeNode,
-	importMap importDecls,
+	importMap imports.ImportMap,
 	exprMap map[string]fieldAstExprSet,
 ) {
 	_, edge := firstTypeIdent(node.children) // must be only one.
@@ -248,7 +249,7 @@ func generateConversionMethodStructFields(
 	ts *dst.TypeSpec,
 	node *typeNode,
 	rawTyName, plainTyName string,
-	importMap importDecls,
+	importMap imports.ImportMap,
 	exprMap map[string]fieldAstExprSet,
 ) {
 	printf(`return %s{
@@ -348,7 +349,7 @@ func generateConversionMethodStructFields(
 	)
 }
 
-func generateConversionMethodDirect(toPlain bool, edge typeDependencyEdge, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (convert func(ident string) string, needsArg bool) {
+func generateConversionMethodDirect(toPlain bool, edge typeDependencyEdge, undOpt undtag.UndOpt, typeParam string, importMap imports.ImportMap) (convert func(ident string) string, needsArg bool) {
 	matchUndTypeBool(
 		namedTypeToTargetType(edge.childType),
 		false,
@@ -393,7 +394,7 @@ func _generateConversionMethodImplementorMapper(
 	toPlain bool,
 	edge typeDependencyEdge,
 	rawType, plainTy string,
-	importMap importDecls,
+	importMap imports.ImportMap,
 	isPointer bool,
 	inner func(ident string) string,
 ) (func(ident string) string, bool) {

@@ -16,6 +16,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
+	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -24,22 +25,23 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen validator --pkg ./internal/targettypes/ --pkg ./internal/targettypes/sub --pkg ./internal/targettypes/sub2
-//go:generate go run ../ undgen validator --pkg ./internal/validatortarget/...
+//go:generate go run ../ undgen validator -v --pkg ./internal/targettypes/ --pkg ./internal/targettypes/sub --pkg ./internal/targettypes/sub2
+//go:generate go run ../ undgen validator -v --pkg ./internal/validatortarget/...
 
 func GenerateValidator(
 	sourcePrinter *suffixwriter.Writer,
 	verbose bool,
 	pkgs []*packages.Package,
-	imports []TargetImport,
+	extra []imports.TargetImport,
 ) error {
-	// append imports other than und imports.
+	parser := imports.NewParserPackages(pkgs)
+	parser.AppendExtra(extra...)
 	// The generated code uses fmt.Errorf.
-	imports = AppendTargetImports(imports, TargetImport{ImportPath: "fmt"})
+	parser.AppendExtra(imports.TargetImport{Import: imports.Import{Path: "fmt", Name: "fmt"}})
 
 	replacerData, err := gatherValidatableUndTypes(
 		pkgs,
-		imports,
+		parser,
 		isUndValidatorAllowedEdge,
 		func(g *typeGraph) iter.Seq2[typeIdent, *typeNode] {
 			return g.iterUpward(true, isUndValidatorAllowedEdge)
@@ -60,6 +62,7 @@ func GenerateValidator(
 			)
 		}
 
+		data.importMap.AddMissingImports(data.df)
 		res := decorator.NewRestorer()
 		af, err := res.RestoreFile(data.df)
 		if err != nil {
@@ -114,7 +117,7 @@ func generateUndValidate(
 	w io.Writer,
 	ts *dst.TypeSpec,
 	node *typeNode,
-	imports importDecls,
+	imports imports.ImportMap,
 ) (written bool, err error) {
 	typeName := ts.Name.Name + printTypeParamVars(ts)
 	undtagImportIdent, _ := imports.Ident(UndPathUndTag)
@@ -416,7 +419,7 @@ func printValidator(undtagImportIdent string, tagOpt undtag.UndOpt) string {
 	return builder.String()
 }
 
-func _printUndValidateCallableChecker(ty TargetType, ident string) string {
+func _printUndValidateCallableChecker(ty imports.TargetType, ident string) string {
 	return matchUndType(
 		ty,
 		true,
@@ -430,7 +433,7 @@ func _printUndValidateCallableChecker(ty TargetType, ident string) string {
 	)
 }
 
-func _printUndValidateElasticSkipIndices(ty TargetType, ident string) string {
+func _printUndValidateElasticSkipIndices(ty imports.TargetType, ident string) string {
 	return matchUndType(
 		ty,
 		true,

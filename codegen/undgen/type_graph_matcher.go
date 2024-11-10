@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"slices"
 
+	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/msg"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -176,7 +177,7 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 				// tagged. If type is other than und types, it's an error.
 				var (
 					found      bool
-					targetType TargetType
+					targetType imports.TargetType
 				)
 				_ = visitToNamed(
 					f.Type(),
@@ -235,13 +236,13 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 	return false, nil
 }
 
-func namedTypeToTargetType(named *types.Named) TargetType {
+func namedTypeToTargetType(named *types.Named) imports.TargetType {
 	obj := named.Obj()
 	var pkgPath string
 	if pkg := obj.Pkg(); pkg != nil {
 		pkgPath = pkg.Path()
 	}
-	return TargetType{
+	return imports.TargetType{
 		ImportPath: pkgPath,
 		Name:       obj.Name(),
 	}
@@ -251,7 +252,7 @@ func namedTypeToTargetType(named *types.Named) TargetType {
 // "github.com/ngicks/und/elastic".Elastic[T], "github.com/ngicks/und/sliceund".Und[T] or "github.com/ngicks/und/sliceund/elastic".Elastic[T].
 func isUndType(named *types.Named) bool {
 	return slices.Contains(
-		[]TargetType{
+		[]imports.TargetType{
 			UndTargetTypeOption,
 			UndTargetTypeUnd, UndTargetTypeSliceUnd,
 			UndTargetTypeElastic, UndTargetTypeSliceElastic,
@@ -261,7 +262,7 @@ func isUndType(named *types.Named) bool {
 }
 
 func matchUndType[T any](
-	tt TargetType,
+	tt imports.TargetType,
 	panicOnMismatch bool,
 	onOpt func() T,
 	onUnd func(isSlice bool) T,
@@ -304,7 +305,7 @@ func matchUndType[T any](
 }
 
 func matchUndTypeBool(
-	tt TargetType,
+	tt imports.TargetType,
 	panicOnMismatch bool,
 	onOpt func(),
 	onUnd func(isSlice bool),

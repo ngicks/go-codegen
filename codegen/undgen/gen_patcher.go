@@ -20,6 +20,7 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/dave/dst/dstutil"
+	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/structtag"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -27,14 +28,14 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen patch --pkg ./internal/patchtarget All Ignored Hmm NameOverlapping
-//go:generate go run ../ undgen patch --pkg ./internal/targettypes All WithTypeParam A B IncludesSubTarget
+//go:generate go run ../ undgen patch -v --pkg ./internal/patchtarget All Ignored Hmm NameOverlapping
+//go:generate go run ../ undgen patch -v --pkg ./internal/targettypes All WithTypeParam A B IncludesSubTarget
 
 func GeneratePatcher(
 	sourcePrinter *suffixwriter.Writer,
 	verbose bool,
 	pkg *packages.Package,
-	imports []TargetImport,
+	extra []imports.TargetImport,
 	targetTypeNames ...string,
 ) error {
 	if verbose {
@@ -44,9 +45,11 @@ func GeneratePatcher(
 		)
 	}
 
+	parser := imports.NewParserPackages([]*packages.Package{pkg})
+	parser.AppendExtra(extra...)
 	replacerData, err := gatherPlainUndTypes(
 		[]*packages.Package{pkg},
-		imports,
+		parser,
 		nil, // no transitive type marking; it is not needed here.
 		func(g *typeGraph) iter.Seq2[typeIdent, *typeNode] {
 			return g.enumerateTypesKeys(
@@ -82,6 +85,7 @@ func GeneratePatcher(
 			)
 		}
 
+		data.importMap.AddMissingImports(data.df)
 		res := decorator.NewRestorer()
 		af, err := res.RestoreFile(data.df)
 		if err != nil {
@@ -164,16 +168,15 @@ type methodGenSet struct {
 	errFunc func() error
 }
 
-type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, node *typeNode, imports importDecls, typeSuffix string) error
+type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, node *typeNode, imports imports.ImportMap, typeSuffix string) error
 
 func wrapNonUndFields(data *replaceData) {
 	for _, node := range data.targetNodes {
 		wrapNonUndFieldsWithSliceUnd(data.dec.Dst.Nodes[node.ts].(*dst.TypeSpec), node, data.importMap)
 	}
-	addMissingImports(data.df, data.importMap)
 }
 
-func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *typeNode, importMap importDecls) {
+func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *typeNode, importMap imports.ImportMap) {
 	typeName := ts.Name.Name
 	ts.Name.Name = ts.Name.Name + "Patch"
 	edges := edgesDirectFields(target)
@@ -259,6 +262,23 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *typeNode, importMap 
 	)
 }
 
+// strips " or ` from basic lit string.
+func unquoteBasicLitString(s string) string {
+	if len(s) == 0 {
+		// impossible. just avoiding panic. or should we panic?
+		return s
+	}
+	if s[0] == '"' {
+		pkgPath, err := strconv.Unquote(s)
+		if err != nil {
+			panic(fmt.Errorf("malformed import: %w", err))
+		}
+		return pkgPath
+	} else {
+		return s[1 : len(s)-1]
+	}
+}
+
 func edgesDirectFields(node *typeNode) map[string]typeDependencyEdge {
 	return maps.Collect(xiter.Filter2(
 		func(_ string, edge typeDependencyEdge) bool {
@@ -282,43 +302,6 @@ func concatFieldNames(field *dst.Field) string {
 				),
 			),
 		),
-	)
-}
-
-// addMissingImports adds missing imports from imports to df,
-// both [*dst.File.Imports] and tge first import decl in [*dst.File.Decls].
-func addMissingImports(df *dst.File, imports importDecls) {
-	var replaced bool
-	dstutil.Apply(
-		df,
-		func(c *dstutil.Cursor) bool {
-			if replaced {
-				return false
-			}
-			node := c.Node()
-			switch x := node.(type) {
-			default:
-				return true
-			case *dst.GenDecl:
-				if x.Tok != token.IMPORT {
-					return false
-				}
-				for ident, path := range imports.MissingImports() {
-					spec := &dst.ImportSpec{
-						Name: dst.NewIdent(ident),
-						Path: &dst.BasicLit{Kind: token.STRING, Value: strconv.Quote(path)},
-					}
-					if ident == "" {
-						spec.Name = nil
-					}
-					df.Imports = append(df.Imports, spec)
-					x.Specs = append(x.Specs, spec)
-				}
-				replaced = true
-				return false
-			}
-		},
-		nil,
 	)
 }
 
@@ -361,7 +344,7 @@ func typeObjectFieldsIter(typeInfo types.Type) iter.Seq2[int, *types.Var] {
 //		}
 //	}
 func generateFromValue(
-	w io.Writer, ts *dst.TypeSpec, node *typeNode, imports importDecls, typeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, node *typeNode, imports imports.ImportMap, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
@@ -432,7 +415,7 @@ func generateFromValue(
 //		}
 //	}
 func generateToValue(
-	w io.Writer, ts *dst.TypeSpec, node *typeNode, imports importDecls, typeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, node *typeNode, imports imports.ImportMap, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
@@ -493,7 +476,7 @@ func generateToValue(
 //		}
 //	}
 func generateMerge(
-	w io.Writer, ts *dst.TypeSpec, node *typeNode, imports importDecls, _ string,
+	w io.Writer, ts *dst.TypeSpec, node *typeNode, imports imports.ImportMap, _ string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 
@@ -564,7 +547,7 @@ func generateMerge(
 //		return merged.ToValue()
 //	}
 func generateApplyPatch(
-	w io.Writer, ts *dst.TypeSpec, _ *typeNode, _ importDecls, typeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, _ *typeNode, _ imports.ImportMap, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)

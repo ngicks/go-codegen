@@ -1,44 +1,47 @@
 package undgen
 
+import "github.com/ngicks/go-codegen/codegen/imports"
+
 type ConstSet struct {
-	Imports          []TargetImport
+	Imports          []imports.TargetImport
 	ConversionMethod ConversionMethodsSet
 	ValidatorMethod  ValidatorMethod
 }
 
 var ConstUnd = ConstSet{
-	Imports: []TargetImport{
+	Imports: []imports.TargetImport{
 		{
-			ImportPath: "github.com/ngicks/und/option",
-			Types:      []string{"Option"},
+			Import: imports.Import{Path: "github.com/ngicks/und/option", Name: "option"},
+			Types:  []string{"Option"},
 		},
 		{
-			ImportPath: "github.com/ngicks/und",
-			Types:      []string{"Und"},
+			Import: imports.Import{Path: "github.com/ngicks/und", Name: "und"},
+			Types:  []string{"Und"},
 		},
 		{
-			ImportPath: "github.com/ngicks/und/elastic",
-			Types:      []string{"Elastic"},
+			Import: imports.Import{Path: "github.com/ngicks/und/elastic", Name: "elastic"},
+			Types:  []string{"Elastic"},
 		},
 		{
-			ImportPath: "github.com/ngicks/und/sliceund",
-			Types:      []string{"Und"},
+			Import: imports.Import{Path: "github.com/ngicks/und/sliceund", Name: "sliceund"},
+			Types:  []string{"Und"},
 		},
 		{
-			ImportPath: "github.com/ngicks/und/sliceund/elastic",
-			Types:      []string{"Elastic"},
+			Import: imports.Import{Path: "github.com/ngicks/und/sliceund/elastic", Name: "elastic"},
+			Ident:  "sliceelastic",
+			Types:  []string{"Elastic"},
 		},
 		{
-			ImportPath: "github.com/ngicks/und/undtag",
-			Types:      []string{},
+			Import: imports.Import{Path: "github.com/ngicks/und/undtag", Name: "undtag"},
+			Types:  []string{},
 		},
 		{
-			ImportPath: "github.com/ngicks/und/validate",
-			Types:      []string{},
+			Import: imports.Import{Path: "github.com/ngicks/und/validate", Name: "validate"},
+			Types:  []string{},
 		},
 		{
-			ImportPath: "github.com/ngicks/und/conversion",
-			Types:      []string{"Empty"},
+			Import: imports.Import{Path: "github.com/ngicks/und/conversion", Name: "conversion"},
+			Types:  []string{"Empty"},
 		},
 	},
 	ConversionMethod: ConversionMethodsSet{
@@ -51,34 +54,34 @@ var ConstUnd = ConstSet{
 }
 
 var (
-	UndTargetTypes = []TargetType{
+	UndTargetTypes = []imports.TargetType{
 		UndTargetTypeOption,
 		UndTargetTypeUnd,
 		UndTargetTypeElastic,
 		UndTargetTypeSliceUnd,
 		UndTargetTypeSliceElastic,
 	}
-	UndTargetTypeOption = TargetType{
+	UndTargetTypeOption = imports.TargetType{
 		ImportPath: "github.com/ngicks/und/option",
 		Name:       "Option",
 	}
-	UndTargetTypeUnd = TargetType{
+	UndTargetTypeUnd = imports.TargetType{
 		ImportPath: "github.com/ngicks/und",
 		Name:       "Und",
 	}
-	UndTargetTypeElastic = TargetType{
+	UndTargetTypeElastic = imports.TargetType{
 		ImportPath: "github.com/ngicks/und/elastic",
 		Name:       "Elastic",
 	}
-	UndTargetTypeSliceUnd = TargetType{
+	UndTargetTypeSliceUnd = imports.TargetType{
 		ImportPath: "github.com/ngicks/und/sliceund",
 		Name:       "Und",
 	}
-	UndTargetTypeSliceElastic = TargetType{
+	UndTargetTypeSliceElastic = imports.TargetType{
 		ImportPath: "github.com/ngicks/und/sliceund/elastic",
 		Name:       "Elastic",
 	}
-	UndTargetTypeConversionEmpty = TargetType{
+	UndTargetTypeConversionEmpty = imports.TargetType{
 		ImportPath: "github.com/ngicks/und/conversion",
 		Name:       "Empty",
 	}

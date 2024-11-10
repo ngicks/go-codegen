@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/und/undtag"
 )
 
-func optionToRaw(undOpt undtag.UndOpt, typeParam string, importMap importDecls) (func(ident string) string, bool) {
+func optionToRaw(undOpt undtag.UndOpt, typeParam string, importMap imports.ImportMap) (func(ident string) string, bool) {
 	optionIdent, _ := importMap.Ident(UndTargetTypeOption.ImportPath)
 	switch s := undOpt.States().Value(); {
 	default:
@@ -25,7 +26,7 @@ func optionToRaw(undOpt undtag.UndOpt, typeParam string, importMap importDecls) 
 	}
 }
 
-func undToRaw(isSlice bool, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (func(ident string) string, bool) {
+func undToRaw(isSlice bool, undOpt undtag.UndOpt, typeParam string, importMap imports.ImportMap) (func(ident string) string, bool) {
 	convertIdent, _ := importMap.Ident(UndPathConversion)
 	undIdent, _ := importMap.Ident(UndTargetTypeUnd.ImportPath)
 	if isSlice {
@@ -67,7 +68,7 @@ func undToRaw(isSlice bool, undOpt undtag.UndOpt, typeParam string, importMap im
 	}
 }
 
-func elasticToRaw(isSlice bool, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (func(ident string) string, bool) {
+func elasticToRaw(isSlice bool, undOpt undtag.UndOpt, typeParam string, importMap imports.ImportMap) (func(ident string) string, bool) {
 	optionIdent, _ := importMap.Ident(UndTargetTypeOption.ImportPath)
 	convertIdent, _ := importMap.Ident(UndPathConversion)
 

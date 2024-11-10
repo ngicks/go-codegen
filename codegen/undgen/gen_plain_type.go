@@ -7,6 +7,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/dstutil"
+	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/und/undtag"
 )
 
@@ -44,7 +45,7 @@ func unwrapExprAlongPath(expr *dst.Expr, edge typeDependencyEdge, skip int) *dst
 	return unwrapped
 }
 
-func unwrapElemTypes(ts *dst.TypeSpec, node *typeNode, importMap importDecls) (wrapped dst.Expr, unwrapped dst.Expr) {
+func unwrapElemTypes(ts *dst.TypeSpec, node *typeNode, importMap imports.ImportMap) (wrapped dst.Expr, unwrapped dst.Expr) {
 	var elem *dst.Expr
 	switch x := ts.Type.(type) {
 	case *dst.ArrayType: // slice or array. difference is Len expr.
@@ -78,7 +79,7 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *typeNode, importMap importDecls) (w
 	}
 }
 
-func unwrapStructFields(ts *dst.TypeSpec, node *typeNode, importMap importDecls) (map[string]fieldDstExprSet, bool) {
+func unwrapStructFields(ts *dst.TypeSpec, node *typeNode, importMap imports.ImportMap) (map[string]fieldDstExprSet, bool) {
 	exprMap := make(map[string]fieldDstExprSet)
 	var atLeastOne bool
 	dstutil.Apply(
@@ -152,7 +153,7 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typeNode, importMap importDecls)
 	return exprMap, atLeastOne
 }
 
-func unwrapUndType(fieldTy *dst.IndexExpr, edge typeDependencyEdge, undOpt undtag.UndOpt, importMap importDecls) (expr dst.Expr, modified bool) {
+func unwrapUndType(fieldTy *dst.IndexExpr, edge typeDependencyEdge, undOpt undtag.UndOpt, importMap imports.ImportMap) (expr dst.Expr, modified bool) {
 	modified = true
 
 	// default: unchanged.

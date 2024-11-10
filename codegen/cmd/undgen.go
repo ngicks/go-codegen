@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -92,7 +93,8 @@ func loadPkgs(ctx context.Context, dir string, pkg []string, multiplePkg bool, v
 			packages.NeedTypes |
 			packages.NeedSyntax |
 			packages.NeedTypesInfo |
-			packages.NeedTypesSizes,
+			packages.NeedTypesSizes |
+			packages.NeedImports,
 		Context: ctx,
 		Dir:     dir,
 	}
@@ -105,6 +107,9 @@ func loadPkgs(ctx context.Context, dir string, pkg []string, multiplePkg bool, v
 
 	targetPkgs, err := packages.Load(cfg, pkg...)
 	if err != nil {
+		return targetPkgs, err
+	}
+	if err := pkgsutil.CheckLoadError(targetPkgs); err != nil {
 		return targetPkgs, err
 	}
 

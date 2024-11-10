@@ -14,26 +14,29 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
+	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen plain --pkg ./internal/targettypes/ --pkg ./internal/targettypes/sub --pkg ./internal/targettypes/sub2
-//go:generate go run ../ undgen plain --pkg ./internal/patchtarget/...
-//go:generate go run ../ undgen plain --pkg ./internal/validatortarget/...
-//go:generate go run ../ undgen plain --pkg ./internal/plaintarget/...
+//go:generate go run ../ undgen plain -v --pkg ./internal/targettypes/ --pkg ./internal/targettypes/sub --pkg ./internal/targettypes/sub2
+//go:generate go run ../ undgen plain -v --pkg ./internal/patchtarget/...
+//go:generate go run ../ undgen plain -v --pkg ./internal/validatortarget/...
+//go:generate go run ../ undgen plain -v --pkg ./internal/plaintarget/...
 
 func GeneratePlain(
 	sourcePrinter *suffixwriter.Writer,
 	verbose bool,
 	pkgs []*packages.Package,
-	imports []TargetImport,
+	extra []imports.TargetImport,
 ) error {
+	parser := imports.NewParserPackages(pkgs)
+	parser.AppendExtra(extra...)
 	replacerData, err := gatherPlainUndTypes(
 		pkgs,
-		imports,
+		parser,
 		isUndPlainAllowedEdge,
 		func(g *typeGraph) iter.Seq2[typeIdent, *typeNode] {
 			return g.iterUpward(true, isUndPlainAllowedEdge)
@@ -74,6 +77,7 @@ func GeneratePlain(
 			continue
 		}
 
+		data.importMap.AddMissingImports(data.df)
 		res := decorator.NewRestorer()
 		af, err := res.RestoreFile(data.df)
 		if err != nil {
