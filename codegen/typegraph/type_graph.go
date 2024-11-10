@@ -491,12 +491,17 @@ func (g *TypeGraph) IterUpward(includeMatched bool, edgeFilter func(edge TypeDep
 			}
 		}
 		for i, n := range g.matched {
+			if visited[n] {
+				continue
+			}
+
 			if includeMatched && !visited[n] {
-				visited[n] = true
 				if !yield(i, n) {
 					return
 				}
 			}
+
+			visited[n] = true
 			for ii, nn := range visitUpward(n, edgeFilter, visited) {
 				if !yield(ii, nn) {
 					return
@@ -507,40 +512,28 @@ func (g *TypeGraph) IterUpward(includeMatched bool, edgeFilter func(edge TypeDep
 }
 
 func visitUpward(
-	from *TypeNode,
-	edgeFilter func(edge TypeDependencyEdge) bool,
-	visited map[*TypeNode]bool,
-) iter.Seq2[TypeIdent, *TypeNode] {
-	return visitNodes(from, true, edgeFilter, visited)
-}
-
-func visitNodes(
 	n *TypeNode,
-	up bool,
 	edgeFilter func(edge TypeDependencyEdge) bool,
 	visited map[*TypeNode]bool,
 ) iter.Seq2[TypeIdent, *TypeNode] {
 	return func(yield func(TypeIdent, *TypeNode) bool) {
-		direction := n.Parent
-		if !up {
-			direction = n.Children
-		}
-		for i, v := range direction {
+		for i, v := range n.Parent {
 			for _, edge := range v {
 				node := edge.ParentNode
-				if !up {
-					node = edge.ChildNode
-				}
 
+				if visited[node] {
+					continue
+				}
 				if edgeFilter == nil || edgeFilter(edge) {
-					if !visited[edge.ParentNode] &&
-						!yield(i, edge.ParentNode) {
+					if !yield(i, node) {
 						return
 					}
-					visited[edge.ParentNode] = true
+				} else {
+					continue
 				}
 
-				for i, n := range visitNodes(node, up, edgeFilter, visited) {
+				visited[node] = true
+				for i, n := range visitUpward(node, edgeFilter, visited) {
 					if !yield(i, n) {
 						return
 					}
