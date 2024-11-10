@@ -92,7 +92,8 @@ func loadPkgs(ctx context.Context, dir string, pkg []string, multiplePkg bool, v
 			packages.NeedTypes |
 			packages.NeedSyntax |
 			packages.NeedTypesInfo |
-			packages.NeedTypesSizes,
+			packages.NeedTypesSizes |
+			packages.NeedImports,
 		Context: ctx,
 		Dir:     dir,
 	}

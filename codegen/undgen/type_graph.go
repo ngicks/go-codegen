@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"slices"
 
+	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/option"
@@ -38,8 +39,8 @@ type typeIdent struct {
 	typeName string
 }
 
-func (t typeIdent) targetType() TargetType {
-	return TargetType{t.pkgPath, t.typeName}
+func (t typeIdent) targetType() imports.TargetType {
+	return imports.TargetType{ImportPath: t.pkgPath, Name: t.typeName}
 }
 
 func typeIdentFromTypesObject(obj types.Object) typeIdent {
@@ -113,7 +114,7 @@ func (e typeDependencyEdge) lastPointer() option.Option[typeDependencyEdgePointe
 	return option.GetSlice(e.stack, len(e.stack)-1)
 }
 
-func (e typeDependencyEdge) printChildType(importMap importDecls) string {
+func (e typeDependencyEdge) printChildType(importMap imports.ImportMap) string {
 	return printAstExprPanicking(
 		typeToAst(
 			e.childType,
@@ -123,7 +124,7 @@ func (e typeDependencyEdge) printChildType(importMap importDecls) string {
 	)
 }
 
-func (e typeDependencyEdge) printChildArg(i int, importMap importDecls) string {
+func (e typeDependencyEdge) printChildArg(i int, importMap imports.ImportMap) string {
 	return printAstExprPanicking(
 		typeToAst(
 			e.typeArgs[i].org,
@@ -133,7 +134,7 @@ func (e typeDependencyEdge) printChildArg(i int, importMap importDecls) string {
 	)
 }
 
-func (e typeDependencyEdge) printChildArgConverted(converter func(ty *types.Named) (*types.Named, bool), importMap importDecls) string {
+func (e typeDependencyEdge) printChildArgConverted(converter func(ty *types.Named) (*types.Named, bool), importMap imports.ImportMap) string {
 	isConverter := func(named *types.Named) bool {
 		_, ok := converter(named)
 		return ok

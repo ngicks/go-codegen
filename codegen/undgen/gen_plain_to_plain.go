@@ -3,6 +3,7 @@ package undgen
 import (
 	"fmt"
 
+	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/und/undtag"
 )
 
@@ -21,7 +22,7 @@ func optionToPlain(undOpt undtag.UndOpt) (func(ident string) string, bool) {
 	}
 }
 
-func undToPlain(undOpt undtag.UndOpt, importMap importDecls) (func(ident string) string, bool) {
+func undToPlain(undOpt undtag.UndOpt, importMap imports.ImportMap) (func(ident string) string, bool) {
 	convertIdent, _ := importMap.Ident(UndPathConversion)
 	switch s := undOpt.States().Value(); {
 	default:
@@ -45,7 +46,7 @@ func undToPlain(undOpt undtag.UndOpt, importMap importDecls) (func(ident string)
 	}
 }
 
-func elasticToPlain(isSlice bool, undOpt undtag.UndOpt, typeParam string, importMap importDecls) (func(ident string) string, bool) {
+func elasticToPlain(isSlice bool, undOpt undtag.UndOpt, typeParam string, importMap imports.ImportMap) (func(ident string) string, bool) {
 	optionIdent, _ := importMap.Ident(UndTargetTypeOption.ImportPath)
 	convertIdent, _ := importMap.Ident(UndPathConversion)
 	undIdent, _ := importMap.Ident(UndTargetTypeUnd.ImportPath)

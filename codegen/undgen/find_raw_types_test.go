@@ -1,9 +1,7 @@
 package undgen
 
 import (
-	"go/ast"
 	"go/types"
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -59,75 +57,4 @@ func Test_isImplementor(t *testing.T) {
 
 	assertIsConversionMethodImplementor(bar, mset, true, false, false)
 	assertIsConversionMethodImplementor(nonCyclic, mset, true, false, false)
-}
-
-func Test_parseImports(t *testing.T) {
-	var file1, file2 *ast.File
-P:
-	for _, p := range targettypesPackages {
-		for _, f := range p.Syntax {
-			fPath := p.Fset.Position(f.FileStart)
-			if strings.HasSuffix(fPath.Filename, "undgen/internal/targettypes/ty1.go") {
-				file1 = f
-			}
-			if strings.HasSuffix(fPath.Filename, "undgen/internal/targettypes/ty2.go") {
-				file2 = f
-			}
-			if file1 != nil && file2 != nil {
-				break P
-			}
-		}
-	}
-
-	importMap := parseImports(file1.Imports, ConstUnd.Imports)
-	expected := importDecls{
-		identToImport: map[string]TargetImport{
-			"option":   ConstUnd.Imports[0],
-			"und":      ConstUnd.Imports[1],
-			"elastic":  ConstUnd.Imports[2],
-			"sliceund": ConstUnd.Imports[3],
-		},
-		missingImports: map[string]TargetImport{
-			"elastic_1":  ConstUnd.Imports[4],
-			"undtag":     ConstUnd.Imports[5],
-			"validate":   ConstUnd.Imports[6],
-			"conversion": ConstUnd.Imports[7],
-		},
-	}
-	assert.DeepEqual(
-		t,
-		expected.identToImport,
-		importMap.identToImport,
-	)
-	assert.DeepEqual(
-		t,
-		expected.missingImports,
-		importMap.missingImports,
-	)
-
-	importMap = parseImports(file2.Imports, ConstUnd.Imports)
-	expected = importDecls{
-		identToImport: map[string]TargetImport{
-			"option":       ConstUnd.Imports[0],
-			"und":          ConstUnd.Imports[1],
-			"elastic":      ConstUnd.Imports[2],
-			"sliceund":     ConstUnd.Imports[3],
-			"sliceElastic": ConstUnd.Imports[4],
-		},
-		missingImports: map[string]TargetImport{
-			"undtag":     ConstUnd.Imports[5],
-			"validate":   ConstUnd.Imports[6],
-			"conversion": ConstUnd.Imports[7],
-		},
-	}
-	assert.DeepEqual(
-		t,
-		expected.identToImport,
-		importMap.identToImport,
-	)
-	assert.DeepEqual(
-		t,
-		expected.missingImports,
-		importMap.missingImports,
-	)
 }

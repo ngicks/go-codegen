@@ -13,7 +13,7 @@ import (
 	"strconv"
 
 	"github.com/dave/dst"
-	"github.com/ngicks/go-codegen/codegen/pkgsutil"
+	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/structtag"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
@@ -67,7 +67,7 @@ func printImport(w io.Writer, af *ast.File, fset *token.FileSet) error {
 }
 
 // returns conversion.Empty
-func conversionEmptyExpr(importMap importDecls) *dst.SelectorExpr {
+func conversionEmptyExpr(importMap imports.ImportMap) *dst.SelectorExpr {
 	return importMap.DstExpr(UndTargetTypeConversionEmpty)
 }
 
@@ -80,7 +80,7 @@ func bufPrintf(w io.Writer) (func(format string, args ...any), func() error) {
 		}
 }
 
-func importIdent(ty TargetType, imports importDecls) string {
+func importIdent(ty imports.TargetType, imports imports.ImportMap) string {
 	optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
 	undImportIdent, _ := imports.Ident(UndTargetTypeUnd.ImportPath)
 	sliceUndImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
@@ -101,37 +101,6 @@ func importIdent(ty TargetType, imports importDecls) string {
 	return ""
 }
 
-func appendTypeAndTypeParams(imports []TargetImport, pkgPath string, ty types.Type) []TargetImport {
-	p, ok := ty.(*types.Pointer)
-	if ok {
-		ty = p.Elem()
-	}
-	named, ok := ty.(*types.Named)
-	if !ok {
-		return imports
-	}
-	obj := named.Obj()
-	pkg := obj.Pkg()
-	if pkg == nil {
-		return imports
-	}
-	if pkg.Path() != "" && pkg.Path() != pkgPath {
-		imports = AppendTargetImports(imports,
-			TargetImport{
-				ImportPath: pkg.Path(),
-				Types:      []string{obj.Name()},
-			},
-		)
-	}
-	for ty := range pkgsutil.EnumerateTypeParams(named) {
-		if ty == nil {
-			continue
-		}
-		imports = appendTypeAndTypeParams(imports, pkgPath, ty)
-	}
-	return imports
-}
-
 type hasName interface {
 	Name() string
 }
@@ -144,7 +113,7 @@ type hasTypeArg interface {
 	TypeArgs() *types.TypeList
 }
 
-func typeToDst(ty types.Type, pkgPath string, importMap importDecls) dst.Expr {
+func typeToDst(ty types.Type, pkgPath string, importMap imports.ImportMap) dst.Expr {
 	var exp dst.Expr
 	switch x := ty.(type) {
 	case *types.Pointer:
@@ -159,7 +128,7 @@ func typeToDst(ty types.Type, pkgPath string, importMap importDecls) dst.Expr {
 		if x.Obj() != nil &&
 			x.Obj().Pkg() != nil &&
 			x.Obj().Pkg().Path() != pkgPath {
-			exp = importMap.DstExpr(TargetType{
+			exp = importMap.DstExpr(imports.TargetType{
 				ImportPath: x.Obj().Pkg().Path(),
 				Name:       x.Obj().Name(),
 			})
@@ -197,7 +166,7 @@ func typeToDst(ty types.Type, pkgPath string, importMap importDecls) dst.Expr {
 	}
 }
 
-func typeToAst(ty types.Type, pkgPath string, importMap importDecls) ast.Expr {
+func typeToAst(ty types.Type, pkgPath string, importMap imports.ImportMap) ast.Expr {
 	var exp ast.Expr
 	switch x := ty.(type) {
 	case *types.Pointer:
@@ -212,7 +181,7 @@ func typeToAst(ty types.Type, pkgPath string, importMap importDecls) ast.Expr {
 		if x.Obj() != nil &&
 			x.Obj().Pkg() != nil &&
 			x.Obj().Pkg().Path() != pkgPath {
-			exp = importMap.AstExpr(TargetType{
+			exp = importMap.AstExpr(imports.TargetType{
 				ImportPath: x.Obj().Pkg().Path(),
 				Name:       x.Obj().Name(),
 			})

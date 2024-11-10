@@ -2,12 +2,14 @@ package undgen
 
 import (
 	"cmp"
+	"fmt"
 	"go/ast"
 	"iter"
 	"slices"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
+	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
@@ -17,13 +19,13 @@ type replaceData struct {
 	filename    string
 	dec         *decorator.Decorator
 	df          *dst.File
-	importMap   importDecls
+	importMap   imports.ImportMap
 	targetNodes []*typeNode
 }
 
 func gatherPlainUndTypes(
 	pkgs []*packages.Package,
-	imports []TargetImport,
+	parser *imports.ImportParser,
 	edgeFilter func(edge typeDependencyEdge) bool,
 	seqFactory func(g *typeGraph) iter.Seq2[typeIdent, *typeNode],
 ) (data map[*ast.File]*replaceData, err error) {
@@ -36,12 +38,12 @@ func gatherPlainUndTypes(
 	if err != nil {
 		return nil, err
 	}
-	return gatherUndTypes(graph, imports, edgeFilter, seqFactory)
+	return gatherUndTypes(graph, parser, edgeFilter, seqFactory)
 }
 
 func gatherValidatableUndTypes(
 	pkgs []*packages.Package,
-	imports []TargetImport,
+	parser *imports.ImportParser,
 	edgeFilter func(edge typeDependencyEdge) bool,
 	seqFactory func(g *typeGraph) iter.Seq2[typeIdent, *typeNode],
 ) (data map[*ast.File]*replaceData, err error) {
@@ -54,12 +56,12 @@ func gatherValidatableUndTypes(
 	if err != nil {
 		return nil, err
 	}
-	return gatherUndTypes(graph, imports, edgeFilter, seqFactory)
+	return gatherUndTypes(graph, parser, edgeFilter, seqFactory)
 }
 
 func gatherUndTypes(
 	graph *typeGraph,
-	imports []TargetImport,
+	parser *imports.ImportParser,
 	edgeFilter func(edge typeDependencyEdge) bool,
 	seqFactory func(g *typeGraph) iter.Seq2[typeIdent, *typeNode],
 ) (data map[*ast.File]*replaceData, err error) {
@@ -85,37 +87,17 @@ func gatherUndTypes(
 	return hiter.ReduceGroup(
 		func(accumulator *replaceData, current *typeNode) *replaceData {
 			if accumulator == nil {
-				localMap := slices.Clone(imports)
-				// preprocess; gather type information.
-				// TODO: limit search range to same file, to avoid explosion.
-				// or just leave these like this?
-				// input should be small enough as that we can justify that we can leave super heavy processing here.
-				named := current.typeInfo
-				pkgPath := named.Obj().Pkg().Path()
-				for _, node := range graph.iterUpward(true, edgeFilter) {
-					for _, edges := range node.children {
-						for _, edge := range edges {
-							localMap = appendTypeAndTypeParams(localMap, pkgPath, edge.parentNode.typeInfo)
-							ty, ok := ConstUnd.ConversionMethod.ConvertedType(edge.parentNode.typeInfo)
-							if ok {
-								localMap = appendTypeAndTypeParams(localMap, pkgPath, ty)
-							}
-							localMap = appendTypeAndTypeParams(localMap, pkgPath, edge.childType)
-							ty, ok = ConstUnd.ConversionMethod.ConvertedType(edge.childType)
-							if ok {
-								localMap = appendTypeAndTypeParams(localMap, pkgPath, ty)
-							}
-						}
-					}
+				importMap, err := parser.Parse(current.file.Imports)
+				if err != nil {
+					fmt.Printf("%#v\n\n", parser)
+					panic(wrapped{err})
 				}
-
-				importMap := parseImports(current.file.Imports, localMap)
 				dec := decorator.NewDecorator(current.pkg.Fset)
 				df, err := dec.DecorateFile(current.file)
 				if err != nil {
 					panic(wrapped{err})
 				}
-				addMissingImports(df, importMap)
+				importMap.AddMissingImports(df)
 				accumulator = &replaceData{
 					filename:  current.pkg.Fset.Position(current.file.FileStart).Filename,
 					dec:       dec,
