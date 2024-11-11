@@ -165,6 +165,7 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 	//  - untagged implementor field or
 	//  - tagged target type field (und types, or even implementor wrapped with und types)
 	case *types.Struct:
+		var atLeastOne bool
 		for i, f := range pkgsutil.EnumerateFields(x) {
 			undTagValue, ok := reflect.StructTag(x.Tag(i)).Lookup(undtag.TagName)
 			if ok {
@@ -215,7 +216,8 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 						err, msg.PrintFieldDesc(named.Obj().Name(), i, f),
 					)
 				}
-				return true, nil
+				atLeastOne = true
+				continue
 			}
 			var found bool
 			_ = typegraph.VisitToNamed(
@@ -229,10 +231,12 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 				nil,
 			)
 			if found {
-				return found, nil
+				atLeastOne = true
+				continue
 			}
 			// untagged und fields are allowed. they'll be simply just ignored.
 		}
+		return atLeastOne, nil
 	}
 	return false, nil
 }
