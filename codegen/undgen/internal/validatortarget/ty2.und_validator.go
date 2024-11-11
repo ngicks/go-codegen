@@ -15,7 +15,6 @@ import (
 
 //undgen:generated
 func (v A) UndValidate() (err error) {
-LOOP:
 	for k, v := range v {
 		err = elastic.UndValidate(v)
 		if err != nil {
@@ -23,7 +22,7 @@ LOOP:
 				err,
 				fmt.Sprintf("%v", k),
 			)
-			break LOOP
+			break
 		}
 	}
 	return
@@ -31,7 +30,6 @@ LOOP:
 
 //undgen:generated
 func (v B) UndValidate() (err error) {
-LOOP:
 	for k, v := range v {
 		err = sliceelastic.UndValidate(v)
 		if err != nil {
@@ -39,7 +37,7 @@ LOOP:
 				err,
 				fmt.Sprintf("%v", k),
 			)
-			break LOOP
+			break
 		}
 	}
 	return
@@ -47,7 +45,6 @@ LOOP:
 
 //undgen:generated
 func (v C) UndValidate() (err error) {
-LOOP:
 	for k, v := range v {
 		err = option.UndValidate(v)
 		if err != nil {
@@ -55,7 +52,7 @@ LOOP:
 				err,
 				fmt.Sprintf("%v", k),
 			)
-			break LOOP
+			break
 		}
 	}
 	return

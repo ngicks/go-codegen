@@ -129,7 +129,6 @@ func (v MapSliceArray) UndValidate() (err error) {
 
 		v := v.Foo
 
-	LOOP_Foo:
 		for k, v := range v {
 			if !validator.ValidOpt(v) {
 				err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
@@ -139,7 +138,7 @@ func (v MapSliceArray) UndValidate() (err error) {
 					err,
 					fmt.Sprintf("%v", k),
 				)
-				break LOOP_Foo
+				break
 			}
 		}
 
@@ -159,7 +158,6 @@ func (v MapSliceArray) UndValidate() (err error) {
 
 		v := v.Bar
 
-	LOOP_Bar:
 		for k, v := range v {
 			if !validator.ValidUnd(v) {
 				err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
@@ -169,7 +167,7 @@ func (v MapSliceArray) UndValidate() (err error) {
 					err,
 					fmt.Sprintf("%v", k),
 				)
-				break LOOP_Bar
+				break
 			}
 		}
 
@@ -194,7 +192,6 @@ func (v MapSliceArray) UndValidate() (err error) {
 
 		v := v.Baz
 
-	LOOP_Baz:
 		for k, v := range v {
 			if !validator.ValidElastic(v) {
 				err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
@@ -204,7 +201,7 @@ func (v MapSliceArray) UndValidate() (err error) {
 					err,
 					fmt.Sprintf("%v", k),
 				)
-				break LOOP_Baz
+				break
 			}
 		}
 
@@ -264,7 +261,6 @@ func (v MapSliceArrayContainsImplementor) UndValidate() (err error) {
 
 		v := v.Foo
 
-	LOOP_Foo:
 		for k, v := range v {
 			if !validator.ValidOpt(v) {
 				err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
@@ -278,7 +274,7 @@ func (v MapSliceArrayContainsImplementor) UndValidate() (err error) {
 					err,
 					fmt.Sprintf("%v", k),
 				)
-				break LOOP_Foo
+				break
 			}
 		}
 
@@ -298,7 +294,6 @@ func (v MapSliceArrayContainsImplementor) UndValidate() (err error) {
 
 		v := v.Bar
 
-	LOOP_Bar:
 		for k, v := range v {
 			if !validator.ValidUnd(v) {
 				err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
@@ -312,7 +307,7 @@ func (v MapSliceArrayContainsImplementor) UndValidate() (err error) {
 					err,
 					fmt.Sprintf("%v", k),
 				)
-				break LOOP_Bar
+				break
 			}
 		}
 
@@ -337,7 +332,6 @@ func (v MapSliceArrayContainsImplementor) UndValidate() (err error) {
 
 		v := v.Baz
 
-	LOOP_Baz:
 		for k, v := range v {
 			if !validator.ValidElastic(v) {
 				err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
@@ -351,7 +345,7 @@ func (v MapSliceArrayContainsImplementor) UndValidate() (err error) {
 					err,
 					fmt.Sprintf("%v", k),
 				)
-				break LOOP_Baz
+				break
 			}
 		}
 
