@@ -150,13 +150,6 @@ func generateUndValidate(
 	}
 `)
 
-	loopName := func(s string) string {
-		if s == "" {
-			return "LOOP"
-		}
-		return "LOOP_" + s
-	}
-
 	// unwrappers to reach final destination type(implementor or und types.)
 	validatorUnwrappers := func(fieldName string, pointer []typegraph.TypeDependencyEdgePointer) []func(exp string) string {
 		var wrappers []func(exp string) string
@@ -173,23 +166,13 @@ func generateUndValidate(
 								err,
 								fmt.Sprintf("%%v", k),
 							)
-							break %s
+							break
 						}
 					}
 `,
-					exp, validateImportIdent, loopName(fieldName),
+					exp, validateImportIdent,
 				)
 			})
-		}
-		if len(wrappers) > 0 {
-			// label with loopName, later break-ed when non nil error is returned from validator implementation.
-			wrappers = slices.Insert(
-				wrappers,
-				0,
-				func(exp string) string {
-					return fmt.Sprintf("%s:\n%s", loopName(fieldName), exp)
-				},
-			)
 		}
 		return wrappers
 	}
@@ -243,14 +226,6 @@ func generateUndValidate(
 			}
 
 			undTagValue, hasTag := reflect.StructTag(x.Tag(i)).Lookup(undtag.TagName)
-
-			// There's cases where matched by but needed to be rejected.
-			// 1. not tagged, being und filed, type arg is not a implementor
-			// TODO: remove this line and check test result.
-			// For now this guard is supposed to have been done by transitive edge filtering.
-			if ok, _ := edge.HasSingleNamedTypeArg(isUndValidatorImplementor); !hasTag && isUndType(edge.ChildType) && !ok {
-				continue
-			}
 
 			shouldPrint = true
 
