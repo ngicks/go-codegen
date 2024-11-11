@@ -151,7 +151,7 @@ func generateUndValidate(
 `)
 
 	// unwrappers to reach final destination type(implementor or und types.)
-	validatorUnwrappers := func(fieldName string, pointer []typegraph.TypeDependencyEdgePointer) []func(exp string) string {
+	validatorUnwrappers := func(pointer []typegraph.TypeDependencyEdgePointer) []func(exp string) string {
 		var wrappers []func(exp string) string
 		if len(pointer) > 0 && pointer[len(pointer)-1].Kind == typegraph.TypeDependencyEdgeKindPointer {
 			pointer = pointer[:len(pointer)-1]
@@ -211,7 +211,7 @@ func generateUndValidate(
 			nil,
 			nil,
 		)
-		for _, w := range slices.Backward(validatorUnwrappers("", edge.Stack)) {
+		for _, w := range slices.Backward(validatorUnwrappers(edge.Stack)) {
 			exp = w(exp)
 		}
 		shouldPrint = true
@@ -316,7 +316,7 @@ func generateUndValidate(
 				}
 
 				var exp string
-				wrappers := validatorUnwrappers(f.Name(), edge.Stack[1:]) // skip first one; is always prefixed with struct kind.
+				wrappers := validatorUnwrappers(edge.Stack[1:]) // skip first one; is always prefixed with struct kind.
 				if len(wrappers) == 0 {
 					exp = nodeValidator(fmt.Sprintf("v.%s", f.Name()))
 				} else {
