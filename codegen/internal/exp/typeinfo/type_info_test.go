@@ -75,12 +75,13 @@ PKG:
 		// type_info_test.go:70: 0: MethodOnNonPointer
 	}
 
-	mset = types.NewMethodSet(types.NewPointer(fooObj.Type().(*types.Named)))
+	mset = types.NewMethodSet(types.NewPointer(fooObj.Type()))
 	for i, sel := range hiter.AtterAll(mset) {
 		t.Logf("%d: %s", i, sel.Obj().Name())
 		// type_info_test.go:75: 0: MethodOnNonPointer
 		// type_info_test.go:75: 1: MethodOnPointer
 	}
+
 }
 
 func Test_builtins(t *testing.T) {
