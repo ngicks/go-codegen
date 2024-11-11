@@ -1,6 +1,7 @@
 package target
 
 type Foo struct {
+	Bar func()
 }
 
 func (f Foo) MethodOnNonPointer() {

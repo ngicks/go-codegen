@@ -82,6 +82,8 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap impor
 }
 
 func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap imports.ImportMap) (map[string]fieldDstExprSet, bool) {
+	edgeMap := node.ChildEdgeMap(isUndPlainAllowedEdge)
+
 	exprMap := make(map[string]fieldDstExprSet)
 	var atLeastOne bool
 	dstutil.Apply(
@@ -96,15 +98,11 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap im
 					return false // is it even possible?
 				}
 
-				edge, _, tag, ok := node.ByFieldName(field.Names[0].Name)
+				edge, _, tag, ok := edgeMap.ByFieldName(field.Names[0].Name)
 				if !ok {
 					// not found
 					return false
 				}
-				if !isUndPlainAllowedEdge(edge) {
-					return false
-				}
-
 				unwrapped := unwrapExprAlongPath(&field.Type, edge, 1)
 
 				undTagValue, hasTag := tag.Lookup(undtag.TagName)

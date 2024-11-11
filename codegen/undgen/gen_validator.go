@@ -9,7 +9,6 @@ import (
 	"io"
 	"iter"
 	"log/slog"
-	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -195,10 +194,11 @@ func generateUndValidate(
 		return wrappers
 	}
 
+	edgeMap := node.ChildEdgeMap(isUndValidatorAllowedEdge)
 	switch x := node.Type.Underlying().(type) {
 	case *types.Map, *types.Array, *types.Slice:
 		// should be only one since we prohibit struct literals.
-		ident, edge := typegraph.FirstTypeIdent(node.Children)
+		ident, edge := edgeMap.First()
 		isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
 			return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
 		})
@@ -235,14 +235,10 @@ func generateUndValidate(
 		// later processed through fmt.*printf functions.
 		printf(strings.ReplaceAll(exp, "%", "%%"))
 	case *types.Struct:
-		edges := maps.Collect(node.Fields())
 		for i, f := range pkgsutil.EnumerateFields(x) {
-			edge, ok := edges[i]
+			edge, _, _, ok := edgeMap.ByFieldPos(i)
 			if !ok {
 				// nothing to validate
-				continue
-			}
-			if !isUndValidatorAllowedEdge(edge) {
 				continue
 			}
 

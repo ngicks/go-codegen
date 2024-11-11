@@ -177,10 +177,13 @@ func wrapNonUndFields(data *replaceData) {
 	}
 }
 
-func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *typegraph.TypeNode, importMap imports.ImportMap) {
+func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap imports.ImportMap) {
 	typeName := ts.Name.Name
 	ts.Name.Name = ts.Name.Name + "Patch"
-	edges := edgesDirectFields(target)
+	edgeMap := node.ChildEdgeMap(func(edge typegraph.TypeDependencyEdge) bool {
+		// only direct und type are
+		return len(edge.Stack) == 1 && edge.Stack[0].Kind == typegraph.TypeDependencyEdgeKindStruct
+	})
 	dstutil.Apply(
 		ts.Type,
 		func(c *dstutil.Cursor) bool {
@@ -193,7 +196,7 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, target *typegraph.TypeNode, 
 					return false
 				}
 
-				edge, ok := edges[field.Names[0].Name]
+				edge, _, _, ok := edgeMap.ByFieldName(field.Names[0].Name)
 
 				if field.Tag == nil {
 					field.Tag = &dst.BasicLit{}
