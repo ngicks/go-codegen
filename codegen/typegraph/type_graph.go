@@ -5,6 +5,7 @@ import (
 	"go/token"
 	"go/types"
 	"iter"
+	"maps"
 	"reflect"
 	"slices"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
+	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"github.com/ngicks/und/option"
 	"golang.org/x/tools/go/packages"
 )
@@ -590,4 +592,114 @@ func (n *TypeNode) ByFieldName(name string) (TypeDependencyEdge, *types.Var, ref
 
 func (g *TypeGraph) EnumerateTypesKeys(keys iter.Seq[TypeIdent]) iter.Seq2[TypeIdent, *TypeNode] {
 	return hiter.MapKeys(g.types, keys)
+}
+
+type TypeDependencyEdgeMap struct {
+	node    *TypeNode
+	edgeMap map[TypeIdent][]TypeDependencyEdge
+	posMap  map[int]TypeDependencyEdge
+	nameMap map[string]TypeDependencyEdge
+}
+
+func (n *TypeNode) ChildEdgeMap(edgeFilter func(edge TypeDependencyEdge) bool) TypeDependencyEdgeMap {
+	if edgeFilter == nil {
+		edgeFilter = func(edge TypeDependencyEdge) bool { return true }
+	}
+
+	st, isStruct := n.Type.Underlying().(*types.Struct)
+	var (
+		posMap  map[int]TypeDependencyEdge
+		nameMap map[string]TypeDependencyEdge
+	)
+	if isStruct {
+		posMap = make(map[int]TypeDependencyEdge)
+		nameMap = make(map[string]TypeDependencyEdge)
+	}
+
+	edgeMap := maps.Collect(
+		xiter.Filter2(
+			func(_ TypeIdent, edges []TypeDependencyEdge) bool {
+				if isStruct {
+					for pos, edge := range xiter.Map2(
+						func(_ int, edge TypeDependencyEdge) (int, TypeDependencyEdge) {
+							return edge.Stack[0].Pos.Value(), edge
+						},
+						slices.All(edges),
+					) {
+						posMap[pos] = edge
+						nameMap[st.Field(pos).Name()] = edge
+					}
+				}
+				return len(edges) > 0
+			},
+			xiter.Map2(
+				func(i TypeIdent, edges []TypeDependencyEdge) (TypeIdent, []TypeDependencyEdge) {
+					return i, slices.Collect(xiter.Filter(edgeFilter, slices.Values(edges)))
+				},
+				maps.All(n.Children),
+			),
+		),
+	)
+
+	return TypeDependencyEdgeMap{
+		node:    n,
+		edgeMap: edgeMap,
+		posMap:  posMap,
+		nameMap: nameMap,
+	}
+}
+
+func (em TypeDependencyEdgeMap) First() (TypeIdent, TypeDependencyEdge) {
+	for k, v := range em.edgeMap {
+		return k, v[0]
+	}
+	panic("TypeDependencyEdgeMap: empty")
+}
+
+// Fields enumerates its children edges as iter.Seq2[int, typeDependencyEdge] assuming node's underlying type is struct.
+// The key of the iterator is position of field in source code order.
+func (em TypeDependencyEdgeMap) Fields() iter.Seq2[int, TypeDependencyEdge] {
+	_ = em.node.Type.Underlying().(*types.Struct) // panic if not a struct.
+	return func(yield func(int, TypeDependencyEdge) bool) {
+		for _, edges := range em.edgeMap {
+			for _, e := range edges {
+				if !yield(e.Stack[0].Pos.Value(), e) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// FieldsName is like [TypeDependencyEdgeMap.Fields] but the key of the pair is field name.
+func (em TypeDependencyEdgeMap) FieldsName() iter.Seq2[string, TypeDependencyEdge] {
+	structTy := em.node.Type.Underlying().(*types.Struct) // panic if not
+	return xiter.Map2(
+		func(i int, edge TypeDependencyEdge) (string, TypeDependencyEdge) {
+			return structTy.Field(i).Name(), edge
+		},
+		em.Fields(),
+	)
+}
+
+// ByFieldPos returns the edge, the field var and the struct tag for the field positioned at pos in source code order,
+// It assumes node's underlying is struct type, otherwise panics.
+func (em TypeDependencyEdgeMap) ByFieldPos(pos int) (TypeDependencyEdge, *types.Var, reflect.StructTag, bool) {
+	st := em.node.Type.Underlying().(*types.Struct) // panic if not
+	edge, ok := em.posMap[pos]
+	if !ok {
+		return TypeDependencyEdge{}, nil, "", false
+	}
+	return edge, st.Field(pos), reflect.StructTag(st.Tag(pos)), true
+}
+
+// ByFieldName is like [TypeDependencyEdgeMap.ByFieldPos] but queries for fieldName.
+func (em TypeDependencyEdgeMap) ByFieldName(fieldName string) (TypeDependencyEdge, *types.Var, reflect.StructTag, bool) {
+	st := em.node.Type.Underlying().(*types.Struct) // panic if not
+	edge, ok := em.nameMap[fieldName]
+	if !ok {
+		return TypeDependencyEdge{}, nil, "", false
+	}
+	pos := edge.Stack[0].Pos.Value()
+	return edge, st.Field(pos), reflect.StructTag(st.Tag(pos)), true
 }

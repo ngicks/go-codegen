@@ -248,6 +248,7 @@ func generateConversionMethodStructFields(
 	)
 	defer printf(`}
 `)
+	edgeMap := node.ChildEdgeMap(isUndPlainAllowedEdge)
 	dstutil.Apply(
 		ts.Type,
 		func(c *dstutil.Cursor) bool {
@@ -272,11 +273,8 @@ func generateConversionMethodStructFields(
 					}
 				}()
 
-				edge, typeVar, tag, ok := node.ByFieldName(field.Names[0].Name)
+				edge, typeVar, tag, ok := edgeMap.ByFieldName(field.Names[0].Name)
 				if !ok {
-					return false
-				}
-				if !isUndPlainAllowedEdge(edge) {
 					return false
 				}
 
