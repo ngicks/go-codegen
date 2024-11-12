@@ -25,20 +25,21 @@ func or[T any](left bool, l, r T) T {
 	}
 }
 
-func printPackage(w io.Writer, af *ast.File) error {
-	if _, err := io.WriteString(w, (token.PACKAGE.String())); err != nil {
+func printFileHeader(w io.Writer, af *ast.File, fset *token.FileSet) error {
+	if err := printPackage(w, af); err != nil {
 		return err
 	}
-	if _, err := w.Write([]byte{' '}); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(w, (af.Name.Name)); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(w, ("\n\n")); err != nil {
+	if err := printImport(w, af, fset); err != nil {
 		return err
 	}
 	return nil
+}
+
+func printPackage(w io.Writer, af *ast.File) error {
+	_, err := fmt.Fprintf(w, "%s %s\n\n",
+		token.PACKAGE.String(), af.Name.Name,
+	)
+	return err
 }
 
 func printImport(w io.Writer, af *ast.File, fset *token.FileSet) error {

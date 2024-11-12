@@ -71,9 +71,7 @@ func GenerateValidator(
 
 		buf := new(bytes.Buffer) // pool buf?
 
-		_ = printPackage(buf, af)
-		err = printImport(buf, af, res.Fset)
-		if err != nil {
+		if err := printFileHeader(buf, af, res.Fset); err != nil {
 			return fmt.Errorf("%q: %w", data.filename, err)
 		}
 
