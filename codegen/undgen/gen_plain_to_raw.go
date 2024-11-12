@@ -22,7 +22,7 @@ func optionToRaw(undOpt undtag.UndOpt, typeParam string, importMap imports.Impor
 	case s.Null || s.Und:
 		return func(ident string) string {
 			return fmt.Sprintf("%s.None[%s]()", optionIdent, typeParam)
-		}, true
+		}, false
 	}
 }
 

@@ -198,7 +198,12 @@ func generateConversionMethodElemTypes(
 			toPlain,
 			edge,
 			prefixPointer(isPointer, edge.PrintChildArg(0, importMap)),
-			prefixPointer(isPointer, edge.PrintChildArgConverted(ConstUnd.ConversionMethod.ConvertedType, importMap)),
+			prefixPointer(
+				isPointer,
+				edge.PrintChildArgConverted(
+					plainConverter,
+					importMap,
+				)),
 			importMap,
 			isPointer,
 			func(ident string) string {
@@ -288,9 +293,9 @@ func generateConversionMethodStructFields(
 						panic(err)
 					}
 
-					ty := edge.PrintChildArgConverted(ConstUnd.ConversionMethod.ConvertedType, importMap)
+					ty := edge.PrintChildArgConverted(plainConverter, importMap)
 					fieldConverter, needsArg = generateConversionMethodDirect(toPlain, edge, undOpt, ty, importMap)
-				} else if isUndConversionImplementor(edge.ChildType) {
+				} else if isUndConversionImplementor(edge.ChildType) || edge.IsChildMatched() {
 					isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
 						return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
 					})
@@ -364,17 +369,25 @@ func generateConversionMethodDirect(toPlain bool, edge typegraph.TypeDependencyE
 		},
 	)
 
-	if ok, isPointer := edge.HasSingleNamedTypeArg(isUndConversionImplementor); ok {
-		convert, needsArg = _generateConversionMethodImplementorMapper(
-			toPlain,
-			edge,
-			edge.PrintChildArg(0, importMap),
-			typeParam,
-			importMap,
-			isPointer,
-			convert,
-		)
+	if ok, isPointer := edge.HasSingleNamedTypeArg(nil); ok {
+		var isMatched bool
+		if node := edge.TypeArgs[0].Node; node != nil {
+			isMatched = (node.Matched &^ typegraph.TypeNodeMatchKindExternal) > 0
+		}
+		_, ok := plainConverter(edge.TypeArgs[0].Ty, isMatched)
+		if ok {
+			convert, needsArg = _generateConversionMethodImplementorMapper(
+				toPlain,
+				edge,
+				edge.PrintChildArg(0, importMap),
+				typeParam,
+				importMap,
+				isPointer,
+				convert,
+			)
+		}
 	}
+
 	return
 }
 

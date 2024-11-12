@@ -9,10 +9,12 @@ import (
 	"go/types"
 	"io"
 	"reflect"
+	"slices"
 
 	"github.com/dave/dst"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/structtag"
+	"github.com/ngicks/go-iterator-helper/hiter"
 )
 
 func or[T any](left bool, l, r T) T {
@@ -103,4 +105,26 @@ func fieldJsonName(st *types.Struct, i int) string {
 		return name
 	}
 	return st.Field(i).Name()
+}
+
+func makeRenamedType(ty *types.Named, name string, pkg *types.Package, method func(typeName *types.TypeName) []*types.Func) *types.Named {
+	obj := types.NewTypeName(0, pkg, name, nil)
+	funs := method(obj)
+	renamed := types.NewNamed(obj, nil, funs)
+	renamed.SetUnderlying(ty.Underlying())
+	if ty.TypeArgs().Len() == 0 {
+		return renamed
+	}
+	instantiated, err := types.Instantiate(
+		nil,
+		renamed,
+		slices.Collect(hiter.OmitF(hiter.AtterAll(ty.TypeArgs()))),
+		false,
+	)
+	if err != nil {
+		panic(err)
+	}
+	aa := types.TypeString(instantiated, (*types.Package).Name)
+	_ = aa
+	return instantiated.(*types.Named)
 }

@@ -7,6 +7,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"go/types"
 	"iter"
 	"log/slog"
 	"maps"
@@ -146,4 +147,44 @@ func suffixSlice(s string, isSlice bool) string {
 		s += "Slice"
 	}
 	return s
+}
+
+func plainConverter(ty *types.Named, isMatched bool) (*types.Named, bool) {
+	if !isMatched {
+		return ConstUnd.ConversionMethod.ConvertedType(ty)
+	}
+	return makeRenamedType(
+		ty,
+		ty.Obj().Name()+"Plain",
+		ty.Obj().Pkg(),
+		func(typeName *types.TypeName) []*types.Func {
+			return []*types.Func{
+				types.NewFunc(
+					0,
+					ty.Obj().Pkg(),
+					"UndRaw",
+					types.NewSignatureType(
+						types.NewVar(
+							0,
+							ty.Obj().Pkg(),
+							"v",
+							typeName.Type(),
+						),
+						nil,
+						nil,
+						nil,
+						types.NewTuple(
+							types.NewVar(
+								0,
+								ty.Obj().Pkg(),
+								"",
+								ty,
+							),
+						),
+						false,
+					),
+				),
+			}
+		},
+	), true
 }
