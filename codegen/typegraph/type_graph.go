@@ -98,6 +98,10 @@ type TypeDependencyEdge struct {
 	ChildNode *TypeNode
 }
 
+func (e TypeDependencyEdge) IsChildMatched() bool {
+	return e.ChildNode.Matched&^TypeNodeMatchKindExternal > 0
+}
+
 func (e TypeDependencyEdge) HasSingleNamedTypeArg(additionalCond func(named *types.Named) bool) (ok bool, pointer bool) {
 	if len(e.TypeArgs) != 1 {
 		return false, false
@@ -137,15 +141,19 @@ func (e TypeDependencyEdge) PrintChildArg(i int, importMap imports.ImportMap) st
 	)
 }
 
-func (e TypeDependencyEdge) PrintChildArgConverted(converter func(ty *types.Named) (*types.Named, bool), importMap imports.ImportMap) string {
+func (e TypeDependencyEdge) PrintChildArgConverted(converter func(ty *types.Named, isMatched bool) (*types.Named, bool), importMap imports.ImportMap) string {
+	isMatched := false
 	isConverter := func(named *types.Named) bool {
-		_, ok := converter(named)
+		if node := e.TypeArgs[0].Node; node != nil {
+			isMatched = (node.Matched &^ TypeNodeMatchKindExternal) > 0
+		}
+		_, ok := converter(named, isMatched)
 		return ok
 	}
 
 	var plainParam types.Type
 	if ok, isPointer := e.HasSingleNamedTypeArg(isConverter); ok {
-		converted, _ := converter(e.TypeArgs[0].Ty)
+		converted, _ := converter(e.TypeArgs[0].Ty, isMatched)
 		plainParam = converted
 		if isPointer {
 			plainParam = types.NewPointer(plainParam)

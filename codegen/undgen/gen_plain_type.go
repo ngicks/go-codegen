@@ -125,10 +125,13 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap im
 					return false
 				}
 
-				if named := edge.ChildType; ConstUnd.ConversionMethod.IsImplementor(named) {
-					converted, _ := ConstUnd.ConversionMethod.ConvertedType(named)
-					var ty types.Type = converted
-					if len(edge.Stack) > 0 && edge.Stack[len(edge.Stack)-1].Kind == typegraph.TypeDependencyEdgeKindPointer {
+				var ty types.Type
+				converted, ok := plainConverter(edge.ChildType, edge.IsChildMatched())
+				if ok {
+					ty = converted
+					if edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
+						return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
+					}) {
 						ty = types.NewPointer(ty)
 					}
 					*unwrapped = astutil.TypeToDst(
@@ -163,18 +166,23 @@ func unwrapUndType(fieldTy *dst.IndexExpr, edge typegraph.TypeDependencyEdge, un
 	// fieldTy -> X.Sel[Index]
 	sel := fieldTy.X.(*dst.SelectorExpr) // X.Sel
 
-	if ok, isPointer := edge.HasSingleNamedTypeArg(isUndConversionImplementor); ok {
-		arg := edge.TypeArgs[0].Ty
-		named, _ := ConstUnd.ConversionMethod.ConvertedType(arg)
-		var ty types.Type = named
-		if isPointer {
-			ty = types.NewPointer(ty)
+	if ok, isPointer := edge.HasSingleNamedTypeArg(nil); ok {
+		var isMatched bool
+		if node := edge.TypeArgs[0].Node; node != nil {
+			isMatched = (node.Matched &^ typegraph.TypeNodeMatchKindExternal) > 0
 		}
-		fieldTy.Index = astutil.TypeToDst(
-			ty,
-			edge.ParentNode.Type.Obj().Pkg().Path(),
-			importMap,
-		)
+		converted, ok := plainConverter(edge.TypeArgs[0].Ty, isMatched)
+		if ok {
+			var ty types.Type = converted
+			if isPointer {
+				ty = types.NewPointer(ty)
+			}
+			fieldTy.Index = astutil.TypeToDst(
+				ty,
+				edge.ParentNode.Type.Obj().Pkg().Path(),
+				importMap,
+			)
+		}
 	}
 
 	_ = matchUndTypeBool(
