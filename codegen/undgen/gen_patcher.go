@@ -11,7 +11,6 @@ import (
 	"io"
 	"iter"
 	"log/slog"
-	"maps"
 	"reflect"
 	"slices"
 	"strconv"
@@ -180,10 +179,7 @@ func wrapNonUndFields(data *replaceData) {
 func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap imports.ImportMap) {
 	typeName := ts.Name.Name
 	ts.Name.Name = ts.Name.Name + "Patch"
-	edgeMap := node.ChildEdgeMap(func(edge typegraph.TypeDependencyEdge) bool {
-		// only direct und type are
-		return len(edge.Stack) == 1 && edge.Stack[0].Kind == typegraph.TypeDependencyEdgeKindStruct
-	})
+	edgeMap := node.ChildEdgeMap(patcherEdgeFilter)
 	dstutil.Apply(
 		ts.Type,
 		func(c *dstutil.Cursor) bool {
@@ -283,13 +279,9 @@ func unquoteBasicLitString(s string) string {
 	}
 }
 
-func edgesDirectFields(node *typegraph.TypeNode) map[string]typegraph.TypeDependencyEdge {
-	return maps.Collect(xiter.Filter2(
-		func(_ string, edge typegraph.TypeDependencyEdge) bool {
-			return len(edge.Stack) == 1 && edge.Stack[0].Kind == typegraph.TypeDependencyEdgeKindStruct
-		},
-		node.FieldsName(),
-	))
+func patcherEdgeFilter(edge typegraph.TypeDependencyEdge) bool {
+	// only direct und type are
+	return len(edge.Stack) == 1 && edge.Stack[0].Kind == typegraph.TypeDependencyEdgeKindStruct
 }
 
 func concatFieldNames(field *dst.Field) string {
@@ -358,21 +350,38 @@ func generateFromValue(
 		err = flush()
 	}()
 
-	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
-	printf("func (p *%s) FromValue(v %s) {\n", patchTypeName, orgTypeName)
+	printf(
+		`//%s%s
+`,
+		UndDirectivePrefix, UndDirectiveCommentGenerated,
+	)
+	printf(
+		`func (p *%s) FromValue(v %s) {
+`,
+		patchTypeName, orgTypeName,
+	)
+	defer printf(`}
+
+`)
+
 	// shut up linter. sometimes linter warns you should directly convert type to type using T(u).
 	// It is possible that the patch type is exactly same as org type.
-	printf("\t//nolint\n")
-	printf("\t*p = %s{\n", patchTypeName)
+	printf(
+		`//nolint
+		*p = %s{
+`,
+		patchTypeName,
+	)
+	defer printf(`}
+`)
 
-	edges := edgesDirectFields(node)
+	edgeMap := node.ChildEdgeMap(patcherEdgeFilter)
 	for _, f := range typeObjectFieldsIter(node.Type) {
-		printf("\t\t")
 		// There's 3 possible conversions.
 		// T -> sliceund.Und[T]
 		// option.Option[T] -> sliceund.Und[T]
 		// conserve type other than that e.g. for und.Und, elastic.Elastic.
-		edge, ok := edges[f.Name()]
+		edge, _, _, ok := edgeMap.ByFieldName(f.Name())
 		if !ok || !matchUndType(
 			namedTypeToTargetType(edge.ChildType),
 			false,
@@ -382,30 +391,38 @@ func generateFromValue(
 				sliceUndImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
 				optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
 				printf(
-					"%[1]s: %[2]s.MapOr("+
-						"v.%[1]s,"+
-						" %[3]s.Null[%[4]s](),"+
-						"%[3]s.Defined[%[4]s]),\n",
+					`%[1]s: %[2]s.MapOr(v.%[1]s, %[3]s.Null[%[4]s](), %[3]s.Defined[%[4]s]),
+`,
 					f.Name(), optionImportIdent, sliceUndImportIdent, t,
 				)
 				return true
 			},
 			func(isSlice bool) bool {
-				printf("%[1]s: v.%[1]s,\n", f.Name())
+				printf(
+					`%[1]s: v.%[1]s,
+`,
+					f.Name(),
+				)
 				return true
 			},
 			func(isSlice bool) bool {
-				printf("%[1]s: v.%[1]s,\n", f.Name())
+				printf(
+					`%[1]s: v.%[1]s,
+`,
+					f.Name(),
+				)
 				return true
 			},
 		) {
 			// T -> sliceund.Und[T]
 			sliceUndImportIdent, _ := imports.Ident(UndTargetTypeSliceUnd.ImportPath)
-			printf("%[1]s: %[2]s.Defined(v.%[1]s),\n", f.Name(), sliceUndImportIdent)
+			printf(
+				`%[1]s: %[2]s.Defined(v.%[1]s),
+`,
+				f.Name(), sliceUndImportIdent,
+			)
 		}
 	}
-	printf("\t}\n")
-	printf("}\n\n")
 
 	return
 }
@@ -429,16 +446,35 @@ func generateToValue(
 		err = flush()
 	}()
 
-	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
-	printf("func (p %s) ToValue() %s {\n", patchTypeName, orgTypeName)
-	// Same as FromValue, shut up linter. always explicitly note type params.
-	printf("\t//nolint\n")
-	printf("\treturn %s{\n", orgTypeName)
+	printf(
+		`//%s%s
+`,
+		UndDirectivePrefix, UndDirectiveCommentGenerated,
+	)
+	printf(
+		`func (p %s) ToValue() %s {
+`,
+		patchTypeName, orgTypeName,
+	)
+	defer printf(`}
 
-	edges := edgesDirectFields(node)
+`)
+	// Same as FromValue, shut up linter.
+	// Also type params might be inferred and linter would warn about that.
+	printf(
+		`//nolint
+		return %s{
+`,
+		orgTypeName,
+	)
+	defer printf(`}
+`)
+
+	edgeMap := node.ChildEdgeMap(func(edge typegraph.TypeDependencyEdge) bool {
+		return len(edge.Stack) == 1 && edge.Stack[0].Kind == typegraph.TypeDependencyEdgeKindStruct
+	})
 	for _, f := range typeObjectFieldsIter(node.Type) {
-		printf("\t\t")
-		edge, ok := edges[f.Name()]
+		edge, _, _, ok := edgeMap.ByFieldName(f.Name())
 		// Like FromValue, there's 3 possible back-conversions.
 		// sliceund.Und[T] -> T
 		// sliceund.Und[T] -> option.Option[T]
@@ -449,24 +485,35 @@ func generateToValue(
 			func() bool {
 				// sliceund.Und[T] -> option.Option[T]
 				optionImportIdent, _ := imports.Ident(UndTargetTypeOption.ImportPath)
-				printf("%[1]s: %[2]s.Flatten(p.%[1]s.Unwrap()),\n", f.Name(), optionImportIdent)
+				printf(`%[1]s: %[2]s.Flatten(p.%[1]s.Unwrap()),
+`,
+					f.Name(), optionImportIdent,
+				)
 				return true
 			},
 			func(isSlice bool) bool {
-				printf("%[1]s: p.%[1]s,\n", f.Name())
+				printf(`%[1]s: p.%[1]s,
+`,
+					f.Name(),
+				)
 				return true
 			},
 			func(isSlice bool) bool {
-				printf("%[1]s: p.%[1]s,\n", f.Name())
+				printf(`%[1]s: p.%[1]s,
+`,
+					f.Name(),
+				)
 				return true
 			},
 		) {
 			// sliceund.Und[T] -> T
-			printf("%[1]s: p.%[1]s.Value(),\n", f.Name())
+			printf(
+				`%[1]s: p.%[1]s.Value(),
+`,
+				f.Name(),
+			)
 		}
 	}
-	printf("\t}\n")
-	printf("}\n\n")
 
 	return
 }
@@ -489,15 +536,29 @@ func generateMerge(
 		err = flush()
 	}()
 
-	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
-	printf("func (p %[1]s) Merge(r %[1]s) %[1]s {\n", patchTypeName)
+	printf(`//%s%s
+`,
+		UndDirectivePrefix, UndDirectiveCommentGenerated,
+	)
+	printf(`func (p %[1]s) Merge(r %[1]s) %[1]s {
+`,
+		patchTypeName,
+	)
+	defer printf(`}
+
+`)
 	// Same as FromValue, shut up linter. always explicitly note type params.
-	printf("\t//nolint\n")
-	printf("\treturn %s{\n", patchTypeName)
-	edges := edgesDirectFields(node)
+	printf(
+		`//nolint
+	return %s{
+`,
+		patchTypeName,
+	)
+	defer printf(`}
+`)
+	edgeMap := node.ChildEdgeMap(patcherEdgeFilter)
 	for _, f := range typeObjectFieldsIter(node.Type) {
-		printf("\t\t")
-		edge, ok := edges[f.Name()]
+		edge, _, _, ok := edgeMap.ByFieldName(f.Name())
 		// Like FromValue, there's 2 possible Or logic.
 		// both und like type.
 		// both elastic like type.
@@ -523,7 +584,8 @@ func generateMerge(
 				}
 				// or(elastic, elastic)
 				printf(
-					"%[1]s: %[2]s.FromUnd(%[3]s.FromOption(r.%[1]s.Unwrap().Unwrap().Or(p.%[1]s.Unwrap().Unwrap()))),\n",
+					`%[1]s: %[2]s.FromUnd(%[3]s.FromOption(r.%[1]s.Unwrap().Unwrap().Or(p.%[1]s.Unwrap().Unwrap()))),
+`,
 					f.Name(), elasticImportIdent, undImportIdent,
 				)
 				return true
@@ -531,13 +593,12 @@ func generateMerge(
 		) {
 			// or(und,und)
 			printf(
-				"%[1]s: %[2]s.FromOption(r.%[1]s.Unwrap().Or(p.%[1]s.Unwrap())),\n",
+				`%[1]s: %[2]s.FromOption(r.%[1]s.Unwrap().Or(p.%[1]s.Unwrap())),
+`,
 				f.Name(), undImportIdent,
 			)
 		}
 	}
-	printf("\t}\n")
-	printf("}\n\n")
 
 	return
 }
@@ -561,13 +622,20 @@ func generateApplyPatch(
 		err = flush()
 	}()
 
-	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated) // note this is generated method.
-	printf("func (p %[1]s) ApplyPatch(v %[2]s) %[2]s {\n", patchTypeName, orgTypeName)
-	printf("\tvar orgP %s\n", patchTypeName)
-	printf("\torgP.FromValue(v)\n")
-	printf("\tmerged := orgP.Merge(p)\n")
-	printf("\treturn merged.ToValue()\n")
-	printf("}\n\n")
+	printf(
+		`//%s%s
+`,
+		UndDirectivePrefix, UndDirectiveCommentGenerated,
+	) // note this is generated method.
+	printf(
+		`func (p %[1]s) ApplyPatch(v %[2]s) %[2]s {
+		var orgP %[1]s
+		orgP.FromValue(v)
+		merged := orgP.Merge(p)
+		return merged.ToValue()
+	}
+
+`, patchTypeName, orgTypeName)
 
 	return
 }
