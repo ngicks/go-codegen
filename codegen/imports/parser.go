@@ -278,7 +278,7 @@ func firstNonEmpty[T comparable](ts ...T) T {
 }
 
 func (im ImportMap) AstExpr(ty TargetType) *ast.SelectorExpr {
-	ident, _, ok := im.getIdent(ty.ImportPath, ty.Name)
+	ident, _, ok := im.getIdent(ty.ImportPath, "") // whatever
 	if !ok {
 		return nil
 	}
@@ -294,7 +294,7 @@ func (im ImportMap) AstExpr(ty TargetType) *ast.SelectorExpr {
 }
 
 func (im ImportMap) DstExpr(ty TargetType) *dst.SelectorExpr {
-	ident, _, ok := im.getIdent(ty.ImportPath, ty.Name)
+	ident, _, ok := im.getIdent(ty.ImportPath, "") // whatever
 	if !ok {
 		return nil
 	}
@@ -391,4 +391,11 @@ func (im ImportMap) AddMissingImports(df *dst.File) {
 		},
 		nil,
 	)
+}
+
+func (im ImportMap) Qualifier() types.Qualifier {
+	return func(p *types.Package) string {
+		qual, _ := im.Ident(p.Path())
+		return qual
+	}
 }
