@@ -42,6 +42,8 @@ func unwrapExprAlongPath(expr *dst.Expr, edge typegraph.TypeDependencyEdge, skip
 		case typegraph.TypeDependencyEdgeKindMap:
 			next := (*unwrapped).(*dst.MapType)
 			unwrapped = &next.Value
+		case typegraph.TypeDependencyEdgeKindPointer:
+			break
 		}
 	}
 	return unwrapped
@@ -61,7 +63,7 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap impor
 		// matched, wrapped implementor
 		unwrapped := unwrapExprAlongPath(elem, edge, 1)
 		index := (*unwrapped).(*dst.IndexExpr)
-		converted, _ := ConstUnd.ConversionMethod.ConvertedType(edge.TypeArgs[0].Ty)
+		converted, _ := plainConverter(edge.TypeArgs[0].Ty, edge.IsTypeArgMatched())
 		index.Index = astutil.TypeToDst(
 			converted,
 			node.Type.Obj().Pkg().Path(),
@@ -71,7 +73,7 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap impor
 	} else {
 		// implementor
 		unwrapped := unwrapExprAlongPath(elem, edge, 1)
-		converted, _ := ConstUnd.ConversionMethod.ConvertedType(edge.ChildType)
+		converted, _ := plainConverter(edge.ChildType, edge.IsChildMatched())
 		*unwrapped = astutil.TypeToDst(
 			converted,
 			node.Type.Obj().Pkg().Path(),
@@ -146,6 +148,30 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap im
 							Unwrapped: *unwrapped,
 						}
 					}
+				}
+				// implementor wrapped in und type.
+				if ok, isPointer := edge.HasSingleNamedTypeArg(nil); ok && isUndType(edge.ChildType) {
+					converted, ok := plainConverter(edge.TypeArgs[0].Ty, edge.IsTypeArgMatched())
+					if !ok {
+						return false
+					}
+					var ty types.Type = converted
+					if isPointer {
+						ty = types.NewPointer(ty)
+					}
+					(*unwrapped).(*dst.IndexExpr).Index = astutil.TypeToDst(
+						ty,
+						edge.ParentNode.Type.Obj().Pkg().Path(),
+						importMap,
+					)
+					atLeastOne = true
+					for _, name := range field.Names {
+						exprMap[name.Name] = fieldDstExprSet{
+							Wrapped:   field.Type,
+							Unwrapped: *unwrapped,
+						}
+					}
+
 				}
 
 				return false

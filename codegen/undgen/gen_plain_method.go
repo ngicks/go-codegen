@@ -306,6 +306,19 @@ func generateConversionMethodStructFields(
 						astutil.PrintAstExprPanicking(plainExpr.Wrapped),
 					)
 					needsArg = true
+				} else if ok, isPointer := edge.HasSingleNamedTypeArg(nil); ok && isUndType(edge.ChildType) {
+					_, ok := plainConverter(edge.TypeArgs[0].Ty, edge.IsTypeArgMatched())
+					if ok {
+						fieldConverter, needsArg = _generateConversionMethodImplementorMapper(
+							toPlain,
+							edge,
+							edge.PrintChildArg(0, importMap),
+							edge.PrintChildArgConverted(plainConverter, importMap),
+							importMap,
+							isPointer,
+							func(ident string) string { return ident },
+						)
+					}
 				}
 
 				rawExpr := astutil.TypeToAst(

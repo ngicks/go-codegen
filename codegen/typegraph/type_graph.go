@@ -117,6 +117,17 @@ func (e TypeDependencyEdge) HasSingleNamedTypeArg(additionalCond func(named *typ
 	return true, isPointer
 }
 
+func (e TypeDependencyEdge) IsTypeArgMatched() bool {
+	if len(e.TypeArgs) == 0 {
+		return false
+	}
+	node := e.TypeArgs[0].Node
+	if node == nil {
+		return false
+	}
+	return node.Matched&^TypeNodeMatchKindExternal > 0
+}
+
 func (e TypeDependencyEdge) LastPointer() option.Option[TypeDependencyEdgePointer] {
 	return option.GetSlice(e.Stack, len(e.Stack)-1)
 }

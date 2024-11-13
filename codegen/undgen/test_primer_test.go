@@ -1,6 +1,9 @@
 package undgen
 
 import (
+	"log/slog"
+	"os"
+
 	"golang.org/x/tools/go/packages"
 )
 
@@ -12,6 +15,11 @@ var (
 )
 
 func init() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})))
+}
+
+func init() {
+
 	cfg := &packages.Config{
 		Mode: packages.NeedName |
 			packages.NeedFiles |

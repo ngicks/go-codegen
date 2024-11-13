@@ -52,12 +52,10 @@ func GeneratePlain(
 		func(f *ast.File, data *replaceData) bool { return f != nil && data != nil },
 		hiter.MapKeys(replacerData, enumerateFile(pkgs)),
 	) {
-		if verbose {
-			slog.Debug(
-				"found",
-				slog.String("filename", data.filename),
-			)
-		}
+		slog.Debug(
+			"found",
+			slog.String("filename", data.filename),
+		)
 
 		modified := hiter.Collect2(xiter.Filter2(
 			func(node *typegraph.TypeNode, exprMap map[string]fieldDstExprSet) bool {
@@ -153,6 +151,9 @@ func suffixSlice(s string, isSlice bool) string {
 }
 
 func plainConverter(ty *types.Named, isMatched bool) (*types.Named, bool) {
+	if ty == nil {
+		return nil, false
+	}
 	if !isMatched {
 		return ConstUnd.ConversionMethod.ConvertedType(ty)
 	}
