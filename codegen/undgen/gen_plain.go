@@ -69,6 +69,11 @@ func GeneratePlain(
 					if !ok {
 						return nil, nil
 					}
+					slog.Debug(
+						"rewritten",
+						slog.String("package", node.Type.Obj().Pkg().Path()),
+						slog.String("type", node.Type.Obj().Name()),
+					)
 					return node, exprMap
 				},
 				slices.Values(data.targetNodes),
