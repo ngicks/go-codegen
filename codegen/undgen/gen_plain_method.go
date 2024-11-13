@@ -89,19 +89,23 @@ func unwrapFieldAlongPath(
 		)
 	})
 	return func(wrappee func(string) string, fieldExpr string) string {
+		wrappers = slices.Insert(wrappers, 0, func(expr string) string {
+			return fmt.Sprintf(
+				`(func (v %s) %s {
+					out := %s
+
+					inner := &out
+					%s
+
+					return out
+				})(%s)`,
+				input, output, initializer(toExpr, s[0].Kind), expr, fieldExpr)
+		})
 		expr := wrappee("v")
 		for _, wrapper := range slices.Backward(wrappers) {
 			expr = wrapper(expr)
 		}
-		return fmt.Sprintf(`(func (v %s) %s {
-	out := %s
-
-	inner := &out
-	%s
-
-	return out
-})(%s)`,
-			input, output, initializer(toExpr, s[0].Kind), expr, fieldExpr)
+		return expr
 	}
 
 }
