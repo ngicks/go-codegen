@@ -26,6 +26,7 @@ func init() {
 			packages.NeedModule |
 			packages.NeedEmbedFiles |
 			packages.NeedEmbedPatterns,
+		ParseFile: ParseFileIgnoringUndgenGeneratedFiles,
 		// Logf: func(format string, args ...interface{}) {
 		// 	fmt.Printf("log: "+format, args...)
 		// 	fmt.Println()

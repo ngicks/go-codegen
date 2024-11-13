@@ -76,13 +76,6 @@ type Ignored struct {
 	Baz option.Option[int] `json:",omitzero" und:"required"`
 }
 
-//undgen:generated
-type Generated struct {
-	Foo string
-	Bar int
-	Baz option.Option[int] `json:",omitzero" und:"required"`
-}
-
 type WithTypeParam[T any] struct {
 	Foo string
 	Bar T
