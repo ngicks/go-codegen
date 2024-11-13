@@ -304,7 +304,7 @@ func generateConversionMethodStructFields(
 						toPlain,
 						isPointer,
 						prefixPointer(isPointer, edge.PrintChildType(importMap)),
-						astutil.PrintAstExprPanicking(plainExpr.Wrapped),
+						astutil.PrintAstExprPanicking(plainExpr.Unwrapped),
 					)
 					needsArg = true
 				} else if ok, isPointer := edge.HasSingleNamedTypeArg(nil); ok && isUndType(edge.ChildType) {
