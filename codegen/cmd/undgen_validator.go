@@ -23,7 +23,9 @@ var undgenValidatorCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
+		if verbose {
+			fmt.Printf("running: validator plain\n\n\n")
+		}
 		ctx := cmd.Context()
 
 		targetPkgs, err := loadPkgs(ctx, dir, pkg, true, verbose)

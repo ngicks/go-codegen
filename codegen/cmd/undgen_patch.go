@@ -31,6 +31,9 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 		if err != nil {
 			return err
 		}
+		if verbose {
+			fmt.Printf("running: undgen patch\n\n\n")
+		}
 		typeNames := fset.Args()
 
 		ctx := cmd.Context()
@@ -59,7 +62,6 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 		if err != nil {
 			return err
 		}
-
 		return undgen.GeneratePatcher(writer, verbose, targetPkgs[0], undgen.ConstUnd.Imports, typeNames...)
 	},
 }

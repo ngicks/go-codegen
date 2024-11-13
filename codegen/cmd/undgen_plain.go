@@ -24,7 +24,9 @@ var undgenPlainCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
+		if verbose {
+			fmt.Printf("running: undgen plain\n\n\n")
+		}
 		ctx := cmd.Context()
 
 		if verbose {
