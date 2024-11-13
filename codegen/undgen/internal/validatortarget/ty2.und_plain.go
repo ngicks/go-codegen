@@ -13,6 +13,7 @@ import (
 //undgen:generated
 type CPlain [3]option.Option[AllPlain]
 
+//undgen:generated
 func (v C) UndPlain() CPlain {
 	return (func(v [3]option.Option[All]) [3]option.Option[AllPlain] {
 		out := [3]option.Option[AllPlain]{}
@@ -32,6 +33,7 @@ func (v C) UndPlain() CPlain {
 	})(v)
 }
 
+//undgen:generated
 func (v CPlain) UndRaw() C {
 	return (func(v [3]option.Option[AllPlain]) [3]option.Option[All] {
 		out := [3]option.Option[All]{}
@@ -60,6 +62,7 @@ type DPlain struct {
 	BazP [3]*AllPlain `und:"required,len==3,values:nonnull"`
 }
 
+//undgen:generated
 func (v D) UndPlain() DPlain {
 	return DPlain{
 		Foo: v.Foo.UndPlain(),
@@ -114,6 +117,7 @@ func (v D) UndPlain() DPlain {
 	}
 }
 
+//undgen:generated
 func (v DPlain) UndRaw() D {
 	return D{
 		Foo: v.Foo.UndRaw(),

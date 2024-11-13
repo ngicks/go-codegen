@@ -13,6 +13,7 @@ type NameOverlappingPlain struct {
 	OOOHH string
 }
 
+//undgen:generated
 func (v NameOverlapping) UndPlain() NameOverlappingPlain {
 	return NameOverlappingPlain{
 		AHHH:  v.AHHH.Value(),
@@ -20,6 +21,7 @@ func (v NameOverlapping) UndPlain() NameOverlappingPlain {
 	}
 }
 
+//undgen:generated
 func (v NameOverlappingPlain) UndRaw() NameOverlapping {
 	return NameOverlapping{
 		AHHH:  sliceund.Defined(v.AHHH),

@@ -21,6 +21,7 @@ type ExamplePlain struct {
 	Corge []int                 `json:"corge" und:"len>2,values:nonnull"`
 }
 
+//undgen:generated
 func (v Example) UndPlain() ExamplePlain {
 	return ExamplePlain{
 		Foo: v.Foo,
@@ -38,6 +39,7 @@ func (v Example) UndPlain() ExamplePlain {
 	}
 }
 
+//undgen:generated
 func (v ExamplePlain) UndRaw() Example {
 	return Example{
 		Foo: v.Foo,

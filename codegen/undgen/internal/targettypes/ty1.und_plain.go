@@ -72,6 +72,7 @@ type AllPlain struct {
 	ElaEqEqNonNullNull       option.Option[[3]string] `json:",omitzero" und:"null,values:nonnull,len==3"`
 }
 
+//undgen:generated
 func (v All) UndPlain() AllPlain {
 	return AllPlain{
 		Foo:               v.Foo,
@@ -219,6 +220,7 @@ func (v All) UndPlain() AllPlain {
 	}
 }
 
+//undgen:generated
 func (v AllPlain) UndRaw() All {
 	return All{
 		Foo:               v.Foo,
@@ -363,6 +365,7 @@ type WithTypeParamPlain[T any] struct {
 	Baz T `json:",omitzero" und:"required"`
 }
 
+//undgen:generated
 func (v WithTypeParam[T]) UndPlain() WithTypeParamPlain[T] {
 	return WithTypeParamPlain[T]{
 		Foo: v.Foo,
@@ -371,6 +374,7 @@ func (v WithTypeParam[T]) UndPlain() WithTypeParamPlain[T] {
 	}
 }
 
+//undgen:generated
 func (v WithTypeParamPlain[T]) UndRaw() WithTypeParam[T] {
 	return WithTypeParam[T]{
 		Foo: v.Foo,

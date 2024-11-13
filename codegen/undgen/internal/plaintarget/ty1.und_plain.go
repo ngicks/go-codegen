@@ -26,6 +26,7 @@ type IncludesImplementorPlain struct {
 	SliceElastic [2]option.Option[sub.FooPlain[bool]]  `und:"len==2"`
 }
 
+//undgen:generated
 func (v IncludesImplementor) UndPlain() IncludesImplementorPlain {
 	return IncludesImplementorPlain{
 		Impl: v.Impl.UndPlain(),
@@ -73,6 +74,7 @@ func (v IncludesImplementor) UndPlain() IncludesImplementorPlain {
 	}
 }
 
+//undgen:generated
 func (v IncludesImplementorPlain) UndRaw() IncludesImplementor {
 	return IncludesImplementor{
 		Impl: v.Impl.UndRaw(),
@@ -129,6 +131,7 @@ type IncludesImplementorArraySliceMapPlain struct {
 	M2 map[string][2]option.Option[sub.FooPlain[bool]] `und:"len==2"`
 }
 
+//undgen:generated
 func (v IncludesImplementorArraySliceMap) UndPlain() IncludesImplementorArraySliceMapPlain {
 	return IncludesImplementorArraySliceMapPlain{
 		A1: (func(v [3]sub.Foo[time.Time]) [3]sub.FooPlain[time.Time] {
@@ -230,6 +233,7 @@ func (v IncludesImplementorArraySliceMap) UndPlain() IncludesImplementorArraySli
 	}
 }
 
+//undgen:generated
 func (v IncludesImplementorArraySliceMapPlain) UndRaw() IncludesImplementorArraySliceMap {
 	return IncludesImplementorArraySliceMap{
 		A1: (func(v [3]sub.FooPlain[time.Time]) [3]sub.Foo[time.Time] {
@@ -333,6 +337,7 @@ func (v IncludesImplementorArraySliceMapPlain) UndRaw() IncludesImplementorArray
 //undgen:generated
 type WrappedPlain map[string][3][]sub.FooPlain[string]
 
+//undgen:generated
 func (v Wrapped) UndPlain() WrappedPlain {
 	return (func(v map[string][3][]sub.Foo[string]) map[string][3][]sub.FooPlain[string] {
 		out := make(map[string][3][]sub.FooPlain[string], len(v))
@@ -358,6 +363,7 @@ func (v Wrapped) UndPlain() WrappedPlain {
 	})(v)
 }
 
+//undgen:generated
 func (v WrappedPlain) UndRaw() Wrapped {
 	return (func(v map[string][3][]sub.FooPlain[string]) map[string][3][]sub.Foo[string] {
 		out := make(map[string][3][]sub.Foo[string], len(v))

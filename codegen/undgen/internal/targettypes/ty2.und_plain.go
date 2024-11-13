@@ -5,6 +5,7 @@ package targettypes
 
 import (
 	"github.com/ngicks/go-codegen/codegen/undgen/internal/targettypes/sub"
+	"github.com/ngicks/und/option"
 )
 
 //undgen:generated
@@ -12,15 +13,48 @@ type IncludesImplementorPlain struct {
 	Foo sub.FooPlain[string]
 }
 
+//undgen:generated
 func (v IncludesImplementor) UndPlain() IncludesImplementorPlain {
 	return IncludesImplementorPlain{
 		Foo: v.Foo.UndPlain(),
 	}
 }
 
+//undgen:generated
 func (v IncludesImplementorPlain) UndRaw() IncludesImplementor {
 	return IncludesImplementor{
 		Foo: v.Foo.UndRaw(),
+	}
+}
+
+//undgen:generated
+type NestedImplementorPlain struct {
+	Foo option.Option[sub.FooPlain[string]]
+}
+
+//undgen:generated
+func (v NestedImplementor) UndPlain() NestedImplementorPlain {
+	return NestedImplementorPlain{
+		Foo: option.Map(
+			v.Foo,
+			func(v sub.Foo[string]) sub.FooPlain[string] {
+				vv := v.UndPlain()
+				return vv
+			},
+		),
+	}
+}
+
+//undgen:generated
+func (v NestedImplementorPlain) UndRaw() NestedImplementor {
+	return NestedImplementor{
+		Foo: option.Map(
+			v.Foo,
+			func(v sub.FooPlain[string]) sub.Foo[string] {
+				vv := v.UndRaw()
+				return vv
+			},
+		),
 	}
 }
 
@@ -29,12 +63,14 @@ type NestedImplementor2Plain struct {
 	Foo sub.IncludesImplementorPlain
 }
 
+//undgen:generated
 func (v NestedImplementor2) UndPlain() NestedImplementor2Plain {
 	return NestedImplementor2Plain{
 		Foo: v.Foo.UndPlain(),
 	}
 }
 
+//undgen:generated
 func (v NestedImplementor2Plain) UndRaw() NestedImplementor2 {
 	return NestedImplementor2{
 		Foo: v.Foo.UndRaw(),

@@ -134,6 +134,7 @@ func generateToRawOrToPlain(
 	node *typegraph.TypeNode,
 	exprMap map[string]fieldAstExprSet,
 ) {
+	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
 	printf(`func (v %s) %s() %s {
 `,
 		or(

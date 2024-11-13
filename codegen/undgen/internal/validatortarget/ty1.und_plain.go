@@ -22,6 +22,7 @@ type AllPlain struct {
 	Grault option.Option[[]string]                 `und:"und,len>=2,values:nonnull"`
 }
 
+//undgen:generated
 func (v All) UndPlain() AllPlain {
 	return AllPlain{
 		Foo: v.Foo,
@@ -40,6 +41,7 @@ func (v All) UndPlain() AllPlain {
 	}
 }
 
+//undgen:generated
 func (v AllPlain) UndRaw() All {
 	return All{
 		Foo: v.Foo,
@@ -64,6 +66,7 @@ type MapSliceArrayPlain struct {
 	Baz [5]option.Option[[]option.Option[string]] `json:"baz" und:"und,len>=2"`
 }
 
+//undgen:generated
 func (v MapSliceArray) UndPlain() MapSliceArrayPlain {
 	return MapSliceArrayPlain{
 		Foo: (func(v map[string]option.Option[string]) map[string]string {
@@ -100,6 +103,7 @@ func (v MapSliceArray) UndPlain() MapSliceArrayPlain {
 	}
 }
 
+//undgen:generated
 func (v MapSliceArrayPlain) UndRaw() MapSliceArray {
 	return MapSliceArray{
 		Foo: (func(v map[string]string) map[string]option.Option[string] {
@@ -142,6 +146,7 @@ type ContainsImplementorPlain struct {
 	O Implementor `und:"required"`
 }
 
+//undgen:generated
 func (v ContainsImplementor) UndPlain() ContainsImplementorPlain {
 	return ContainsImplementorPlain{
 		I: v.I,
@@ -149,6 +154,7 @@ func (v ContainsImplementor) UndPlain() ContainsImplementorPlain {
 	}
 }
 
+//undgen:generated
 func (v ContainsImplementorPlain) UndRaw() ContainsImplementor {
 	return ContainsImplementor{
 		I: v.I,
@@ -163,6 +169,7 @@ type MapSliceArrayContainsImplementorPlain struct {
 	Baz [5]option.Option[[]option.Option[Implementor]] `und:"und,len>=2"`
 }
 
+//undgen:generated
 func (v MapSliceArrayContainsImplementor) UndPlain() MapSliceArrayContainsImplementorPlain {
 	return MapSliceArrayContainsImplementorPlain{
 		Foo: (func(v map[string]option.Option[Implementor]) map[string]Implementor {
@@ -199,6 +206,7 @@ func (v MapSliceArrayContainsImplementor) UndPlain() MapSliceArrayContainsImplem
 	}
 }
 
+//undgen:generated
 func (v MapSliceArrayContainsImplementorPlain) UndRaw() MapSliceArrayContainsImplementor {
 	return MapSliceArrayContainsImplementor{
 		Foo: (func(v map[string]Implementor) map[string]option.Option[Implementor] {

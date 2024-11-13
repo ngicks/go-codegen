@@ -12,12 +12,14 @@ type IncludesImplementorPlain struct {
 	Foo sub2.FooPlain[int]
 }
 
+//undgen:generated
 func (v IncludesImplementor) UndPlain() IncludesImplementorPlain {
 	return IncludesImplementorPlain{
 		Foo: v.Foo.UndPlain(),
 	}
 }
 
+//undgen:generated
 func (v IncludesImplementorPlain) UndRaw() IncludesImplementor {
 	return IncludesImplementor{
 		Foo: v.Foo.UndRaw(),
