@@ -1,6 +1,7 @@
 package typegraph
 
 import (
+	"cmp"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -607,6 +608,16 @@ func (n *TypeNode) ByFieldName(name string) (TypeDependencyEdge, *types.Var, ref
 		}
 	}
 	return TypeDependencyEdge{}, nil, "", false
+}
+
+func (g *TypeGraph) EnumerateTypes() iter.Seq2[TypeIdent, *TypeNode] {
+	keys := slices.SortedFunc(maps.Keys(g.types), func(i, j TypeIdent) int {
+		if c := cmp.Compare(i.PkgPath, j.PkgPath); c != 0 {
+			return c
+		}
+		return cmp.Compare(g.types[i].Pos, g.types[j].Pos)
+	})
+	return hiter.MapKeys(g.types, slices.Values(keys))
 }
 
 func (g *TypeGraph) EnumerateTypesKeys(keys iter.Seq[TypeIdent]) iter.Seq2[TypeIdent, *TypeNode] {
