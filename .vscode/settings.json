@@ -5,6 +5,7 @@
         "builtins",
         "codegen",
         "Corge",
+        "dirents",
         "dstutil",
         "Fset",
         "Goimports",
