@@ -102,14 +102,7 @@ func _isUndAllowedEdge(edge typegraph.TypeDependencyEdge, implementorOf func(nam
 			return false
 		case typegraph.TypeDependencyEdgeKindMap, typegraph.TypeDependencyEdgeKindArray, typegraph.TypeDependencyEdgeKindSlice:
 		}
-
-		elem := edge.ParentNode.Type.Underlying().(interface{ Elem() types.Type }).Elem()
-		named, ok := elem.(*types.Named)
-		if !ok {
-			return false
-		}
-
-		if implementorOf(named) {
+		if implementorOf(edge.ChildType) {
 			return true
 		}
 		if edge.IsChildMatched() {
