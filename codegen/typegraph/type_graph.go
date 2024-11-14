@@ -679,11 +679,11 @@ func (n *TypeNode) ChildEdgeMap(edgeFilter func(edge TypeDependencyEdge) bool) T
 	}
 }
 
-func (em TypeDependencyEdgeMap) First() (TypeIdent, TypeDependencyEdge) {
+func (em TypeDependencyEdgeMap) First() (TypeIdent, TypeDependencyEdge, bool) {
 	for k, v := range em.edgeMap {
-		return k, v[0]
+		return k, v[0], true
 	}
-	panic("TypeDependencyEdgeMap: empty")
+	return TypeIdent{}, TypeDependencyEdge{}, false
 }
 
 // Fields enumerates its children edges as iter.Seq2[int, typeDependencyEdge] assuming node's underlying type is struct.

@@ -179,7 +179,7 @@ func generateUndValidate(
 	switch x := node.Type.Underlying().(type) {
 	case *types.Map, *types.Array, *types.Slice:
 		// should be only one since we prohibit struct literals.
-		ident, edge := edgeMap.First()
+		ident, edge, _ := edgeMap.First()
 		isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
 			return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
 		})
