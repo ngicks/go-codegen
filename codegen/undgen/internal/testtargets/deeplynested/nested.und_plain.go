@@ -4,53 +4,319 @@
 package deeplynested
 
 import (
+	"github.com/ngicks/go-codegen/codegen/undgen/internal/testtargets/implementor"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/option"
 )
 
 //undgen:generated
-type ImplementorPlain struct {
+type DeeplyNestedImplementorPlain struct {
+	A []map[string][5]implementor.ImplementorPlain[string] `und:"required"`
+	B [][][]map[int]implementor.ImplementorPlain[string]
+	C []map[string][5]*implementor.ImplementorPlain[string] `und:"required"`
+	D [][][]map[int]*implementor.ImplementorPlain[string]
+}
+
+//undgen:generated
+func (v DeeplyNestedImplementor) UndPlain() DeeplyNestedImplementorPlain {
+	return DeeplyNestedImplementorPlain{
+		A: (func(v []map[string][5]und.Und[implementor.Implementor[string]]) []map[string][5]implementor.ImplementorPlain[string] {
+			out := make([]map[string][5]implementor.ImplementorPlain[string], len(v))
+
+			inner := &out
+			for k, v := range v {
+				outer := inner
+				mid := make(map[string][5]implementor.ImplementorPlain[string], len(v))
+				inner := &mid
+				for k, v := range v {
+					outer := inner
+					mid := [5]implementor.ImplementorPlain[string]{}
+					inner := &mid
+					for k, v := range v {
+						(*inner)[k] = und.Map(
+							v,
+							func(v implementor.Implementor[string]) implementor.ImplementorPlain[string] {
+								vv := v.UndPlain()
+								return vv
+							},
+						).Value()
+					}
+					(*outer)[k] = *inner
+				}
+				(*outer)[k] = *inner
+			}
+
+			return out
+		})(v.A),
+		B: (func(v [][][]map[int]implementor.Implementor[string]) [][][]map[int]implementor.ImplementorPlain[string] {
+			out := make([][][]map[int]implementor.ImplementorPlain[string], len(v))
+
+			inner := &out
+			for k, v := range v {
+				outer := inner
+				mid := make([][]map[int]implementor.ImplementorPlain[string], len(v))
+				inner := &mid
+				for k, v := range v {
+					outer := inner
+					mid := make([]map[int]implementor.ImplementorPlain[string], len(v))
+					inner := &mid
+					for k, v := range v {
+						outer := inner
+						mid := make(map[int]implementor.ImplementorPlain[string], len(v))
+						inner := &mid
+						for k, v := range v {
+							(*inner)[k] = v.UndPlain()
+						}
+						(*outer)[k] = *inner
+					}
+					(*outer)[k] = *inner
+				}
+				(*outer)[k] = *inner
+			}
+
+			return out
+		})(v.B),
+		C: (func(v []map[string][5]und.Und[*implementor.Implementor[string]]) []map[string][5]*implementor.ImplementorPlain[string] {
+			out := make([]map[string][5]*implementor.ImplementorPlain[string], len(v))
+
+			inner := &out
+			for k, v := range v {
+				outer := inner
+				mid := make(map[string][5]*implementor.ImplementorPlain[string], len(v))
+				inner := &mid
+				for k, v := range v {
+					outer := inner
+					mid := [5]*implementor.ImplementorPlain[string]{}
+					inner := &mid
+					for k, v := range v {
+						(*inner)[k] = und.Map(
+							v,
+							func(v *implementor.Implementor[string]) *implementor.ImplementorPlain[string] {
+								if v == nil {
+									return nil
+								}
+								vv := v.UndPlain()
+								return &vv
+							},
+						).Value()
+					}
+					(*outer)[k] = *inner
+				}
+				(*outer)[k] = *inner
+			}
+
+			return out
+		})(v.C),
+		D: (func(v [][][]map[int]*implementor.Implementor[string]) [][][]map[int]*implementor.ImplementorPlain[string] {
+			out := make([][][]map[int]*implementor.ImplementorPlain[string], len(v))
+
+			inner := &out
+			for k, v := range v {
+				outer := inner
+				mid := make([][]map[int]*implementor.ImplementorPlain[string], len(v))
+				inner := &mid
+				for k, v := range v {
+					outer := inner
+					mid := make([]map[int]*implementor.ImplementorPlain[string], len(v))
+					inner := &mid
+					for k, v := range v {
+						outer := inner
+						mid := make(map[int]*implementor.ImplementorPlain[string], len(v))
+						inner := &mid
+						for k, v := range v {
+							(*inner)[k] = func(v *implementor.Implementor[string]) *implementor.ImplementorPlain[string] {
+								if v == nil {
+									return nil
+								}
+								vv := v.UndPlain()
+								return &vv
+							}(v)
+						}
+						(*outer)[k] = *inner
+					}
+					(*outer)[k] = *inner
+				}
+				(*outer)[k] = *inner
+			}
+
+			return out
+		})(v.D),
+	}
+}
+
+//undgen:generated
+func (v DeeplyNestedImplementorPlain) UndRaw() DeeplyNestedImplementor {
+	return DeeplyNestedImplementor{
+		A: (func(v []map[string][5]implementor.ImplementorPlain[string]) []map[string][5]und.Und[implementor.Implementor[string]] {
+			out := make([]map[string][5]und.Und[implementor.Implementor[string]], len(v))
+
+			inner := &out
+			for k, v := range v {
+				outer := inner
+				mid := make(map[string][5]und.Und[implementor.Implementor[string]], len(v))
+				inner := &mid
+				for k, v := range v {
+					outer := inner
+					mid := [5]und.Und[implementor.Implementor[string]]{}
+					inner := &mid
+					for k, v := range v {
+						(*inner)[k] = und.Map(
+							und.Defined(v),
+							func(v implementor.ImplementorPlain[string]) implementor.Implementor[string] {
+								vv := v.UndRaw()
+								return vv
+							},
+						)
+					}
+					(*outer)[k] = *inner
+				}
+				(*outer)[k] = *inner
+			}
+
+			return out
+		})(v.A),
+		B: (func(v [][][]map[int]implementor.ImplementorPlain[string]) [][][]map[int]implementor.Implementor[string] {
+			out := make([][][]map[int]implementor.Implementor[string], len(v))
+
+			inner := &out
+			for k, v := range v {
+				outer := inner
+				mid := make([][]map[int]implementor.Implementor[string], len(v))
+				inner := &mid
+				for k, v := range v {
+					outer := inner
+					mid := make([]map[int]implementor.Implementor[string], len(v))
+					inner := &mid
+					for k, v := range v {
+						outer := inner
+						mid := make(map[int]implementor.Implementor[string], len(v))
+						inner := &mid
+						for k, v := range v {
+							(*inner)[k] = v.UndRaw()
+						}
+						(*outer)[k] = *inner
+					}
+					(*outer)[k] = *inner
+				}
+				(*outer)[k] = *inner
+			}
+
+			return out
+		})(v.B),
+		C: (func(v []map[string][5]*implementor.ImplementorPlain[string]) []map[string][5]und.Und[*implementor.Implementor[string]] {
+			out := make([]map[string][5]und.Und[*implementor.Implementor[string]], len(v))
+
+			inner := &out
+			for k, v := range v {
+				outer := inner
+				mid := make(map[string][5]und.Und[*implementor.Implementor[string]], len(v))
+				inner := &mid
+				for k, v := range v {
+					outer := inner
+					mid := [5]und.Und[*implementor.Implementor[string]]{}
+					inner := &mid
+					for k, v := range v {
+						(*inner)[k] = und.Map(
+							und.Defined(v),
+							func(v *implementor.ImplementorPlain[string]) *implementor.Implementor[string] {
+								if v == nil {
+									return nil
+								}
+								vv := v.UndRaw()
+								return &vv
+							},
+						)
+					}
+					(*outer)[k] = *inner
+				}
+				(*outer)[k] = *inner
+			}
+
+			return out
+		})(v.C),
+		D: (func(v [][][]map[int]*implementor.ImplementorPlain[string]) [][][]map[int]*implementor.Implementor[string] {
+			out := make([][][]map[int]*implementor.Implementor[string], len(v))
+
+			inner := &out
+			for k, v := range v {
+				outer := inner
+				mid := make([][]map[int]*implementor.Implementor[string], len(v))
+				inner := &mid
+				for k, v := range v {
+					outer := inner
+					mid := make([]map[int]*implementor.Implementor[string], len(v))
+					inner := &mid
+					for k, v := range v {
+						outer := inner
+						mid := make(map[int]*implementor.Implementor[string], len(v))
+						inner := &mid
+						for k, v := range v {
+							(*inner)[k] = func(v *implementor.ImplementorPlain[string]) *implementor.Implementor[string] {
+								if v == nil {
+									return nil
+								}
+								vv := v.UndRaw()
+								return &vv
+							}(v)
+						}
+						(*outer)[k] = *inner
+					}
+					(*outer)[k] = *inner
+				}
+				(*outer)[k] = *inner
+			}
+
+			return out
+		})(v.D),
+	}
+}
+
+//undgen:generated
+type DependantPlain struct {
 	Opt string `und:"required"`
 }
 
-func (v Implementor) UndPlain() ImplementorPlain {
-	return ImplementorPlain{
+//undgen:generated
+func (v Dependant) UndPlain() DependantPlain {
+	return DependantPlain{
 		Opt: v.Opt.Value(),
 	}
 }
 
-func (v ImplementorPlain) UndRaw() Implementor {
-	return Implementor{
+//undgen:generated
+func (v DependantPlain) UndRaw() Dependant {
+	return Dependant{
 		Opt: option.Some(v.Opt),
 	}
 }
 
 //undgen:generated
-type DeeplyNestedPlain struct {
-	A []map[string][5]ImplementorPlain `und:"required"`
-	B [][][]map[int]Implementor
-	C []map[string][5]*ImplementorPlain `und:"required"`
-	D [][][]map[int]*Implementor
+type DeeplyNestedDependantPlain struct {
+	A []map[string][5]DependantPlain `und:"required"`
+	B [][][]map[int]DependantPlain
+	C []map[string][5]*DependantPlain `und:"required"`
+	D [][][]map[int]*DependantPlain
 }
 
-func (v DeeplyNested) UndPlain() DeeplyNestedPlain {
-	return DeeplyNestedPlain{
-		A: (func(v []map[string][5]und.Und[Implementor]) []map[string][5]ImplementorPlain {
-			out := make([]map[string][5]ImplementorPlain, len(v))
+//undgen:generated
+func (v DeeplyNestedDependant) UndPlain() DeeplyNestedDependantPlain {
+	return DeeplyNestedDependantPlain{
+		A: (func(v []map[string][5]und.Und[Dependant]) []map[string][5]DependantPlain {
+			out := make([]map[string][5]DependantPlain, len(v))
 
 			inner := &out
 			for k, v := range v {
 				outer := inner
-				mid := make(map[string][5]ImplementorPlain, len(v))
+				mid := make(map[string][5]DependantPlain, len(v))
 				inner := &mid
 				for k, v := range v {
 					outer := inner
-					mid := [5]ImplementorPlain{}
+					mid := [5]DependantPlain{}
 					inner := &mid
 					for k, v := range v {
 						(*inner)[k] = und.Map(
 							v,
-							func(v Implementor) ImplementorPlain {
+							func(v Dependant) DependantPlain {
 								vv := v.UndPlain()
 								return vv
 							},
@@ -63,23 +329,50 @@ func (v DeeplyNested) UndPlain() DeeplyNestedPlain {
 
 			return out
 		})(v.A),
-		B: v.B,
-		C: (func(v []map[string][5]und.Und[*Implementor]) []map[string][5]*ImplementorPlain {
-			out := make([]map[string][5]*ImplementorPlain, len(v))
+		B: (func(v [][][]map[int]Dependant) [][][]map[int]DependantPlain {
+			out := make([][][]map[int]DependantPlain, len(v))
 
 			inner := &out
 			for k, v := range v {
 				outer := inner
-				mid := make(map[string][5]*ImplementorPlain, len(v))
+				mid := make([][]map[int]DependantPlain, len(v))
 				inner := &mid
 				for k, v := range v {
 					outer := inner
-					mid := [5]*ImplementorPlain{}
+					mid := make([]map[int]DependantPlain, len(v))
+					inner := &mid
+					for k, v := range v {
+						outer := inner
+						mid := make(map[int]DependantPlain, len(v))
+						inner := &mid
+						for k, v := range v {
+							(*inner)[k] = v.UndPlain()
+						}
+						(*outer)[k] = *inner
+					}
+					(*outer)[k] = *inner
+				}
+				(*outer)[k] = *inner
+			}
+
+			return out
+		})(v.B),
+		C: (func(v []map[string][5]und.Und[*Dependant]) []map[string][5]*DependantPlain {
+			out := make([]map[string][5]*DependantPlain, len(v))
+
+			inner := &out
+			for k, v := range v {
+				outer := inner
+				mid := make(map[string][5]*DependantPlain, len(v))
+				inner := &mid
+				for k, v := range v {
+					outer := inner
+					mid := [5]*DependantPlain{}
 					inner := &mid
 					for k, v := range v {
 						(*inner)[k] = und.Map(
 							v,
-							func(v *Implementor) *ImplementorPlain {
+							func(v *Dependant) *DependantPlain {
 								if v == nil {
 									return nil
 								}
@@ -95,28 +388,62 @@ func (v DeeplyNested) UndPlain() DeeplyNestedPlain {
 
 			return out
 		})(v.C),
-		D: v.D,
-	}
-}
-
-func (v DeeplyNestedPlain) UndRaw() DeeplyNested {
-	return DeeplyNested{
-		A: (func(v []map[string][5]ImplementorPlain) []map[string][5]und.Und[Implementor] {
-			out := make([]map[string][5]und.Und[Implementor], len(v))
+		D: (func(v [][][]map[int]*Dependant) [][][]map[int]*DependantPlain {
+			out := make([][][]map[int]*DependantPlain, len(v))
 
 			inner := &out
 			for k, v := range v {
 				outer := inner
-				mid := make(map[string][5]und.Und[Implementor], len(v))
+				mid := make([][]map[int]*DependantPlain, len(v))
 				inner := &mid
 				for k, v := range v {
 					outer := inner
-					mid := [5]und.Und[Implementor]{}
+					mid := make([]map[int]*DependantPlain, len(v))
+					inner := &mid
+					for k, v := range v {
+						outer := inner
+						mid := make(map[int]*DependantPlain, len(v))
+						inner := &mid
+						for k, v := range v {
+							(*inner)[k] = func(v *Dependant) *DependantPlain {
+								if v == nil {
+									return nil
+								}
+								vv := v.UndPlain()
+								return &vv
+							}(v)
+						}
+						(*outer)[k] = *inner
+					}
+					(*outer)[k] = *inner
+				}
+				(*outer)[k] = *inner
+			}
+
+			return out
+		})(v.D),
+	}
+}
+
+//undgen:generated
+func (v DeeplyNestedDependantPlain) UndRaw() DeeplyNestedDependant {
+	return DeeplyNestedDependant{
+		A: (func(v []map[string][5]DependantPlain) []map[string][5]und.Und[Dependant] {
+			out := make([]map[string][5]und.Und[Dependant], len(v))
+
+			inner := &out
+			for k, v := range v {
+				outer := inner
+				mid := make(map[string][5]und.Und[Dependant], len(v))
+				inner := &mid
+				for k, v := range v {
+					outer := inner
+					mid := [5]und.Und[Dependant]{}
 					inner := &mid
 					for k, v := range v {
 						(*inner)[k] = und.Map(
 							und.Defined(v),
-							func(v ImplementorPlain) Implementor {
+							func(v DependantPlain) Dependant {
 								vv := v.UndRaw()
 								return vv
 							},
@@ -129,23 +456,50 @@ func (v DeeplyNestedPlain) UndRaw() DeeplyNested {
 
 			return out
 		})(v.A),
-		B: v.B,
-		C: (func(v []map[string][5]*ImplementorPlain) []map[string][5]und.Und[*Implementor] {
-			out := make([]map[string][5]und.Und[*Implementor], len(v))
+		B: (func(v [][][]map[int]DependantPlain) [][][]map[int]Dependant {
+			out := make([][][]map[int]Dependant, len(v))
 
 			inner := &out
 			for k, v := range v {
 				outer := inner
-				mid := make(map[string][5]und.Und[*Implementor], len(v))
+				mid := make([][]map[int]Dependant, len(v))
 				inner := &mid
 				for k, v := range v {
 					outer := inner
-					mid := [5]und.Und[*Implementor]{}
+					mid := make([]map[int]Dependant, len(v))
+					inner := &mid
+					for k, v := range v {
+						outer := inner
+						mid := make(map[int]Dependant, len(v))
+						inner := &mid
+						for k, v := range v {
+							(*inner)[k] = v.UndRaw()
+						}
+						(*outer)[k] = *inner
+					}
+					(*outer)[k] = *inner
+				}
+				(*outer)[k] = *inner
+			}
+
+			return out
+		})(v.B),
+		C: (func(v []map[string][5]*DependantPlain) []map[string][5]und.Und[*Dependant] {
+			out := make([]map[string][5]und.Und[*Dependant], len(v))
+
+			inner := &out
+			for k, v := range v {
+				outer := inner
+				mid := make(map[string][5]und.Und[*Dependant], len(v))
+				inner := &mid
+				for k, v := range v {
+					outer := inner
+					mid := [5]und.Und[*Dependant]{}
 					inner := &mid
 					for k, v := range v {
 						(*inner)[k] = und.Map(
 							und.Defined(v),
-							func(v *ImplementorPlain) *Implementor {
+							func(v *DependantPlain) *Dependant {
 								if v == nil {
 									return nil
 								}
@@ -161,6 +515,173 @@ func (v DeeplyNestedPlain) UndRaw() DeeplyNested {
 
 			return out
 		})(v.C),
-		D: v.D,
+		D: (func(v [][][]map[int]*DependantPlain) [][][]map[int]*Dependant {
+			out := make([][][]map[int]*Dependant, len(v))
+
+			inner := &out
+			for k, v := range v {
+				outer := inner
+				mid := make([][]map[int]*Dependant, len(v))
+				inner := &mid
+				for k, v := range v {
+					outer := inner
+					mid := make([]map[int]*Dependant, len(v))
+					inner := &mid
+					for k, v := range v {
+						outer := inner
+						mid := make(map[int]*Dependant, len(v))
+						inner := &mid
+						for k, v := range v {
+							(*inner)[k] = func(v *DependantPlain) *Dependant {
+								if v == nil {
+									return nil
+								}
+								vv := v.UndRaw()
+								return &vv
+							}(v)
+						}
+						(*outer)[k] = *inner
+					}
+					(*outer)[k] = *inner
+				}
+				(*outer)[k] = *inner
+			}
+
+			return out
+		})(v.D),
 	}
+}
+
+//undgen:generated
+type DeeplyNestedImplementorMapPlain []map[string][5]und.Und[implementor.ImplementorPlain[string]]
+
+//undgen:generated
+func (v DeeplyNestedImplementorMap) UndPlain() DeeplyNestedImplementorMapPlain {
+	return (func(v []map[string][5]und.Und[implementor.Implementor[string]]) []map[string][5]und.Und[implementor.ImplementorPlain[string]] {
+		out := make([]map[string][5]und.Und[implementor.ImplementorPlain[string]], len(v))
+
+		inner := &out
+		for k, v := range v {
+			outer := inner
+			mid := make(map[string][5]und.Und[implementor.ImplementorPlain[string]], len(v))
+			inner := &mid
+			for k, v := range v {
+				outer := inner
+				mid := [5]und.Und[implementor.ImplementorPlain[string]]{}
+				inner := &mid
+				for k, v := range v {
+					(*inner)[k] = und.Map(
+						v,
+						func(v implementor.Implementor[string]) implementor.ImplementorPlain[string] {
+							vv := v.UndPlain()
+							return vv
+						},
+					)
+				}
+				(*outer)[k] = *inner
+			}
+			(*outer)[k] = *inner
+		}
+
+		return out
+	})(v)
+}
+
+//undgen:generated
+func (v DeeplyNestedImplementorMapPlain) UndRaw() DeeplyNestedImplementorMap {
+	return (func(v []map[string][5]und.Und[implementor.ImplementorPlain[string]]) []map[string][5]und.Und[implementor.Implementor[string]] {
+		out := make([]map[string][5]und.Und[implementor.Implementor[string]], len(v))
+
+		inner := &out
+		for k, v := range v {
+			outer := inner
+			mid := make(map[string][5]und.Und[implementor.Implementor[string]], len(v))
+			inner := &mid
+			for k, v := range v {
+				outer := inner
+				mid := [5]und.Und[implementor.Implementor[string]]{}
+				inner := &mid
+				for k, v := range v {
+					(*inner)[k] = und.Map(
+						v,
+						func(v implementor.ImplementorPlain[string]) implementor.Implementor[string] {
+							vv := v.UndRaw()
+							return vv
+						},
+					)
+				}
+				(*outer)[k] = *inner
+			}
+			(*outer)[k] = *inner
+		}
+
+		return out
+	})(v)
+}
+
+//undgen:generated
+type DeeplyNestedDependantMapPlain []map[string][5]und.Und[DependantPlain]
+
+//undgen:generated
+func (v DeeplyNestedDependantMap) UndPlain() DeeplyNestedDependantMapPlain {
+	return (func(v []map[string][5]und.Und[Dependant]) []map[string][5]und.Und[DependantPlain] {
+		out := make([]map[string][5]und.Und[DependantPlain], len(v))
+
+		inner := &out
+		for k, v := range v {
+			outer := inner
+			mid := make(map[string][5]und.Und[DependantPlain], len(v))
+			inner := &mid
+			for k, v := range v {
+				outer := inner
+				mid := [5]und.Und[DependantPlain]{}
+				inner := &mid
+				for k, v := range v {
+					(*inner)[k] = und.Map(
+						v,
+						func(v Dependant) DependantPlain {
+							vv := v.UndPlain()
+							return vv
+						},
+					)
+				}
+				(*outer)[k] = *inner
+			}
+			(*outer)[k] = *inner
+		}
+
+		return out
+	})(v)
+}
+
+//undgen:generated
+func (v DeeplyNestedDependantMapPlain) UndRaw() DeeplyNestedDependantMap {
+	return (func(v []map[string][5]und.Und[DependantPlain]) []map[string][5]und.Und[Dependant] {
+		out := make([]map[string][5]und.Und[Dependant], len(v))
+
+		inner := &out
+		for k, v := range v {
+			outer := inner
+			mid := make(map[string][5]und.Und[Dependant], len(v))
+			inner := &mid
+			for k, v := range v {
+				outer := inner
+				mid := [5]und.Und[Dependant]{}
+				inner := &mid
+				for k, v := range v {
+					(*inner)[k] = und.Map(
+						v,
+						func(v DependantPlain) Dependant {
+							vv := v.UndRaw()
+							return vv
+						},
+					)
+				}
+				(*outer)[k] = *inner
+			}
+			(*outer)[k] = *inner
+		}
+
+		return out
+	})(v)
 }
