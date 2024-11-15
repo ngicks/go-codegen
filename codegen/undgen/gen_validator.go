@@ -25,9 +25,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen validator -v --pkg ./internal/targettypes/ --pkg ./internal/targettypes/sub --pkg ./internal/targettypes/sub2
-//go:generate go run ../ undgen validator -v --pkg ./internal/validatortarget/...
-
 func GenerateValidator(
 	sourcePrinter *suffixwriter.Writer,
 	verbose bool,

@@ -103,32 +103,4 @@ func Test_%[1]s_plain(t *testing.T) {
 			panic(err)
 		}
 	}
-
-	f, err := os.Create("generatetypes.go")
-	if err != nil {
-		panic(err)
-	}
-	_, err = f.Write([]byte(`package tests
-
-//go:generate go run ../../../ undgen plain -v --dir ../testtargets --pkg ./...
-//go:generate go run ../../../ undgen validator -v --dir ../testtargets --pkg ./...
-
-`,
-	))
-	if err != nil {
-		panic(err)
-	}
-	for _, name := range names {
-		_, err := fmt.Fprintf(
-			f,
-			`//go:generate go run ../../../ undgen patch -v --dir ../testtargets --pkg ./%s ...
-`,
-			name,
-		)
-		if err != nil {
-			_ = f.Close()
-			panic(err)
-		}
-	}
-	_ = f.Close()
 }

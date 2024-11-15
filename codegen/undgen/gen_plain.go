@@ -23,11 +23,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen plain -v --pkg ./internal/targettypes/ --pkg ./internal/targettypes/sub --pkg ./internal/targettypes/sub2
-//go:generate go run ../ undgen plain -v --pkg ./internal/patchtarget/...
-//go:generate go run ../ undgen plain -v --pkg ./internal/validatortarget/...
-//go:generate go run ../ undgen plain -v --pkg ./internal/plaintarget/...
-
 func GeneratePlain(
 	sourcePrinter *suffixwriter.Writer,
 	verbose bool,
