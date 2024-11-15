@@ -12,8 +12,136 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func Test_plain_All(t *testing.T) {
-	a := all.All{
+func Test_all_UndValidate(t *testing.T) {
+	allValid := all.All{
+		Foo:                      "foo",
+		Bar:                      ptr("bar"),
+		Baz:                      nil,
+		Qux:                      []string{"foo", "bar", "baz"},
+		UntouchedOpt:             option.Some(5),
+		UntouchedUnd:             und.Defined(25),
+		UntouchedSliceUnd:        sliceund.Defined(44),
+		OptRequired:              option.Some("OptRequired"),
+		OptNullish:               option.None[string](),
+		OptDef:                   option.Some("OptDef"),
+		OptNull:                  option.None[string](),
+		OptUnd:                   option.None[string](),
+		OptDefOrUnd:              option.Some("OptDefOrUnd"),
+		OptDefOrNull:             option.Some("OptDefOrNull"),
+		OptNullOrUnd:             option.None[string](),
+		OptDefOrNullOrUnd:        option.Some("OptDefOrNullOrUnd"),
+		UndRequired:              und.Defined("UndRequired"),
+		UndNullish:               und.Null[string](),
+		UndDef:                   und.Defined("UndDef"),
+		UndNull:                  und.Null[string](),
+		UndUnd:                   und.Undefined[string](),
+		UndDefOrUnd:              und.Defined("UndDefOrUnd"),
+		UndDefOrNull:             und.Defined("UndDefOrNull"),
+		UndNullOrUnd:             und.Null[string](),
+		UndDefOrNullOrUnd:        und.Defined("UndDefOrNullOrUnd"),
+		ElaRequired:              elastic.FromOptions(option.Some("ElaRequired"), option.None[string](), option.Some("ElaRequired"), option.None[string](), option.Some("ElaRequired")),
+		ElaNullish:               elastic.Null[string](),
+		ElaDef:                   elastic.FromOptions(option.Some("ElaDef"), option.None[string](), option.Some("ElaDef"), option.None[string](), option.Some("ElaDef")),
+		ElaNull:                  elastic.Null[string](),
+		ElaUnd:                   elastic.Undefined[string](),
+		ElaDefOrUnd:              elastic.FromOptions(option.Some("ElaDefOrUnd"), option.None[string](), option.Some("ElaDefOrUnd"), option.None[string](), option.Some("ElaDefOrUnd")),
+		ElaDefOrNull:             elastic.FromOptions(option.Some("ElaDefOrNull"), option.None[string](), option.Some("ElaDefOrNull"), option.None[string](), option.Some("ElaDefOrNull")),
+		ElaNullOrUnd:             elastic.Undefined[string](),
+		ElaDefOrNullOrUnd:        elastic.FromOptions(option.Some("ElaDefOrNullOrUnd"), option.None[string](), option.Some("ElaDefOrNullOrUnd"), option.None[string](), option.Some("ElaDefOrNullOrUnd")),
+		ElaEqEq:                  elastic.FromOptions(option.Some("ElaEqEq")),
+		ElaGr:                    elastic.FromOptions(option.Some("ElaGr"), option.None[string](), option.Some("ElaGr"), option.None[string](), option.Some("ElaGr")),
+		ElaGrEq:                  elastic.FromOptions(option.Some("ElaGrEq"), option.None[string](), option.Some("ElaGrEq"), option.None[string](), option.Some("ElaGrEq")),
+		ElaLe:                    elastic.FromOptions[string](),
+		ElaLeEq:                  elastic.FromOptions(option.Some("ElaLeEq")),
+		ElaEqEquRequired:         elastic.FromOptions(option.Some("ElaEqEquRequired"), option.None[string]()),
+		ElaEqEquNullish:          elastic.FromOptions(option.Some("ElaEqEquNullish"), option.None[string]()),
+		ElaEqEquDef:              elastic.FromOptions(option.Some("ElaEqEquDef"), option.None[string]()),
+		ElaEqEquNull:             elastic.FromOptions(option.Some("ElaEqEquNull"), option.None[string]()),
+		ElaEqEquUnd:              elastic.FromOptions(option.Some("ElaEqEquUnd"), option.None[string]()),
+		ElaEqEqNonNullSlice:      elastic.FromOptions(option.Some("ElaEqEqNonNullSlice"), option.Some("ElaEqEqNonNullSlice"), option.Some("ElaEqEqNonNullSlice")),
+		ElaEqEqNonNullNullSlice:  elastic.Null[string](),
+		ElaEqEqNonNullSingle:     elastic.FromOptions(option.Some("ElaEqEqNonNullSingle")),
+		ElaEqEqNonNullNullSingle: elastic.FromOptions(option.Some("ElaEqEqNonNullNullSingle")),
+		ElaEqEqNonNull:           elastic.FromOptions(option.Some("ElaEqEqNonNull"), option.Some("ElaEqEqNonNull"), option.Some("ElaEqEqNonNull")),
+		ElaEqEqNonNullNull:       elastic.FromOptions(option.Some("ElaEqEqNonNullNull"), option.Some("ElaEqEqNonNullNull"), option.Some("ElaEqEqNonNullNull")),
+	}
+
+	assert.NilError(t, allValid.UndValidate())
+
+	type testCase struct {
+		name          string
+		patch         func(a all.All) all.All
+		errorContains string
+	}
+
+	for _, tc := range []testCase{
+		{
+			name: "defined",
+			patch: func(a all.All) all.All {
+				a.OptRequired = option.None[string]()
+				return a
+			},
+			errorContains: "opt_required", // name in json tag is used.
+		},
+		{
+			name: "null",
+			patch: func(a all.All) all.All {
+				a.UndNull = und.Defined("aaa")
+				return a
+			},
+			errorContains: "UndNull",
+		},
+		{
+			name: "undefined",
+			patch: func(a all.All) all.All {
+				a.UndDefOrUnd = und.Null[string]()
+				return a
+			},
+			errorContains: "UndDefOrUnd",
+		},
+		{
+			name: "lenGr",
+			patch: func(a all.All) all.All {
+				a.ElaGr = elastic.FromValues[string]()
+				return a
+			},
+			errorContains: "ElaGr",
+		},
+		{
+			name: "lenLt",
+			patch: func(a all.All) all.All {
+				a.ElaLeEq = elastic.FromOptions(append(a.ElaLeEq.Unwrap().Value(), option.None[string]())...)
+				return a
+			},
+			errorContains: "ElaLeEq",
+		},
+		{
+			name: "lenEq",
+			patch: func(a all.All) all.All {
+				a.ElaEqEquRequired = elastic.FromOptions(option.Some("ElaEqEquRequired"), option.None[string](), option.None[string]())
+				return a
+			},
+			errorContains: "ElaEqEquRequired",
+		},
+		{
+			name: "nonnull",
+			patch: func(a all.All) all.All {
+				a.ElaEqEqNonNullSlice = elastic.FromOptions(append(a.ElaEqEqNonNullSlice.Unwrap().Value(), option.None[string]())...)
+				return a
+			},
+			errorContains: "ElaEqEqNonNullSlice",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			patched := tc.patch(allValid)
+			assert.ErrorContains(t, patched.UndValidate(), "validation failed at ."+tc.errorContains+":")
+		})
+	}
+
+}
+
+func Test_all_UndPlain(t *testing.T) {
+	allSample := all.All{
 		Foo:                      "foo",
 		Bar:                      ptr("bar"),
 		Baz:                      nil,
@@ -66,7 +194,7 @@ func Test_plain_All(t *testing.T) {
 		ElaEqEqNonNullNull:       elastic.FromOptions(option.Some("ElaEqEqNonNullNull"), option.None[string](), option.Some("ElaEqEqNonNullNull"), option.None[string](), option.Some("ElaEqEqNonNullNull")),
 	}
 
-	p := a.UndPlain()
+	p := allSample.UndPlain()
 
 	assertDeepEqualAllPlain := func(t *testing.T, i, j all.AllPlain) {
 		t.Helper()
@@ -191,7 +319,7 @@ func Test_plain_All(t *testing.T) {
 		p.UndRaw(),
 	)
 
-	a = all.All{
+	a := all.All{
 		ElaGr: elastic.FromValue("foo"),
 	}
 	assert.DeepEqual(
