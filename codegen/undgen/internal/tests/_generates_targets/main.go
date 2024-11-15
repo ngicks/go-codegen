@@ -2,12 +2,18 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"os/signal"
+	"slices"
 	"strings"
+)
+
+var (
+	excludes = flag.String("e", "", "")
 )
 
 func main() {
@@ -16,10 +22,24 @@ func main() {
 	commands := []string{
 		"go run ../../../ undgen plain -v --dir ../testtargets --pkg ./...",
 		"go run ../../../ undgen validator -v --dir ../testtargets --pkg ./...",
-		"go run ../../../ undgen patch -v --dir ../testtargets --pkg ./all ...",
-		"go run ../../../ undgen patch -v --dir ../testtargets --pkg ./deeplynested ...",
-		"go run ../../../ undgen patch -v --dir ../testtargets --pkg ./ignored ...",
-		"go run ../../../ undgen patch -v --dir ../testtargets --pkg ./typeparam ...",
+	}
+
+	dirents, err := os.ReadDir("../testtargets")
+	if err != nil {
+		panic(err)
+	}
+	for _, dirent := range dirents {
+		name := dirent.Name()
+		if !dirent.IsDir() || slices.Contains(strings.Split(*excludes, ","), name) {
+			continue
+		}
+		commands = append(
+			commands,
+			fmt.Sprintf(
+				"go run ../../../ undgen patch -v --dir ../testtargets --pkg ./%s ...",
+				name,
+			),
+		)
 	}
 	for _, command := range commands {
 		splitted := strings.Split(command, " ")
