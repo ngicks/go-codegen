@@ -15,7 +15,7 @@ var (
 func main() {
 	flag.Parse()
 
-	dirents, err := os.ReadDir(".")
+	dirents, err := os.ReadDir("../testtargets")
 	if err != nil {
 		panic(err)
 	}
@@ -33,7 +33,7 @@ func main() {
 		}
 		_, err = fmt.Fprintf(
 			f,
-			`package testtargets
+			`package tests
 
 import (
 	"maps"
@@ -47,7 +47,7 @@ import (
 
 func Test_%[1]s_patcher(t *testing.T) {
 	pkgs := testTargets["%[1]s"]
-	testPrinter := suffixwriter.NewTestWriter(".und_patcher")
+	testPrinter := suffixwriter.NewTestWriter(".und_patcher", suffixwriter.WithCwd("../testtargets"))
 	err := undgen.GeneratePatcher(
 		testPrinter.Writer,
 		true,
@@ -65,7 +65,7 @@ func Test_%[1]s_patcher(t *testing.T) {
 
 func Test_%[1]s_validator(t *testing.T) {
 	pkgs := testTargets["%[1]s"]
-	testPrinter := suffixwriter.NewTestWriter(".und_validator")
+	testPrinter := suffixwriter.NewTestWriter(".und_validator", suffixwriter.WithCwd("../testtargets"))
 	err := undgen.GenerateValidator(
 		testPrinter.Writer,
 		true,
@@ -82,7 +82,7 @@ func Test_%[1]s_validator(t *testing.T) {
 
 func Test_%[1]s_plain(t *testing.T) {
 	pkgs := testTargets["%[1]s"]
-	testPrinter := suffixwriter.NewTestWriter(".und_plain")
+	testPrinter := suffixwriter.NewTestWriter(".und_plain", suffixwriter.WithCwd("../testtargets"))
 	err := undgen.GeneratePlain(
 		testPrinter.Writer,
 		true,
@@ -108,10 +108,10 @@ func Test_%[1]s_plain(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	_, err = f.Write([]byte(`package testtargets
+	_, err = f.Write([]byte(`package tests
 
-//go:generate go run ../../../ undgen plain -v --pkg ./...
-//go:generate go run ../../../ undgen validator -v --pkg ./...
+//go:generate go run ../../../ undgen plain -v --dir ../testtargets --pkg ./...
+//go:generate go run ../../../ undgen validator -v --dir ../testtargets --pkg ./...
 
 `,
 	))
@@ -121,7 +121,7 @@ func Test_%[1]s_plain(t *testing.T) {
 	for _, name := range names {
 		_, err := fmt.Fprintf(
 			f,
-			`//go:generate go run ../../../ undgen patch -v --pkg ./%s ...
+			`//go:generate go run ../../../ undgen patch -v --dir ../testtargets --pkg ./%s ...
 `,
 			name,
 		)
