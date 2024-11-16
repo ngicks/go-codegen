@@ -2,7 +2,7 @@
 package deeplynested
 
 import (
-	"github.com/ngicks/go-codegen/codegen/undgen/internal/testtargets/implementor"
+	"github.com/ngicks/go-codegen/codegen/generator/undgen/internal/testtargets/implementor"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/option"
 )

@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	gocmp "github.com/google/go-cmp/cmp"
-	"github.com/ngicks/go-codegen/codegen/undgen/internal/testtargets/deeplynested"
-	"github.com/ngicks/go-codegen/codegen/undgen/internal/testtargets/implementor"
+	"github.com/ngicks/go-codegen/codegen/generator/undgen/internal/testtargets/deeplynested"
+	"github.com/ngicks/go-codegen/codegen/generator/undgen/internal/testtargets/implementor"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/option"
 	"gotest.tools/v3/assert"

@@ -5,13 +5,13 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/ngicks/go-codegen/codegen/generator/undgen"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
-	"github.com/ngicks/go-codegen/codegen/undgen"
 	"gotest.tools/v3/assert"
 )
 
-func Test_deeplynested_patcher(t *testing.T) {
-	pkgs := testTargets["deeplynested"]
+func Test_patchtarget_patcher(t *testing.T) {
+	pkgs := testTargets["patchtarget"]
 	testPrinter := suffixwriter.NewTestWriter(".und_patcher", suffixwriter.WithCwd("../testtargets"))
 	err := undgen.GeneratePatcher(
 		testPrinter.Writer,
@@ -28,8 +28,8 @@ func Test_deeplynested_patcher(t *testing.T) {
 	}
 }
 
-func Test_deeplynested_validator(t *testing.T) {
-	pkgs := testTargets["deeplynested"]
+func Test_patchtarget_validator(t *testing.T) {
+	pkgs := testTargets["patchtarget"]
 	testPrinter := suffixwriter.NewTestWriter(".und_validator", suffixwriter.WithCwd("../testtargets"))
 	err := undgen.GenerateValidator(
 		testPrinter.Writer,
@@ -45,8 +45,8 @@ func Test_deeplynested_validator(t *testing.T) {
 	}
 }
 
-func Test_deeplynested_plain(t *testing.T) {
-	pkgs := testTargets["deeplynested"]
+func Test_patchtarget_plain(t *testing.T) {
+	pkgs := testTargets["patchtarget"]
 	testPrinter := suffixwriter.NewTestWriter(".und_plain", suffixwriter.WithCwd("../testtargets"))
 	err := undgen.GeneratePlain(
 		testPrinter.Writer,

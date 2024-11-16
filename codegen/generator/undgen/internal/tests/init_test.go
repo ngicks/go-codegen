@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	gocmp "github.com/google/go-cmp/cmp"
-	"github.com/ngicks/go-codegen/codegen/undgen"
+	"github.com/ngicks/go-codegen/codegen/generator/undgen"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/option"
 	"golang.org/x/tools/go/packages"

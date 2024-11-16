@@ -12,9 +12,9 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/ngicks/go-codegen/codegen/generator/undgen"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
-	"github.com/ngicks/go-codegen/codegen/undgen"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/tools/go/packages"

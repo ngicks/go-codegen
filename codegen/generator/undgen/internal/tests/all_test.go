@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/ngicks/go-codegen/codegen/undgen/internal/testtargets/all"
+	"github.com/ngicks/go-codegen/codegen/generator/undgen/internal/testtargets/all"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/conversion"
 	"github.com/ngicks/und/elastic"
