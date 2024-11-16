@@ -41,6 +41,8 @@ func main() {
 			),
 		)
 	}
+
+	var errors []error
 	for _, command := range commands {
 		splitted := strings.Split(command, " ")
 		cmd := exec.CommandContext(context.WithoutCancel(ctx), splitted[0], splitted[1:]...)
@@ -53,9 +55,18 @@ func main() {
 		}()
 		err = cmd.Run()
 		if err != nil {
-			fmt.Printf("\n\ncommand %q failed: %v\n\n", command, err)
+			err = fmt.Errorf("\n\ncommand %q failed: %w", command, err)
+			errors = append(errors, err)
+			fmt.Printf("%v\n\n", err)
 		} else {
 			fmt.Printf("\n\ncommands %q succeeded\n\n", command)
 		}
+	}
+
+	if len(errors) > 0 {
+		fmt.Printf("\n\nfailed commands:\n")
+	}
+	for _, err := range errors {
+		fmt.Printf("\t%v\n", err)
 	}
 }
