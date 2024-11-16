@@ -40,11 +40,17 @@ func undCommonFlags(fset *pflag.FlagSet, multiplePkg bool) {
 		fset.StringP("pkg", "p", "", "target package name. relative to dir. specifying 2 or more packages is not allowed")
 	}
 	fset.BoolP("verbose", "v", false, "verbose logs")
+	fset.Bool(
+		"ignore-generated",
+		false,
+		"if set, the type checker ignores ast nodes with comment //undgen:generated. "+
+			"Useful for internal debugging. "+
+			"You do not need this option.")
 	fset.Bool("dry", false, "enables dry run mode. any files will be remove nor generated.")
 	_ = undgenPatchCmd.MarkFlagRequired("pkg")
 }
 
-func undCommonOpts(fset *pflag.FlagSet, multiplePkg bool) (dir string, pkg []string, verbose bool, dry bool, err error) {
+func undCommonOpts(fset *pflag.FlagSet, multiplePkg bool) (dir string, pkg []string, verbose bool, ignoreGenerated bool, dry bool, err error) {
 	dir, err = fset.GetString("dir")
 	if err != nil {
 		return
@@ -80,6 +86,11 @@ func undCommonOpts(fset *pflag.FlagSet, multiplePkg bool) (dir string, pkg []str
 		return
 	}
 
+	ignoreGenerated, err = fset.GetBool("ignore-generated")
+	if err != nil {
+		return
+	}
+
 	dry, err = fset.GetBool("dry")
 	if err != nil {
 		return
@@ -88,7 +99,14 @@ func undCommonOpts(fset *pflag.FlagSet, multiplePkg bool) (dir string, pkg []str
 	return
 }
 
-func loadPkgs(ctx context.Context, dir string, pkg []string, multiplePkg bool, verbose bool) ([]*packages.Package, error) {
+func loadPkgs(
+	ctx context.Context,
+	dir string,
+	pkg []string,
+	multiplePkg bool,
+	verbose bool,
+	ignoreGenerated bool,
+) ([]*packages.Package, error) {
 	cfg := &packages.Config{
 		Mode: packages.NeedName |
 			packages.NeedImports |
@@ -97,14 +115,16 @@ func loadPkgs(ctx context.Context, dir string, pkg []string, multiplePkg bool, v
 			packages.NeedSyntax |
 			packages.NeedTypesInfo |
 			packages.NeedTypesSizes,
-		Context:   ctx,
-		ParseFile: undgen.NewUndParser(dir).ParseFile,
-		Dir:       dir,
+		Context: ctx,
+		Dir:     dir,
 	}
 	if verbose {
 		cfg.Logf = func(format string, args ...interface{}) {
 			fmt.Printf(format, args...)
 		}
+	}
+	if ignoreGenerated {
+		cfg.ParseFile = undgen.NewUndParser(cfg.Dir).ParseFile
 	}
 
 	targetPkgs, err := packages.Load(cfg, pkg...)
