@@ -20,8 +20,8 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background())
 	defer cancel()
 	commands := []string{
-		"go run ../../../ undgen plain -v --ignore-generated --dir ../testtargets --pkg ./...",
-		"go run ../../../ undgen validator -v --ignore-generated --dir ../testtargets --pkg ./...",
+		"go run ../../../../ undgen plain -v --ignore-generated --dir ../testtargets --pkg ./...",
+		"go run ../../../../ undgen validator -v --ignore-generated --dir ../testtargets --pkg ./...",
 	}
 
 	dirents, err := os.ReadDir("../testtargets")
@@ -36,7 +36,7 @@ func main() {
 		commands = append(
 			commands,
 			fmt.Sprintf(
-				"go run ../../../ undgen patch -v --ignore-generated --dir ../testtargets --pkg ./%s ...",
+				"go run ../../../../ undgen patch -v --ignore-generated --dir ../testtargets --pkg ./%s ...",
 				name,
 			),
 		)
@@ -55,7 +55,7 @@ func main() {
 		}()
 		err = cmd.Run()
 		if err != nil {
-			err = fmt.Errorf("\n\ncommand %q failed: %w", command, err)
+			err = fmt.Errorf("command %q failed: %w", command, err)
 			errors = append(errors, err)
 			fmt.Printf("%v\n\n", err)
 		} else {
