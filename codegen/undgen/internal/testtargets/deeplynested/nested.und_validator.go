@@ -265,6 +265,10 @@ func (v DeeplyNestedDependant) UndValidate() (err error) {
 					if !validator.ValidUnd(v) {
 						err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
 					}
+					if err == nil {
+						err = und.UndValidate(v)
+					}
+
 					if err != nil {
 						err = validate.AppendValidationErrorIndex(
 							err,
@@ -365,6 +369,10 @@ func (v DeeplyNestedDependant) UndValidate() (err error) {
 					if !validator.ValidUnd(v) {
 						err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
 					}
+					if err == nil && v.Value() != nil {
+						err = und.UndValidate(v)
+					}
+
 					if err != nil {
 						err = validate.AppendValidationErrorIndex(
 							err,

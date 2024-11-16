@@ -269,7 +269,8 @@ func generateUndValidate(
 					}
 
 					var wrappeeValidator func(ident string) string
-					if ok, isPointer := edge.HasSingleNamedTypeArg(isUndValidatorImplementor); ok {
+					isImpl, isPointer := edge.HasSingleNamedTypeArg(isUndValidatorImplementor)
+					if isImpl || edge.IsTypeArgMatched() {
 						wrappeeValidator = func(ident string) string {
 							return fmt.Sprintf(
 								`
