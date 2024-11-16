@@ -20,8 +20,8 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background())
 	defer cancel()
 	commands := []string{
-		"go run ../../../ undgen plain -v --dir ../testtargets --pkg ./...",
-		"go run ../../../ undgen validator -v --dir ../testtargets --pkg ./...",
+		"go run ../../../ undgen plain -v --ignore-generated --dir ../testtargets --pkg ./...",
+		"go run ../../../ undgen validator -v --ignore-generated --dir ../testtargets --pkg ./...",
 	}
 
 	dirents, err := os.ReadDir("../testtargets")
@@ -36,11 +36,13 @@ func main() {
 		commands = append(
 			commands,
 			fmt.Sprintf(
-				"go run ../../../ undgen patch -v --dir ../testtargets --pkg ./%s ...",
+				"go run ../../../ undgen patch -v --ignore-generated --dir ../testtargets --pkg ./%s ...",
 				name,
 			),
 		)
 	}
+
+	var errors []error
 	for _, command := range commands {
 		splitted := strings.Split(command, " ")
 		cmd := exec.CommandContext(context.WithoutCancel(ctx), splitted[0], splitted[1:]...)
@@ -53,9 +55,18 @@ func main() {
 		}()
 		err = cmd.Run()
 		if err != nil {
-			fmt.Printf("\n\ncommand %q failed: %v\n\n", command, err)
+			err = fmt.Errorf("\n\ncommand %q failed: %w", command, err)
+			errors = append(errors, err)
+			fmt.Printf("%v\n\n", err)
 		} else {
 			fmt.Printf("\n\ncommands %q succeeded\n\n", command)
 		}
+	}
+
+	if len(errors) > 0 {
+		fmt.Printf("\n\nfailed commands:\n")
+	}
+	for _, err := range errors {
+		fmt.Printf("\t%v\n", err)
 	}
 }

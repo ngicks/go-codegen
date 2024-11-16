@@ -20,7 +20,7 @@ var undgenPlainCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fset := cmd.Flags()
 
-		dir, pkg, verbose, dry, err := undCommonOpts(fset, true)
+		dir, pkg, verbose, ignoreGenerated, dry, err := undCommonOpts(fset, true)
 		if err != nil {
 			return err
 		}
@@ -32,7 +32,7 @@ var undgenPlainCmd = &cobra.Command{
 		if verbose {
 			fmt.Printf("loading: %#v\n", pkg)
 		}
-		targetPkgs, err := loadPkgs(ctx, dir, pkg, true, verbose)
+		targetPkgs, err := loadPkgs(ctx, dir, pkg, true, verbose, ignoreGenerated)
 		if err != nil {
 			return err
 		}

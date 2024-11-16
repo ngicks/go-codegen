@@ -19,7 +19,8 @@ var undgenValidatorCmd = &cobra.Command{
 	Long:  `undgen-validator generates validator method on target types.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fset := cmd.Flags()
-		dir, pkg, verbose, dry, err := undCommonOpts(fset, true)
+
+		dir, pkg, verbose, ignoreGenerated, dry, err := undCommonOpts(fset, true)
 		if err != nil {
 			return err
 		}
@@ -28,7 +29,7 @@ var undgenValidatorCmd = &cobra.Command{
 		}
 		ctx := cmd.Context()
 
-		targetPkgs, err := loadPkgs(ctx, dir, pkg, true, verbose)
+		targetPkgs, err := loadPkgs(ctx, dir, pkg, true, verbose, ignoreGenerated)
 		if err != nil {
 			return err
 		}

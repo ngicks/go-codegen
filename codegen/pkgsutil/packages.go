@@ -135,9 +135,9 @@ func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string, dry bool)
 
 func LoadError(pkg *packages.Package) error {
 	if len(pkg.Errors) > 0 {
-		format, _ := strings.CutSuffix(strings.Repeat("%w, ", len(pkg.Errors)), ", ")
+		format, _ := strings.CutSuffix(strings.Repeat("%w,\n", len(pkg.Errors)), ",\n")
 		return fmt.Errorf(
-			format,
+			"*packages.Package load error: "+format+"\n",
 			slices.Collect(
 				xiter.Map(
 					func(e packages.Error) any { return e },
