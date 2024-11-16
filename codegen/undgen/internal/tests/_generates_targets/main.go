@@ -20,8 +20,8 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background())
 	defer cancel()
 	commands := []string{
-		"go run ../../../ undgen plain -v --dir ../testtargets --pkg ./...",
-		"go run ../../../ undgen validator -v --dir ../testtargets --pkg ./...",
+		"go run ../../../ undgen plain -v --ignore-generated --dir ../testtargets --pkg ./...",
+		"go run ../../../ undgen validator -v --ignore-generated --dir ../testtargets --pkg ./...",
 	}
 
 	dirents, err := os.ReadDir("../testtargets")
@@ -36,7 +36,7 @@ func main() {
 		commands = append(
 			commands,
 			fmt.Sprintf(
-				"go run ../../../ undgen patch -v --dir ../testtargets --pkg ./%s ...",
+				"go run ../../../ undgen patch -v --ignore-generated --dir ../testtargets --pkg ./%s ...",
 				name,
 			),
 		)
