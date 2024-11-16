@@ -69,11 +69,10 @@ func unwrapFieldAlongPath(
 		wrappers = append(wrappers, func(s string) string {
 			return fmt.Sprintf(
 				`for k, v := range v {
-					outer := inner
-					mid := %s
-					inner := &mid
+					outer := &inner
+					inner := %s
 					%s
-					(*outer)[k] = *inner
+					(*outer)[k] = inner
 				}`,
 				initializerExpr, s,
 			)
@@ -83,7 +82,7 @@ func unwrapFieldAlongPath(
 	wrappers = append(wrappers, func(s string) string {
 		return fmt.Sprintf(
 			`for k, v := range v {
-				(*inner)[k] = %s
+				inner[k] = %s
 			}`,
 			s,
 		)
@@ -94,7 +93,7 @@ func unwrapFieldAlongPath(
 				`(func (v %s) %s {
 					out := %s
 
-					inner := &out
+					inner := out
 					%s
 
 					return out
