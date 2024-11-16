@@ -72,7 +72,7 @@ type TypeNodeMatchKind uint64
 
 const (
 	TypeNodeMatchKindMatched = TypeNodeMatchKind(1 << iota)
-	TypeNodeMatchKindTransitive
+	TypeNodeMatchKindDependant
 	TypeNodeMatchKindExternal
 )
 
@@ -80,8 +80,8 @@ func (k TypeNodeMatchKind) IsMatched() bool {
 	return k&TypeNodeMatchKindMatched > 0
 }
 
-func (k TypeNodeMatchKind) IsTransitive() bool {
-	return k&TypeNodeMatchKindTransitive > 0
+func (k TypeNodeMatchKind) IsDependant() bool {
+	return k&TypeNodeMatchKindDependant > 0
 }
 
 func (k TypeNodeMatchKind) IsExternal() bool {
@@ -489,15 +489,15 @@ func (parent *TypeNode) drawEdge(
 	parent.Children[childIdent] = append(parent.Children[childIdent], edge)
 }
 
-func (g *TypeGraph) MarkTransitive(edgeFilter func(edge TypeDependencyEdge) bool) {
+func (g *TypeGraph) MarkDependant(edgeFilter func(edge TypeDependencyEdge) bool) {
 	for _, node := range g.types {
-		node.Matched = node.Matched &^ TypeNodeMatchKindTransitive
+		node.Matched = node.Matched &^ TypeNodeMatchKindDependant
 	}
 	for _, node := range g.IterUpward(false, edgeFilter) {
 		if node.Matched.IsExternal() || node.Matched.IsMatched() {
 			continue
 		}
-		node.Matched |= TypeNodeMatchKindTransitive
+		node.Matched |= TypeNodeMatchKindDependant
 	}
 }
 

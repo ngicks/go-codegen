@@ -79,7 +79,7 @@ func _isUndAllowedEdge(edge typegraph.TypeDependencyEdge, implementorOf func(nam
 		if implementorOf(edge.ChildType) {
 			return true
 		}
-		// case 3. transitive match
+		// case 3. dependant match
 		if edge.IsChildMatched() {
 			return true
 		}
@@ -87,7 +87,7 @@ func _isUndAllowedEdge(edge typegraph.TypeDependencyEdge, implementorOf func(nam
 		if ok, _ := edge.HasSingleNamedTypeArg(implementorOf); ok {
 			return true
 		}
-		// case 5. transitive wrapped in und types.
+		// case 5. dependant wrapped in und types.
 		if isUndType(edge.ChildType) && edge.IsTypeArgMatched() {
 			return true
 		}

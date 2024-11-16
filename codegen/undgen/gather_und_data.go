@@ -67,7 +67,7 @@ func gatherUndTypes(
 	seqFactory func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode],
 ) (data map[*ast.File]*replaceData, err error) {
 	if edgeFilter != nil {
-		graph.MarkTransitive(edgeFilter)
+		graph.MarkDependant(edgeFilter)
 	}
 
 	type wrapped struct {
