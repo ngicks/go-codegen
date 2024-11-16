@@ -363,10 +363,10 @@ func Test_filteredge(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			graph.MarkTransitive(tc.edgeFilter)
+			graph.MarkDependant(tc.edgeFilter)
 			idents := collectIter(
 				graph.IterUpward(false, nil),
-				func(ident TypeIdent, node *TypeNode) bool { return node.Matched.IsTransitive() },
+				func(ident TypeIdent, node *TypeNode) bool { return node.Matched.IsDependant() },
 			)
 			assert.DeepEqual(
 				t,
@@ -423,10 +423,10 @@ func Test_loop(t *testing.T) {
 		types,
 	)
 
-	graph.MarkTransitive(nil)
+	graph.MarkDependant(nil)
 	types = collectIter(
 		maps.All(graph.types),
-		func(ident TypeIdent, node *TypeNode) bool { return node.Matched.IsTransitive() },
+		func(ident TypeIdent, node *TypeNode) bool { return node.Matched.IsDependant() },
 	)
 	assert.DeepEqual(
 		t,

@@ -52,7 +52,7 @@ func GeneratePatcher(
 	replacerData, err := gatherPlainUndTypes(
 		[]*packages.Package{pkg},
 		parser,
-		nil, // no transitive type marking; it is not needed here.
+		nil, // no dependant type marking; it is not needed here.
 		func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode] {
 			if generateEvery {
 				return g.EnumerateTypes()
