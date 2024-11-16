@@ -41,7 +41,7 @@ func init() {
 			packages.NeedTypesInfo |
 			packages.NeedTypesSizes,
 		Dir:       "../testtargets",
-		ParseFile: undgen.ParseFileIgnoringUndgenGeneratedFiles,
+		ParseFile: undgen.NewUndParser("../testtargets").ParseFile,
 	}
 	var err error
 	dirents, err := os.ReadDir("../testtargets")

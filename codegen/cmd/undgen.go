@@ -98,7 +98,7 @@ func loadPkgs(ctx context.Context, dir string, pkg []string, multiplePkg bool, v
 			packages.NeedTypesInfo |
 			packages.NeedTypesSizes,
 		Context:   ctx,
-		ParseFile: undgen.ParseFileIgnoringUndgenGeneratedFiles,
+		ParseFile: undgen.NewUndParser(dir).ParseFile,
 		Dir:       dir,
 	}
 	if verbose {

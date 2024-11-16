@@ -7,6 +7,11 @@ import (
 	"github.com/ngicks/und/sliceund"
 )
 
+// generated comment is attached to check if it is ignored by patcher etc.
+
+//undgen:generated
+type DummyGenerated struct{}
+
 type All struct {
 	Foo string
 	Bar *string
