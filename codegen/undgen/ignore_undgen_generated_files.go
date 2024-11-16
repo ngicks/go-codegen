@@ -44,10 +44,19 @@ func (p UndParser) ParseFile(fset *token.FileSet, filename string, src []byte) (
 		return f, err
 	}
 
+	var removedNodeRanges []tokenRange
 	f.Decls = slices.AppendSeq(
 		f.Decls[:0],
 		xiter.Filter(
-			func(decl ast.Decl) bool {
+			func(decl ast.Decl) (pass bool) {
+				var tokRange tokenRange
+				defer func() {
+					if pass || len(tokRange.filter()) == 0 {
+						return
+					}
+					removedNodeRanges = append(removedNodeRanges, tokRange.filter())
+				}()
+
 				var (
 					direction UndDirection
 					ok        bool
@@ -56,16 +65,40 @@ func (p UndParser) ParseFile(fset *token.FileSet, filename string, src []byte) (
 				switch x := decl.(type) {
 				case *ast.FuncDecl:
 					direction, ok, err = ParseUndComment(x.Doc)
+					tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 				case *ast.GenDecl:
 					direction, ok, err = ParseUndComment(x.Doc)
+					tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 					if direction.generated {
 						return false
 					}
 					x.Specs = slices.AppendSeq(
 						x.Specs[:0],
 						xiter.Filter(
-							func(spec ast.Spec) bool {
-								direction, ok, err := ParseUndComment(x.Doc)
+							func(spec ast.Spec) (pass bool) {
+								var tokRange tokenRange
+								defer func() {
+									if pass || len(tokRange.filter()) == 0 {
+										return
+									}
+									removedNodeRanges = append(removedNodeRanges, tokRange.filter())
+								}()
+
+								var (
+									direction UndDirection
+									ok        bool
+									err       error
+								)
+								switch x := spec.(type) { // IMPORT, CONST, TYPE, or VAR
+								default:
+									return true
+								case *ast.ValueSpec:
+									direction, ok, err = ParseUndComment(x.Comment)
+									tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
+								case *ast.TypeSpec:
+									direction, ok, err = ParseUndComment(x.Comment)
+									tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
+								}
 								if !ok || err != nil {
 									// no error at this moment
 									return true
@@ -85,7 +118,26 @@ func (p UndParser) ParseFile(fset *token.FileSet, filename string, src []byte) (
 		),
 	)
 
-	// Now, import decls might be used by any code inside the file.
+	if len(removedNodeRanges) == 0 {
+		return f, nil
+	}
+
+	f.Comments = slices.AppendSeq(
+		f.Comments[:0],
+		xiter.Filter(
+			func(cg *ast.CommentGroup) bool {
+				return !slices.ContainsFunc(
+					removedNodeRanges,
+					func(tokRange tokenRange) bool {
+						return tokRange.IsWithin(cg.Pos())
+					},
+				)
+			},
+			slices.Values(f.Comments),
+		),
+	)
+
+	// Now, import decls might not be used by any code inside the file.
 	// Since we've removed some of them.
 	//
 	// To fix this situation, call golang.org/x/tools/imports.Process to remove unused imports.
@@ -102,4 +154,29 @@ func (p UndParser) ParseFile(fset *token.FileSet, filename string, src []byte) (
 	}
 
 	return parser.ParseFile(fset, filename, fixed, parser.AllErrors|parser.ParseComments)
+}
+
+type tokenRange []token.Pos
+
+func (r tokenRange) filter() tokenRange {
+	return slices.AppendSeq(
+		r[:0],
+		xiter.Filter(
+			func(pos token.Pos) bool { return pos != 0 },
+			slices.Values(r)),
+	)
+}
+
+func (r tokenRange) IsWithin(pos token.Pos) bool {
+	if len(r) < 2 {
+		panic("tokenRange: invalid range")
+	}
+	return r[0] <= pos && pos <= r[len(r)-1]
+}
+
+func getCommentGroupPos(cg *ast.CommentGroup) token.Pos {
+	if cg == nil || len(cg.List) == 0 { // invariants disallow len(cg.List) == 0 but check it anyway.
+		return 0
+	}
+	return cg.Pos()
 }
