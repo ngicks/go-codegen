@@ -12,29 +12,7 @@ import (
 )
 
 //undgen:generated
-func (v Implementor) UndValidate() (err error) {
-	{
-		validator := undtag.UndOptExport{
-			States: &undtag.StateValidator{
-				Def: true,
-			},
-		}.Into()
-
-		if !validator.ValidOpt(v.Opt) {
-			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Opt))
-		}
-		if err != nil {
-			return validate.AppendValidationErrorDot(
-				err,
-				"Opt",
-			)
-		}
-	}
-	return
-}
-
-//undgen:generated
-func (v DeeplyNested) UndValidate() (err error) {
+func (v DeeplyNestedImplementor) UndValidate() (err error) {
 	{
 		validator := undtag.UndOptExport{
 			States: &undtag.StateValidator{
@@ -243,6 +221,313 @@ func (v DeeplyNested) UndValidate() (err error) {
 				err,
 				"D",
 			)
+		}
+	}
+	return
+}
+
+//undgen:generated
+func (v Dependant) UndValidate() (err error) {
+	{
+		validator := undtag.UndOptExport{
+			States: &undtag.StateValidator{
+				Def: true,
+			},
+		}.Into()
+
+		if !validator.ValidOpt(v.Opt) {
+			err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v.Opt))
+		}
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"Opt",
+			)
+		}
+	}
+	return
+}
+
+//undgen:generated
+func (v DeeplyNestedDependant) UndValidate() (err error) {
+	{
+		validator := undtag.UndOptExport{
+			States: &undtag.StateValidator{
+				Def: true,
+			},
+		}.Into()
+
+		v := v.A
+
+		for k, v := range v {
+			for k, v := range v {
+				for k, v := range v {
+					if !validator.ValidUnd(v) {
+						err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
+					}
+					if err == nil {
+						err = und.UndValidate(v)
+					}
+
+					if err != nil {
+						err = validate.AppendValidationErrorIndex(
+							err,
+							fmt.Sprintf("%v", k),
+						)
+						break
+					}
+				}
+
+				if err != nil {
+					err = validate.AppendValidationErrorIndex(
+						err,
+						fmt.Sprintf("%v", k),
+					)
+					break
+				}
+			}
+
+			if err != nil {
+				err = validate.AppendValidationErrorIndex(
+					err,
+					fmt.Sprintf("%v", k),
+				)
+				break
+			}
+		}
+
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"A",
+			)
+		}
+	}
+	{
+		v := v.B
+
+		for k, v := range v {
+			for k, v := range v {
+				for k, v := range v {
+					for k, v := range v {
+						err = v.UndValidate()
+						if err != nil {
+							err = validate.AppendValidationErrorIndex(
+								err,
+								fmt.Sprintf("%v", k),
+							)
+							break
+						}
+					}
+
+					if err != nil {
+						err = validate.AppendValidationErrorIndex(
+							err,
+							fmt.Sprintf("%v", k),
+						)
+						break
+					}
+				}
+
+				if err != nil {
+					err = validate.AppendValidationErrorIndex(
+						err,
+						fmt.Sprintf("%v", k),
+					)
+					break
+				}
+			}
+
+			if err != nil {
+				err = validate.AppendValidationErrorIndex(
+					err,
+					fmt.Sprintf("%v", k),
+				)
+				break
+			}
+		}
+
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"B",
+			)
+		}
+	}
+	{
+		validator := undtag.UndOptExport{
+			States: &undtag.StateValidator{
+				Def: true,
+			},
+		}.Into()
+
+		v := v.C
+
+		for k, v := range v {
+			for k, v := range v {
+				for k, v := range v {
+					if !validator.ValidUnd(v) {
+						err = fmt.Errorf("%s: value is %s", validator.Describe(), validate.ReportState(v))
+					}
+					if err == nil && v.Value() != nil {
+						err = und.UndValidate(v)
+					}
+
+					if err != nil {
+						err = validate.AppendValidationErrorIndex(
+							err,
+							fmt.Sprintf("%v", k),
+						)
+						break
+					}
+				}
+
+				if err != nil {
+					err = validate.AppendValidationErrorIndex(
+						err,
+						fmt.Sprintf("%v", k),
+					)
+					break
+				}
+			}
+
+			if err != nil {
+				err = validate.AppendValidationErrorIndex(
+					err,
+					fmt.Sprintf("%v", k),
+				)
+				break
+			}
+		}
+
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"C",
+			)
+		}
+	}
+	{
+		v := v.D
+
+		for k, v := range v {
+			for k, v := range v {
+				for k, v := range v {
+					for k, v := range v {
+						if v != nil {
+							err = v.UndValidate()
+						}
+						if err != nil {
+							err = validate.AppendValidationErrorIndex(
+								err,
+								fmt.Sprintf("%v", k),
+							)
+							break
+						}
+					}
+
+					if err != nil {
+						err = validate.AppendValidationErrorIndex(
+							err,
+							fmt.Sprintf("%v", k),
+						)
+						break
+					}
+				}
+
+				if err != nil {
+					err = validate.AppendValidationErrorIndex(
+						err,
+						fmt.Sprintf("%v", k),
+					)
+					break
+				}
+			}
+
+			if err != nil {
+				err = validate.AppendValidationErrorIndex(
+					err,
+					fmt.Sprintf("%v", k),
+				)
+				break
+			}
+		}
+
+		if err != nil {
+			return validate.AppendValidationErrorDot(
+				err,
+				"D",
+			)
+		}
+	}
+	return
+}
+
+//undgen:generated
+func (v DeeplyNestedImplementorMap) UndValidate() (err error) {
+	for k, v := range v {
+		for k, v := range v {
+			for k, v := range v {
+				err = und.UndValidate(v)
+				if err != nil {
+					err = validate.AppendValidationErrorIndex(
+						err,
+						fmt.Sprintf("%v", k),
+					)
+					break
+				}
+			}
+
+			if err != nil {
+				err = validate.AppendValidationErrorIndex(
+					err,
+					fmt.Sprintf("%v", k),
+				)
+				break
+			}
+		}
+
+		if err != nil {
+			err = validate.AppendValidationErrorIndex(
+				err,
+				fmt.Sprintf("%v", k),
+			)
+			break
+		}
+	}
+	return
+}
+
+//undgen:generated
+func (v DeeplyNestedDependantMap) UndValidate() (err error) {
+	for k, v := range v {
+		for k, v := range v {
+			for k, v := range v {
+				err = und.UndValidate(v)
+				if err != nil {
+					err = validate.AppendValidationErrorIndex(
+						err,
+						fmt.Sprintf("%v", k),
+					)
+					break
+				}
+			}
+
+			if err != nil {
+				err = validate.AppendValidationErrorIndex(
+					err,
+					fmt.Sprintf("%v", k),
+				)
+				break
+			}
+		}
+
+		if err != nil {
+			err = validate.AppendValidationErrorIndex(
+				err,
+				fmt.Sprintf("%v", k),
+			)
+			break
 		}
 	}
 	return

@@ -79,8 +79,16 @@ func _isUndAllowedEdge(edge typegraph.TypeDependencyEdge, implementorOf func(nam
 		if implementorOf(edge.ChildType) {
 			return true
 		}
-		// case 3. implementor wrapped in und types.
+		// case 3. transitive match
+		if edge.IsChildMatched() {
+			return true
+		}
+		// case 4. implementor wrapped in und types.
 		if ok, _ := edge.HasSingleNamedTypeArg(implementorOf); ok {
+			return true
+		}
+		// case 5. transitive wrapped in und types.
+		if isUndType(edge.ChildType) && edge.IsTypeArgMatched() {
 			return true
 		}
 		return false
@@ -94,17 +102,16 @@ func _isUndAllowedEdge(edge typegraph.TypeDependencyEdge, implementorOf func(nam
 			return false
 		case typegraph.TypeDependencyEdgeKindMap, typegraph.TypeDependencyEdgeKindArray, typegraph.TypeDependencyEdgeKindSlice:
 		}
-
-		elem := edge.ParentNode.Type.Underlying().(interface{ Elem() types.Type }).Elem()
-		named, ok := elem.(*types.Named)
-		if !ok {
-			return false
+		if implementorOf(edge.ChildType) {
+			return true
 		}
-
-		if implementorOf(named) {
+		if edge.IsChildMatched() {
 			return true
 		}
 		if ok, _ := edge.HasSingleNamedTypeArg(implementorOf); ok {
+			return true
+		}
+		if isUndType(edge.ChildType) && edge.IsTypeArgMatched() {
 			return true
 		}
 	}

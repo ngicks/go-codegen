@@ -25,9 +25,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen validator -v --pkg ./internal/targettypes/ --pkg ./internal/targettypes/sub --pkg ./internal/targettypes/sub2
-//go:generate go run ../ undgen validator -v --pkg ./internal/validatortarget/...
-
 func GenerateValidator(
 	sourcePrinter *suffixwriter.Writer,
 	verbose bool,
@@ -179,7 +176,7 @@ func generateUndValidate(
 	switch x := node.Type.Underlying().(type) {
 	case *types.Map, *types.Array, *types.Slice:
 		// should be only one since we prohibit struct literals.
-		ident, edge := edgeMap.First()
+		ident, edge, _ := edgeMap.First()
 		isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
 			return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
 		})
@@ -272,7 +269,8 @@ func generateUndValidate(
 					}
 
 					var wrappeeValidator func(ident string) string
-					if ok, isPointer := edge.HasSingleNamedTypeArg(isUndValidatorImplementor); ok {
+					isImpl, isPointer := edge.HasSingleNamedTypeArg(isUndValidatorImplementor)
+					if isImpl || edge.IsTypeArgMatched() {
 						wrappeeValidator = func(ident string) string {
 							return fmt.Sprintf(
 								`

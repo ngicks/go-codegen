@@ -89,19 +89,23 @@ func unwrapFieldAlongPath(
 		)
 	})
 	return func(wrappee func(string) string, fieldExpr string) string {
+		wrappers = slices.Insert(wrappers, 0, func(expr string) string {
+			return fmt.Sprintf(
+				`(func (v %s) %s {
+					out := %s
+
+					inner := &out
+					%s
+
+					return out
+				})(%s)`,
+				input, output, initializer(toExpr, s[0].Kind), expr, fieldExpr)
+		})
 		expr := wrappee("v")
 		for _, wrapper := range slices.Backward(wrappers) {
 			expr = wrapper(expr)
 		}
-		return fmt.Sprintf(`(func (v %s) %s {
-	out := %s
-
-	inner := &out
-	%s
-
-	return out
-})(%s)`,
-			input, output, initializer(toExpr, s[0].Kind), expr, fieldExpr)
+		return expr
 	}
 
 }
@@ -134,6 +138,7 @@ func generateToRawOrToPlain(
 	node *typegraph.TypeNode,
 	exprMap map[string]fieldAstExprSet,
 ) {
+	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
 	printf(`func (v %s) %s() %s {
 `,
 		or(
@@ -303,9 +308,22 @@ func generateConversionMethodStructFields(
 						toPlain,
 						isPointer,
 						prefixPointer(isPointer, edge.PrintChildType(importMap)),
-						astutil.PrintAstExprPanicking(plainExpr.Wrapped),
+						astutil.PrintAstExprPanicking(plainExpr.Unwrapped),
 					)
 					needsArg = true
+				} else if ok, isPointer := edge.HasSingleNamedTypeArg(nil); ok && isUndType(edge.ChildType) {
+					_, ok := plainConverter(edge.TypeArgs[0].Ty, edge.IsTypeArgMatched())
+					if ok {
+						fieldConverter, needsArg = _generateConversionMethodImplementorMapper(
+							toPlain,
+							edge,
+							edge.PrintChildArg(0, importMap),
+							edge.PrintChildArgConverted(plainConverter, importMap),
+							importMap,
+							isPointer,
+							func(ident string) string { return ident },
+						)
+					}
 				}
 
 				rawExpr := astutil.TypeToAst(

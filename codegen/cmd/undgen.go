@@ -14,6 +14,7 @@ import (
 
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
+	"github.com/ngicks/go-codegen/codegen/undgen"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/tools/go/packages"
@@ -90,15 +91,16 @@ func undCommonOpts(fset *pflag.FlagSet, multiplePkg bool) (dir string, pkg []str
 func loadPkgs(ctx context.Context, dir string, pkg []string, multiplePkg bool, verbose bool) ([]*packages.Package, error) {
 	cfg := &packages.Config{
 		Mode: packages.NeedName |
+			packages.NeedImports |
+			packages.NeedDeps |
 			packages.NeedTypes |
 			packages.NeedSyntax |
 			packages.NeedTypesInfo |
-			packages.NeedTypesSizes |
-			packages.NeedImports,
-		Context: ctx,
-		Dir:     dir,
+			packages.NeedTypesSizes,
+		Context:   ctx,
+		ParseFile: undgen.NewUndParser(dir).ParseFile,
+		Dir:       dir,
 	}
-
 	if verbose {
 		cfg.Logf = func(format string, args ...interface{}) {
 			fmt.Printf(format, args...)

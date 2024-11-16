@@ -28,9 +28,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen patch -v --pkg ./internal/patchtarget All Ignored Hmm NameOverlapping
-//go:generate go run ../ undgen patch -v --pkg ./internal/targettypes All WithTypeParam A B IncludesSubTarget
-
 func GeneratePatcher(
 	sourcePrinter *suffixwriter.Writer,
 	verbose bool,
@@ -45,6 +42,11 @@ func GeneratePatcher(
 		)
 	}
 
+	var generateEvery bool
+	if len(targetTypeNames) == 1 && targetTypeNames[0] == "..." {
+		generateEvery = true
+	}
+
 	parser := imports.NewParserPackages([]*packages.Package{pkg})
 	parser.AppendExtra(extra...)
 	replacerData, err := gatherPlainUndTypes(
@@ -52,6 +54,9 @@ func GeneratePatcher(
 		parser,
 		nil, // no transitive type marking; it is not needed here.
 		func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode] {
+			if generateEvery {
+				return g.EnumerateTypes()
+			}
 			return g.EnumerateTypesKeys(
 				xiter.Map(func(s string) typegraph.TypeIdent {
 					return typegraph.TypeIdent{PkgPath: pkg.PkgPath, TypeName: s}

@@ -18,11 +18,21 @@ var undgenPatchCmd = &cobra.Command{
 	Short: "undgen-patch generates patcher types based on target types.",
 	Long: `undgen-patch generates patcher types base on target types defined in a target package.
 
+The generation target types are specified as cli argument. e.g.
+
+codegen undgen patch --pkg ./path/to/package TypeA TypeB TypeC (...and so on)
+
+or you can even 
+
+codegen undgen patch --pkg ./path/to/package ...
+
+to generate for all types found in the package.
+
 A patch is basically same type as target but name is suffixed with Patch and all fields are wrapped in sliceund.Und[T].
 If each field that is already a und type, namely one of und.Und[T], sliceund.Und[T], elastic.Elastic[T], sliceelastic.Elastic[T].
 option.Option[T] will be widened to be sliceund.Und[T].
 
-All generated code will be written along the source code the target type is defined.
+All generated code will be written along the source code in which the target type is defined.
 Generated files are suffixed with und_patch before file extension, i.e. <original_source_filename>.und_patch.go.
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -30,6 +40,9 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 		dir, pkg, verbose, dry, err := undCommonOpts(fset, false)
 		if err != nil {
 			return err
+		}
+		if verbose {
+			fmt.Printf("running: undgen patch\n\n\n")
 		}
 		typeNames := fset.Args()
 
@@ -59,7 +72,6 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 		if err != nil {
 			return err
 		}
-
 		return undgen.GeneratePatcher(writer, verbose, targetPkgs[0], undgen.ConstUnd.Imports, typeNames...)
 	},
 }

@@ -90,6 +90,12 @@ func (p *Writer) suffixFilename(name string) (string, error) {
 			return "", fmt.Errorf("getting cwd: %w", err)
 		}
 	}
+	if !filepath.IsAbs(p.cwd) {
+		p.cwd, err = filepath.Abs(p.cwd)
+		if err != nil {
+			return "", fmt.Errorf("filepath.Abs: %w", err)
+		}
+	}
 	rel, err := filepath.Rel(p.cwd, name)
 	if err != nil {
 		return "", err
@@ -99,7 +105,7 @@ func (p *Writer) suffixFilename(name string) (string, error) {
 		return "", fmt.Errorf("generated target file is not under cwd: %s", rel)
 	}
 
-	return suffixFilename(rel, p.suffix), nil
+	return suffixFilename(name, p.suffix), nil
 }
 
 // openFile opens name suffixed with p.suffix.

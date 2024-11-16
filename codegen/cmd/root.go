@@ -18,6 +18,7 @@ var rootCmd = &cobra.Command{
 	Short: "A swiss army knife code generator implementation for my own. see subcommands.",
 	Long: `A swiss army knife code generator implementation for my own. see subcommands.
 Some commends have child commands`,
+	SilenceUsage: true,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

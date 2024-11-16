@@ -1,6 +1,7 @@
 package typegraph
 
 import (
+	"cmp"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -115,6 +116,17 @@ func (e TypeDependencyEdge) HasSingleNamedTypeArg(additionalCond func(named *typ
 		return additionalCond(arg.Ty), isPointer
 	}
 	return true, isPointer
+}
+
+func (e TypeDependencyEdge) IsTypeArgMatched() bool {
+	if len(e.TypeArgs) == 0 {
+		return false
+	}
+	node := e.TypeArgs[0].Node
+	if node == nil {
+		return false
+	}
+	return node.Matched&^TypeNodeMatchKindExternal > 0
 }
 
 func (e TypeDependencyEdge) LastPointer() option.Option[TypeDependencyEdgePointer] {
@@ -598,6 +610,16 @@ func (n *TypeNode) ByFieldName(name string) (TypeDependencyEdge, *types.Var, ref
 	return TypeDependencyEdge{}, nil, "", false
 }
 
+func (g *TypeGraph) EnumerateTypes() iter.Seq2[TypeIdent, *TypeNode] {
+	keys := slices.SortedFunc(maps.Keys(g.types), func(i, j TypeIdent) int {
+		if c := cmp.Compare(i.PkgPath, j.PkgPath); c != 0 {
+			return c
+		}
+		return cmp.Compare(g.types[i].Pos, g.types[j].Pos)
+	})
+	return hiter.MapKeys(g.types, slices.Values(keys))
+}
+
 func (g *TypeGraph) EnumerateTypesKeys(keys iter.Seq[TypeIdent]) iter.Seq2[TypeIdent, *TypeNode] {
 	return hiter.MapKeys(g.types, keys)
 }
@@ -657,11 +679,11 @@ func (n *TypeNode) ChildEdgeMap(edgeFilter func(edge TypeDependencyEdge) bool) T
 	}
 }
 
-func (em TypeDependencyEdgeMap) First() (TypeIdent, TypeDependencyEdge) {
+func (em TypeDependencyEdgeMap) First() (TypeIdent, TypeDependencyEdge, bool) {
 	for k, v := range em.edgeMap {
-		return k, v[0]
+		return k, v[0], true
 	}
-	panic("TypeDependencyEdgeMap: empty")
+	return TypeIdent{}, TypeDependencyEdge{}, false
 }
 
 // Fields enumerates its children edges as iter.Seq2[int, typeDependencyEdge] assuming node's underlying type is struct.

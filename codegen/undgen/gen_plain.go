@@ -23,11 +23,6 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-//go:generate go run ../ undgen plain -v --pkg ./internal/targettypes/ --pkg ./internal/targettypes/sub --pkg ./internal/targettypes/sub2
-//go:generate go run ../ undgen plain -v --pkg ./internal/patchtarget/...
-//go:generate go run ../ undgen plain -v --pkg ./internal/validatortarget/...
-//go:generate go run ../ undgen plain -v --pkg ./internal/plaintarget/...
-
 func GeneratePlain(
 	sourcePrinter *suffixwriter.Writer,
 	verbose bool,
@@ -52,12 +47,10 @@ func GeneratePlain(
 		func(f *ast.File, data *replaceData) bool { return f != nil && data != nil },
 		hiter.MapKeys(replacerData, enumerateFile(pkgs)),
 	) {
-		if verbose {
-			slog.Debug(
-				"found",
-				slog.String("filename", data.filename),
-			)
-		}
+		slog.Debug(
+			"found",
+			slog.String("filename", data.filename),
+		)
 
 		modified := hiter.Collect2(xiter.Filter2(
 			func(node *typegraph.TypeNode, exprMap map[string]fieldDstExprSet) bool {
@@ -69,6 +62,11 @@ func GeneratePlain(
 					if !ok {
 						return nil, nil
 					}
+					slog.Debug(
+						"rewritten",
+						slog.String("package", node.Type.Obj().Pkg().Path()),
+						slog.String("type", node.Type.Obj().Name()),
+					)
 					return node, exprMap
 				},
 				slices.Values(data.targetNodes),
@@ -148,6 +146,9 @@ func suffixSlice(s string, isSlice bool) string {
 }
 
 func plainConverter(ty *types.Named, isMatched bool) (*types.Named, bool) {
+	if ty == nil {
+		return nil, false
+	}
 	if !isMatched {
 		return ConstUnd.ConversionMethod.ConvertedType(ty)
 	}

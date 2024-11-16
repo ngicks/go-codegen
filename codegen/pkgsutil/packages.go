@@ -67,6 +67,12 @@ func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string, dry bool)
 				return
 			}
 		}
+		var err error
+		cwd, err = filepath.Abs(cwd)
+		if err != nil {
+			yield("", fmt.Errorf("filepath.Abs: %w", err))
+			return
+		}
 		for pkg, seq := range EnumeratePackages(pkgs) {
 			if err := LoadError(pkg); err != nil {
 				if !yield("", err) {
@@ -84,40 +90,40 @@ func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string, dry bool)
 				}
 
 				if strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
-					yield(rel, fmt.Errorf("not under cwd: %q", rel))
+					yield(filename, fmt.Errorf("not under cwd: %q", rel))
 					return
 				}
 
-				s, err := os.Lstat(rel)
+				s, err := os.Lstat(filename)
 				if err != nil {
-					if !yield(rel, fmt.Errorf("stat %q: %w", rel, err)) {
+					if !yield(filename, fmt.Errorf("stat %q: %w", filename, err)) {
 						return
 					}
 					continue
 				}
 
 				if !s.Mode().IsRegular() {
-					if !yield(rel, fmt.Errorf("ignoring non regular file: %q", rel)) {
+					if !yield(filename, fmt.Errorf("ignoring non regular file: %q", filename)) {
 						return
 					}
 					continue
 				}
 
-				withoutExt, _ := strings.CutSuffix(rel, filepath.Ext(rel))
+				withoutExt, _ := strings.CutSuffix(filename, filepath.Ext(filename))
 				if strings.HasSuffix(withoutExt, suffix) {
 					if dry {
-						if !yield(rel, nil) {
+						if !yield(filename, nil) {
 							return
 						}
 					} else {
-						err = os.Remove(rel)
+						err = os.Remove(filename)
 						if errors.Is(err, fs.ErrNotExist) {
 							err = nil
 						}
 						if err != nil {
-							err = fmt.Errorf("remove %q: %w", rel, err)
+							err = fmt.Errorf("remove %q: %w", filename, err)
 						}
-						if !yield(rel, err) {
+						if !yield(filename, err) {
 							return
 						}
 					}
