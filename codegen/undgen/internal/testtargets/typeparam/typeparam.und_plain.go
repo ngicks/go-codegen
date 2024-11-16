@@ -27,9 +27,9 @@ func (v WithTypeParam[T]) UndPlain() WithTypeParamPlain[T] {
 		Qux: (func(v map[string]elastic.Elastic[T]) map[string][2]T {
 			out := make(map[string][2]T, len(v))
 
-			inner := &out
+			inner := out
 			for k, v := range v {
-				(*inner)[k] = und.Map(
+				inner[k] = und.Map(
 					und.Map(
 						conversion.UnwrapElastic(v),
 						func(o []option.Option[T]) (out [2]option.Option[T]) {
@@ -60,9 +60,9 @@ func (v WithTypeParamPlain[T]) UndRaw() WithTypeParam[T] {
 		Qux: (func(v map[string][2]T) map[string]elastic.Elastic[T] {
 			out := make(map[string]elastic.Elastic[T], len(v))
 
-			inner := &out
+			inner := out
 			for k, v := range v {
-				(*inner)[k] = elastic.FromUnd(und.Map(
+				inner[k] = elastic.FromUnd(und.Map(
 					und.Map(
 						und.Defined(v),
 						func(s [2]T) (out [2]option.Option[T]) {
