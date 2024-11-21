@@ -1,3 +1,4 @@
+// codegen defines general utilities for codegen.
 package codegen
 
 import (

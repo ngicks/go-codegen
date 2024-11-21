@@ -1,3 +1,4 @@
+// suffixwriter defines the writer that writes to suffixed name along the original files.
 package suffixwriter
 
 import (

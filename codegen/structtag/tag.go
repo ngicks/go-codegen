@@ -1,3 +1,4 @@
+// structtag defines struct tag modification tool.
 package structtag
 
 // This file uses modified Go programming language standard library.

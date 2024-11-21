@@ -1,3 +1,4 @@
+// typegraph forms a graph by drawing edges between a named type and other named type.
 package typegraph
 
 import (

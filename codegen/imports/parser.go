@@ -1,3 +1,5 @@
+// imports defines an import manager that manages ident-to-imports relation.
+// It is supposed to be used to add imports to existent files while keeping their existent imports.
 package imports
 
 import (
