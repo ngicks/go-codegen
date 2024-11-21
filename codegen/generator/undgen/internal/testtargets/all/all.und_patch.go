@@ -10,7 +10,7 @@ import (
 	"github.com/ngicks/und/sliceund"
 )
 
-//undgen:generated
+//codegen:generated
 type AllPatch struct {
 	Foo sliceund.Und[string]    `json:",omitempty"`
 	Bar sliceund.Und[*string]   `json:",omitempty"`
@@ -71,7 +71,7 @@ type AllPatch struct {
 	ElaEqEqNonNullNull       elastic.Elastic[string] `json:",omitzero" und:"null,values:nonnull,len==3"`
 }
 
-//undgen:generated
+//codegen:generated
 func (p *AllPatch) FromValue(v All) {
 	//nolint
 	*p = AllPatch{
@@ -128,7 +128,7 @@ func (p *AllPatch) FromValue(v All) {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p AllPatch) ToValue() All {
 	//nolint
 	return All{
@@ -185,7 +185,7 @@ func (p AllPatch) ToValue() All {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p AllPatch) Merge(r AllPatch) AllPatch {
 	//nolint
 	return AllPatch{
@@ -242,7 +242,7 @@ func (p AllPatch) Merge(r AllPatch) AllPatch {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p AllPatch) ApplyPatch(v All) All {
 	var orgP AllPatch
 	orgP.FromValue(v)

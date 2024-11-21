@@ -11,6 +11,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/dstutil"
+	"github.com/ngicks/go-codegen/codegen/astmeta"
 	"github.com/ngicks/go-codegen/codegen/astutil"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
@@ -137,7 +138,7 @@ func generateToRawOrToPlain(
 	node *typegraph.TypeNode,
 	exprMap map[string]fieldAstExprSet,
 ) {
-	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
+	printf("//%s%s\n", astmeta.DirectivePrefix, astmeta.DirectiveCommentGenerated)
 	printf(`func (v %s) %s() %s {
 `,
 		or(

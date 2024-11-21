@@ -10,7 +10,7 @@ import (
 	"github.com/ngicks/und/option"
 )
 
-//undgen:generated
+//codegen:generated
 type WithTypeParamPlain[T any] struct {
 	Foo string
 	Bar T
@@ -18,7 +18,7 @@ type WithTypeParamPlain[T any] struct {
 	Qux map[string][2]T `json:"qux" und:"len==2,values:nonnull"`
 }
 
-//undgen:generated
+//codegen:generated
 func (v WithTypeParam[T]) UndPlain() WithTypeParamPlain[T] {
 	return WithTypeParamPlain[T]{
 		Foo: v.Foo,
@@ -51,7 +51,7 @@ func (v WithTypeParam[T]) UndPlain() WithTypeParamPlain[T] {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (v WithTypeParamPlain[T]) UndRaw() WithTypeParam[T] {
 	return WithTypeParam[T]{
 		Foo: v.Foo,

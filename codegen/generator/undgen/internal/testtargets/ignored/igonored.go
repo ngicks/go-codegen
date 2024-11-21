@@ -2,7 +2,7 @@ package ignored
 
 import "github.com/ngicks/und/option"
 
-//undgen:ignore
+//codegen:ignore
 type Ignored struct {
 	Foo string
 	Bar int

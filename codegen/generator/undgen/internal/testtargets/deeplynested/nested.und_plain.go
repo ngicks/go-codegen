@@ -9,7 +9,7 @@ import (
 	"github.com/ngicks/und/option"
 )
 
-//undgen:generated
+//codegen:generated
 type DeeplyNestedImplementorPlain struct {
 	A []map[string][5]implementor.ImplementorPlain[string] `und:"required"`
 	B [][][]map[int]implementor.ImplementorPlain[string]
@@ -17,7 +17,7 @@ type DeeplyNestedImplementorPlain struct {
 	D [][][]map[int]*implementor.ImplementorPlain[string]
 }
 
-//undgen:generated
+//codegen:generated
 func (v DeeplyNestedImplementor) UndPlain() DeeplyNestedImplementorPlain {
 	return DeeplyNestedImplementorPlain{
 		A: (func(v []map[string][5]und.Und[implementor.Implementor[string]]) []map[string][5]implementor.ImplementorPlain[string] {
@@ -134,7 +134,7 @@ func (v DeeplyNestedImplementor) UndPlain() DeeplyNestedImplementorPlain {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (v DeeplyNestedImplementorPlain) UndRaw() DeeplyNestedImplementor {
 	return DeeplyNestedImplementor{
 		A: (func(v []map[string][5]implementor.ImplementorPlain[string]) []map[string][5]und.Und[implementor.Implementor[string]] {
@@ -251,26 +251,26 @@ func (v DeeplyNestedImplementorPlain) UndRaw() DeeplyNestedImplementor {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 type DependantPlain struct {
 	Opt string `und:"required"`
 }
 
-//undgen:generated
+//codegen:generated
 func (v Dependant) UndPlain() DependantPlain {
 	return DependantPlain{
 		Opt: v.Opt.Value(),
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (v DependantPlain) UndRaw() Dependant {
 	return Dependant{
 		Opt: option.Some(v.Opt),
 	}
 }
 
-//undgen:generated
+//codegen:generated
 type DeeplyNestedDependantPlain struct {
 	A []map[string][5]DependantPlain `und:"required"`
 	B [][][]map[int]DependantPlain
@@ -278,7 +278,7 @@ type DeeplyNestedDependantPlain struct {
 	D [][][]map[int]*DependantPlain
 }
 
-//undgen:generated
+//codegen:generated
 func (v DeeplyNestedDependant) UndPlain() DeeplyNestedDependantPlain {
 	return DeeplyNestedDependantPlain{
 		A: (func(v []map[string][5]und.Und[Dependant]) []map[string][5]DependantPlain {
@@ -395,7 +395,7 @@ func (v DeeplyNestedDependant) UndPlain() DeeplyNestedDependantPlain {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (v DeeplyNestedDependantPlain) UndRaw() DeeplyNestedDependant {
 	return DeeplyNestedDependant{
 		A: (func(v []map[string][5]DependantPlain) []map[string][5]und.Und[Dependant] {
@@ -512,10 +512,10 @@ func (v DeeplyNestedDependantPlain) UndRaw() DeeplyNestedDependant {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 type DeeplyNestedImplementorMapPlain []map[string][5]und.Und[implementor.ImplementorPlain[string]]
 
-//undgen:generated
+//codegen:generated
 func (v DeeplyNestedImplementorMap) UndPlain() DeeplyNestedImplementorMapPlain {
 	return (func(v []map[string][5]und.Und[implementor.Implementor[string]]) []map[string][5]und.Und[implementor.ImplementorPlain[string]] {
 		out := make([]map[string][5]und.Und[implementor.ImplementorPlain[string]], len(v))
@@ -545,7 +545,7 @@ func (v DeeplyNestedImplementorMap) UndPlain() DeeplyNestedImplementorMapPlain {
 	})(v)
 }
 
-//undgen:generated
+//codegen:generated
 func (v DeeplyNestedImplementorMapPlain) UndRaw() DeeplyNestedImplementorMap {
 	return (func(v []map[string][5]und.Und[implementor.ImplementorPlain[string]]) []map[string][5]und.Und[implementor.Implementor[string]] {
 		out := make([]map[string][5]und.Und[implementor.Implementor[string]], len(v))
@@ -575,10 +575,10 @@ func (v DeeplyNestedImplementorMapPlain) UndRaw() DeeplyNestedImplementorMap {
 	})(v)
 }
 
-//undgen:generated
+//codegen:generated
 type DeeplyNestedDependantMapPlain []map[string][5]und.Und[DependantPlain]
 
-//undgen:generated
+//codegen:generated
 func (v DeeplyNestedDependantMap) UndPlain() DeeplyNestedDependantMapPlain {
 	return (func(v []map[string][5]und.Und[Dependant]) []map[string][5]und.Und[DependantPlain] {
 		out := make([]map[string][5]und.Und[DependantPlain], len(v))
@@ -608,7 +608,7 @@ func (v DeeplyNestedDependantMap) UndPlain() DeeplyNestedDependantMapPlain {
 	})(v)
 }
 
-//undgen:generated
+//codegen:generated
 func (v DeeplyNestedDependantMapPlain) UndRaw() DeeplyNestedDependantMap {
 	return (func(v []map[string][5]und.Und[DependantPlain]) []map[string][5]und.Und[Dependant] {
 		out := make([]map[string][5]und.Und[Dependant], len(v))

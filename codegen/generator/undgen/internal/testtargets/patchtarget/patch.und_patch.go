@@ -11,7 +11,7 @@ import (
 	sliceelastic "github.com/ngicks/und/sliceund/elastic"
 )
 
-//undgen:generated
+//codegen:generated
 type AllPatch struct {
 	Foo          sliceund.Und[string]         `json:",omitempty"`
 	Bar          sliceund.Und[*int]           `json:",omitempty"`
@@ -24,7 +24,7 @@ type AllPatch struct {
 	SliceElastic sliceelastic.Elastic[string] `json:",omitempty"`
 }
 
-//undgen:generated
+//codegen:generated
 func (p *AllPatch) FromValue(v All) {
 	//nolint
 	*p = AllPatch{
@@ -40,7 +40,7 @@ func (p *AllPatch) FromValue(v All) {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p AllPatch) ToValue() All {
 	//nolint
 	return All{
@@ -56,7 +56,7 @@ func (p AllPatch) ToValue() All {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p AllPatch) Merge(r AllPatch) AllPatch {
 	//nolint
 	return AllPatch{
@@ -72,7 +72,7 @@ func (p AllPatch) Merge(r AllPatch) AllPatch {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p AllPatch) ApplyPatch(v All) All {
 	var orgP AllPatch
 	orgP.FromValue(v)
@@ -80,12 +80,12 @@ func (p AllPatch) ApplyPatch(v All) All {
 	return merged.ToValue()
 }
 
-//undgen:generated
+//codegen:generated
 type HmmPatch struct {
 	Ah sliceund.Und[Ignored] `json:",omitempty"`
 }
 
-//undgen:generated
+//codegen:generated
 func (p *HmmPatch) FromValue(v Hmm) {
 	//nolint
 	*p = HmmPatch{
@@ -93,7 +93,7 @@ func (p *HmmPatch) FromValue(v Hmm) {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p HmmPatch) ToValue() Hmm {
 	//nolint
 	return Hmm{
@@ -101,7 +101,7 @@ func (p HmmPatch) ToValue() Hmm {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p HmmPatch) Merge(r HmmPatch) HmmPatch {
 	//nolint
 	return HmmPatch{
@@ -109,7 +109,7 @@ func (p HmmPatch) Merge(r HmmPatch) HmmPatch {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p HmmPatch) ApplyPatch(v Hmm) Hmm {
 	var orgP HmmPatch
 	orgP.FromValue(v)

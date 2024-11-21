@@ -1,4 +1,4 @@
-package undgen
+package astmeta
 
 import (
 	"bytes"
@@ -14,13 +14,13 @@ import (
 	"golang.org/x/tools/imports"
 )
 
-type UndParser struct {
+type Parser struct {
 	// Parser applies its modified behavior only for files under dir.
 	dir  string
 	mode parser.Mode
 }
 
-func NewUndParser(dir string) *UndParser {
+func NewParser(dir string) *Parser {
 	if !filepath.IsAbs(dir) {
 		var err error
 		dir, err = filepath.Abs(dir)
@@ -28,13 +28,13 @@ func NewUndParser(dir string) *UndParser {
 			panic(err)
 		}
 	}
-	return &UndParser{
+	return &Parser{
 		dir:  dir,
 		mode: parser.AllErrors | parser.ParseComments,
 	}
 }
 
-func (p UndParser) ParseFile(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+func (p Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
 	f, err := parser.ParseFile(fset, filename, src, p.mode)
 	if err != nil {
 		return f, err
@@ -58,16 +58,16 @@ func (p UndParser) ParseFile(fset *token.FileSet, filename string, src []byte) (
 				}()
 
 				var (
-					direction UndDirection
+					direction Direction
 					ok        bool
 					err       error
 				)
 				switch x := decl.(type) {
 				case *ast.FuncDecl:
-					direction, ok, err = ParseUndComment(x.Doc)
+					direction, ok, err = ParseComment(x.Doc)
 					tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 				case *ast.GenDecl:
-					direction, ok, err = ParseUndComment(x.Doc)
+					direction, ok, err = ParseComment(x.Doc)
 					tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 					if direction.generated {
 						return false
@@ -85,7 +85,7 @@ func (p UndParser) ParseFile(fset *token.FileSet, filename string, src []byte) (
 								}()
 
 								var (
-									direction UndDirection
+									direction Direction
 									ok        bool
 									err       error
 								)
@@ -93,10 +93,10 @@ func (p UndParser) ParseFile(fset *token.FileSet, filename string, src []byte) (
 								default:
 									return true
 								case *ast.ValueSpec:
-									direction, ok, err = ParseUndComment(x.Comment)
+									direction, ok, err = ParseComment(x.Comment)
 									tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 								case *ast.TypeSpec:
-									direction, ok, err = ParseUndComment(x.Comment)
+									direction, ok, err = ParseComment(x.Comment)
 									tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 								}
 								if !ok || err != nil {

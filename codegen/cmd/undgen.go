@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/ngicks/go-codegen/codegen/generator/undgen"
+	"github.com/ngicks/go-codegen/codegen/astmeta"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/spf13/cobra"
@@ -43,7 +43,7 @@ func undCommonFlags(fset *pflag.FlagSet, multiplePkg bool) {
 	fset.Bool(
 		"ignore-generated",
 		false,
-		"if set, the type checker ignores ast nodes with comment //undgen:generated. "+
+		"if set, the type checker ignores ast nodes with comment //codegen:generated. "+
 			"Useful for internal debugging. "+
 			"You do not need this option.")
 	fset.Bool("dry", false, "enables dry run mode. any files will be remove nor generated.")
@@ -124,7 +124,7 @@ func loadPkgs(
 		}
 	}
 	if ignoreGenerated {
-		cfg.ParseFile = undgen.NewUndParser(cfg.Dir).ParseFile
+		cfg.ParseFile = astmeta.NewParser(cfg.Dir).ParseFile
 	}
 
 	targetPkgs, err := packages.Load(cfg, pkg...)

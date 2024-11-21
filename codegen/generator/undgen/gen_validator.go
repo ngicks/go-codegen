@@ -15,6 +15,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
+	"github.com/ngicks/go-codegen/codegen/astmeta"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
@@ -139,7 +140,7 @@ func generateUndValidate(
 		err = fErr
 	}()
 
-	printf("//%s%s\n", UndDirectivePrefix, UndDirectiveCommentGenerated)
+	printf("//%s%s\n", astmeta.DirectivePrefix, astmeta.DirectiveCommentGenerated)
 	printf("func (v %s) UndValidate() (err error) {\n", typeName)
 	defer printf(`return
 	}

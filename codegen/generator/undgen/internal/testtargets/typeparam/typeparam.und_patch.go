@@ -9,7 +9,7 @@ import (
 	"github.com/ngicks/und/sliceund"
 )
 
-//undgen:generated
+//codegen:generated
 type WithTypeParamPatch[T any] struct {
 	Foo sliceund.Und[string]                        `json:",omitempty"`
 	Bar sliceund.Und[T]                             `json:",omitempty"`
@@ -17,7 +17,7 @@ type WithTypeParamPatch[T any] struct {
 	Qux sliceund.Und[map[string]elastic.Elastic[T]] `json:"qux,omitempty" und:"len==2,values:nonnull"`
 }
 
-//undgen:generated
+//codegen:generated
 func (p *WithTypeParamPatch[T]) FromValue(v WithTypeParam[T]) {
 	//nolint
 	*p = WithTypeParamPatch[T]{
@@ -28,7 +28,7 @@ func (p *WithTypeParamPatch[T]) FromValue(v WithTypeParam[T]) {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p WithTypeParamPatch[T]) ToValue() WithTypeParam[T] {
 	//nolint
 	return WithTypeParam[T]{
@@ -39,7 +39,7 @@ func (p WithTypeParamPatch[T]) ToValue() WithTypeParam[T] {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p WithTypeParamPatch[T]) Merge(r WithTypeParamPatch[T]) WithTypeParamPatch[T] {
 	//nolint
 	return WithTypeParamPatch[T]{
@@ -50,7 +50,7 @@ func (p WithTypeParamPatch[T]) Merge(r WithTypeParamPatch[T]) WithTypeParamPatch
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p WithTypeParamPatch[T]) ApplyPatch(v WithTypeParam[T]) WithTypeParam[T] {
 	var orgP WithTypeParamPatch[T]
 	orgP.FromValue(v)

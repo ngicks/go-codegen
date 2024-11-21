@@ -2,7 +2,7 @@ package implementor
 
 import "fmt"
 
-//undgen:ignore
+//codegen:ignore
 type Implementor[T any] struct {
 	T   T
 	Yay string
@@ -15,7 +15,7 @@ func (f Implementor[T]) UndValidate() error {
 	return nil
 }
 
-//undgen:ignore
+//codegen:ignore
 func (f Implementor[T]) UndPlain() ImplementorPlain[T] {
 	return ImplementorPlain[T]{
 		T: f.T,
@@ -29,7 +29,7 @@ func (f Implementor[T]) UndPlain() ImplementorPlain[T] {
 	}
 }
 
-//undgen:ignore
+//codegen:ignore
 type ImplementorPlain[T any] struct {
 	T   T
 	Nay string

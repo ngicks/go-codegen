@@ -20,7 +20,7 @@ type All struct {
 	SliceElastic sliceelastic.Elastic[string]
 }
 
-//undgen:ignore
+//codegen:ignore
 type Ignored struct {
 	Foo string
 	Bar int

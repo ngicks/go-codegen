@@ -9,7 +9,7 @@ import (
 
 // generated comment is attached to check if it is ignored by patcher etc.
 
-//undgen:generated
+//codegen:generated
 type DummyGenerated struct{}
 
 type All struct {

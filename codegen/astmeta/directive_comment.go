@@ -1,4 +1,4 @@
-package undgen
+package astmeta
 
 import (
 	"fmt"
@@ -7,27 +7,27 @@ import (
 )
 
 const (
-	UndDirectivePrefix = "undgen:"
+	DirectivePrefix = "codegen:"
 )
 
 const (
-	UndDirectiveCommentIgnore    = "ignore"
-	UndDirectiveCommentGenerated = "generated"
+	DirectiveCommentIgnore    = "ignore"
+	DirectiveCommentGenerated = "generated"
 )
 
-type UndDirection struct {
+type Direction struct {
 	ignore    bool
 	generated bool
 }
 
-func (d UndDirection) MustIgnore() bool {
+func (d Direction) MustIgnore() bool {
 	return d.ignore || d.generated
 }
 
-func ParseUndComment(comments *ast.CommentGroup) (UndDirection, bool, error) {
-	direction := directiveComments(comments, UndDirectivePrefix, true)
+func ParseComment(comments *ast.CommentGroup) (Direction, bool, error) {
+	direction := directiveComments(comments, DirectivePrefix, true)
 
-	var ud UndDirection
+	var ud Direction
 	if len(direction) == 0 {
 		return ud, false, nil
 	}
@@ -35,9 +35,9 @@ func ParseUndComment(comments *ast.CommentGroup) (UndDirection, bool, error) {
 	switch direction[0] {
 	default:
 		return ud, true, fmt.Errorf("unknown: %v", direction)
-	case UndDirectiveCommentIgnore:
+	case DirectiveCommentIgnore:
 		ud.ignore = true
-	case UndDirectiveCommentGenerated:
+	case DirectiveCommentGenerated:
 		ud.generated = true
 	}
 

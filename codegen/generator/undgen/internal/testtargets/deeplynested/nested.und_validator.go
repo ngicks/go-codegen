@@ -11,7 +11,7 @@ import (
 	"github.com/ngicks/und/validate"
 )
 
-//undgen:generated
+//codegen:generated
 func (v DeeplyNestedImplementor) UndValidate() (err error) {
 	{
 		validator := undtag.UndOptExport{
@@ -226,7 +226,7 @@ func (v DeeplyNestedImplementor) UndValidate() (err error) {
 	return
 }
 
-//undgen:generated
+//codegen:generated
 func (v Dependant) UndValidate() (err error) {
 	{
 		validator := undtag.UndOptExport{
@@ -248,7 +248,7 @@ func (v Dependant) UndValidate() (err error) {
 	return
 }
 
-//undgen:generated
+//codegen:generated
 func (v DeeplyNestedDependant) UndValidate() (err error) {
 	{
 		validator := undtag.UndOptExport{
@@ -463,7 +463,7 @@ func (v DeeplyNestedDependant) UndValidate() (err error) {
 	return
 }
 
-//undgen:generated
+//codegen:generated
 func (v DeeplyNestedImplementorMap) UndValidate() (err error) {
 	for k, v := range v {
 		for k, v := range v {
@@ -498,7 +498,7 @@ func (v DeeplyNestedImplementorMap) UndValidate() (err error) {
 	return
 }
 
-//undgen:generated
+//codegen:generated
 func (v DeeplyNestedDependantMap) UndValidate() (err error) {
 	for k, v := range v {
 		for k, v := range v {

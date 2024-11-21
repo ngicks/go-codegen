@@ -1,4 +1,4 @@
-package undgen
+package astmeta
 
 import (
 	"go/parser"
@@ -13,39 +13,39 @@ var (
 
 import "fmt"
 
-//undgen:ignore
+//codegen:ignore
 
-//undgen:generated
+//codegen:generated
 
-// undgen:ignore
+// codegen:ignore
 
-// undgen:generated
+// codegen:generated
 
 // aaaa
-//undgen:ignore
-//undgen:generated
+//codegen:ignore
+//codegen:generated
 // bbbb
 
 /*
-undgen:ignore
+codegen:ignore
 */
 
 /*
-undgen:generated
+codegen:generated
 */
 
 // not found
 
-// undgen:generateddawa
+// codegen:generateddawa
 `
 	testCommentsParseResult = []undCommentParseResult{
-		{UndDirection: UndDirection{ignore: true}},
-		{UndDirection: UndDirection{generated: true}},
-		{UndDirection: UndDirection{ignore: true}},
-		{UndDirection: UndDirection{generated: true}},
-		{UndDirection: UndDirection{ignore: true}},
-		{UndDirection: UndDirection{ignore: true}},
-		{UndDirection: UndDirection{generated: true}},
+		{UndDirection: Direction{ignore: true}},
+		{UndDirection: Direction{generated: true}},
+		{UndDirection: Direction{ignore: true}},
+		{UndDirection: Direction{generated: true}},
+		{UndDirection: Direction{ignore: true}},
+		{UndDirection: Direction{ignore: true}},
+		{UndDirection: Direction{generated: true}},
 		{NotFound: true},
 		{Err: true},
 	}
@@ -54,7 +54,7 @@ undgen:generated
 type undCommentParseResult struct {
 	Err          bool
 	NotFound     bool
-	UndDirection UndDirection
+	UndDirection Direction
 }
 
 func TestDirective_Parse(t *testing.T) {
@@ -65,7 +65,7 @@ func TestDirective_Parse(t *testing.T) {
 	}
 
 	for i, cg := range f.Comments {
-		d, found, err := ParseUndComment(cg)
+		d, found, err := ParseComment(cg)
 
 		expected := testCommentsParseResult[i]
 		if expected.Err {

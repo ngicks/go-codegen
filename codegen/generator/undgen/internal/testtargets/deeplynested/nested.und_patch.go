@@ -10,7 +10,7 @@ import (
 	"github.com/ngicks/und/sliceund"
 )
 
-//undgen:generated
+//codegen:generated
 type DeeplyNestedImplementorPatch struct {
 	A sliceund.Und[[]map[string][5]und.Und[implementor.Implementor[string]]]  `und:"required" json:",omitempty"`
 	B sliceund.Und[[][][]map[int]implementor.Implementor[string]]             `json:",omitempty"`
@@ -18,7 +18,7 @@ type DeeplyNestedImplementorPatch struct {
 	D sliceund.Und[[][][]map[int]*implementor.Implementor[string]]            `json:",omitempty"`
 }
 
-//undgen:generated
+//codegen:generated
 func (p *DeeplyNestedImplementorPatch) FromValue(v DeeplyNestedImplementor) {
 	//nolint
 	*p = DeeplyNestedImplementorPatch{
@@ -29,7 +29,7 @@ func (p *DeeplyNestedImplementorPatch) FromValue(v DeeplyNestedImplementor) {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DeeplyNestedImplementorPatch) ToValue() DeeplyNestedImplementor {
 	//nolint
 	return DeeplyNestedImplementor{
@@ -40,7 +40,7 @@ func (p DeeplyNestedImplementorPatch) ToValue() DeeplyNestedImplementor {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DeeplyNestedImplementorPatch) Merge(r DeeplyNestedImplementorPatch) DeeplyNestedImplementorPatch {
 	//nolint
 	return DeeplyNestedImplementorPatch{
@@ -51,7 +51,7 @@ func (p DeeplyNestedImplementorPatch) Merge(r DeeplyNestedImplementorPatch) Deep
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DeeplyNestedImplementorPatch) ApplyPatch(v DeeplyNestedImplementor) DeeplyNestedImplementor {
 	var orgP DeeplyNestedImplementorPatch
 	orgP.FromValue(v)
@@ -59,12 +59,12 @@ func (p DeeplyNestedImplementorPatch) ApplyPatch(v DeeplyNestedImplementor) Deep
 	return merged.ToValue()
 }
 
-//undgen:generated
+//codegen:generated
 type DependantPatch struct {
 	Opt sliceund.Und[string] `und:"required" json:",omitempty"`
 }
 
-//undgen:generated
+//codegen:generated
 func (p *DependantPatch) FromValue(v Dependant) {
 	//nolint
 	*p = DependantPatch{
@@ -72,7 +72,7 @@ func (p *DependantPatch) FromValue(v Dependant) {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DependantPatch) ToValue() Dependant {
 	//nolint
 	return Dependant{
@@ -80,7 +80,7 @@ func (p DependantPatch) ToValue() Dependant {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DependantPatch) Merge(r DependantPatch) DependantPatch {
 	//nolint
 	return DependantPatch{
@@ -88,7 +88,7 @@ func (p DependantPatch) Merge(r DependantPatch) DependantPatch {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DependantPatch) ApplyPatch(v Dependant) Dependant {
 	var orgP DependantPatch
 	orgP.FromValue(v)
@@ -96,7 +96,7 @@ func (p DependantPatch) ApplyPatch(v Dependant) Dependant {
 	return merged.ToValue()
 }
 
-//undgen:generated
+//codegen:generated
 type DeeplyNestedDependantPatch struct {
 	A sliceund.Und[[]map[string][5]und.Und[Dependant]]  `und:"required" json:",omitempty"`
 	B sliceund.Und[[][][]map[int]Dependant]             `json:",omitempty"`
@@ -104,7 +104,7 @@ type DeeplyNestedDependantPatch struct {
 	D sliceund.Und[[][][]map[int]*Dependant]            `json:",omitempty"`
 }
 
-//undgen:generated
+//codegen:generated
 func (p *DeeplyNestedDependantPatch) FromValue(v DeeplyNestedDependant) {
 	//nolint
 	*p = DeeplyNestedDependantPatch{
@@ -115,7 +115,7 @@ func (p *DeeplyNestedDependantPatch) FromValue(v DeeplyNestedDependant) {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DeeplyNestedDependantPatch) ToValue() DeeplyNestedDependant {
 	//nolint
 	return DeeplyNestedDependant{
@@ -126,7 +126,7 @@ func (p DeeplyNestedDependantPatch) ToValue() DeeplyNestedDependant {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DeeplyNestedDependantPatch) Merge(r DeeplyNestedDependantPatch) DeeplyNestedDependantPatch {
 	//nolint
 	return DeeplyNestedDependantPatch{
@@ -137,7 +137,7 @@ func (p DeeplyNestedDependantPatch) Merge(r DeeplyNestedDependantPatch) DeeplyNe
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DeeplyNestedDependantPatch) ApplyPatch(v DeeplyNestedDependant) DeeplyNestedDependant {
 	var orgP DeeplyNestedDependantPatch
 	orgP.FromValue(v)
@@ -145,28 +145,28 @@ func (p DeeplyNestedDependantPatch) ApplyPatch(v DeeplyNestedDependant) DeeplyNe
 	return merged.ToValue()
 }
 
-//undgen:generated
+//codegen:generated
 type DeeplyNestedImplementorMapPatch []map[string][5]und.Und[implementor.Implementor[string]]
 
-//undgen:generated
+//codegen:generated
 func (p *DeeplyNestedImplementorMapPatch) FromValue(v DeeplyNestedImplementorMap) {
 	//nolint
 	*p = DeeplyNestedImplementorMapPatch{}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DeeplyNestedImplementorMapPatch) ToValue() DeeplyNestedImplementorMap {
 	//nolint
 	return DeeplyNestedImplementorMap{}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DeeplyNestedImplementorMapPatch) Merge(r DeeplyNestedImplementorMapPatch) DeeplyNestedImplementorMapPatch {
 	//nolint
 	return DeeplyNestedImplementorMapPatch{}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DeeplyNestedImplementorMapPatch) ApplyPatch(v DeeplyNestedImplementorMap) DeeplyNestedImplementorMap {
 	var orgP DeeplyNestedImplementorMapPatch
 	orgP.FromValue(v)
@@ -174,28 +174,28 @@ func (p DeeplyNestedImplementorMapPatch) ApplyPatch(v DeeplyNestedImplementorMap
 	return merged.ToValue()
 }
 
-//undgen:generated
+//codegen:generated
 type DeeplyNestedDependantMapPatch []map[string][5]und.Und[Dependant]
 
-//undgen:generated
+//codegen:generated
 func (p *DeeplyNestedDependantMapPatch) FromValue(v DeeplyNestedDependantMap) {
 	//nolint
 	*p = DeeplyNestedDependantMapPatch{}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DeeplyNestedDependantMapPatch) ToValue() DeeplyNestedDependantMap {
 	//nolint
 	return DeeplyNestedDependantMap{}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DeeplyNestedDependantMapPatch) Merge(r DeeplyNestedDependantMapPatch) DeeplyNestedDependantMapPatch {
 	//nolint
 	return DeeplyNestedDependantMapPatch{}
 }
 
-//undgen:generated
+//codegen:generated
 func (p DeeplyNestedDependantMapPatch) ApplyPatch(v DeeplyNestedDependantMap) DeeplyNestedDependantMap {
 	var orgP DeeplyNestedDependantMapPatch
 	orgP.FromValue(v)

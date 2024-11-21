@@ -11,7 +11,7 @@ import (
 	"github.com/ngicks/und/sliceund"
 )
 
-//undgen:generated
+//codegen:generated
 type AllPlain struct {
 	Foo string
 	Bar *string
@@ -72,7 +72,7 @@ type AllPlain struct {
 	ElaEqEqNonNullNull       option.Option[[3]string] `json:",omitzero" und:"null,values:nonnull,len==3"`
 }
 
-//undgen:generated
+//codegen:generated
 func (v All) UndPlain() AllPlain {
 	return AllPlain{
 		Foo:               v.Foo,
@@ -220,7 +220,7 @@ func (v All) UndPlain() AllPlain {
 	}
 }
 
-//undgen:generated
+//codegen:generated
 func (v AllPlain) UndRaw() All {
 	return All{
 		Foo:               v.Foo,

@@ -10,7 +10,7 @@ import (
 	"github.com/ngicks/und/validate"
 )
 
-//undgen:generated
+//codegen:generated
 func (v All) UndValidate() (err error) {
 	{
 		validator := undtag.UndOptExport{
