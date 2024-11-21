@@ -35,7 +35,7 @@ func NewParser(dir string) *Parser {
 	}
 }
 
-func (p Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
+func (p *Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*ast.File, error) {
 	f, err := parser.ParseFile(fset, filename, src, p.mode)
 	if err != nil {
 		return f, err
@@ -65,10 +65,10 @@ func (p Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*as
 				)
 				switch x := decl.(type) {
 				case *ast.FuncDecl:
-					direction, ok, err = ParseComment(x.Doc)
+					direction, ok, err = ParseDirectiveComment(x.Doc)
 					tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 				case *ast.GenDecl:
-					direction, ok, err = ParseComment(x.Doc)
+					direction, ok, err = ParseDirectiveComment(x.Doc)
 					tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 					if direction.generated {
 						return false
@@ -94,10 +94,10 @@ func (p Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*as
 								default:
 									return true
 								case *ast.ValueSpec:
-									direction, ok, err = ParseComment(x.Comment)
+									direction, ok, err = ParseDirectiveComment(x.Comment)
 									tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 								case *ast.TypeSpec:
-									direction, ok, err = ParseComment(x.Comment)
+									direction, ok, err = ParseDirectiveComment(x.Comment)
 									tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 								}
 								if !ok || err != nil {

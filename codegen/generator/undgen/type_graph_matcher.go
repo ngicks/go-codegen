@@ -380,7 +380,7 @@ func isUndValidatorImplementor(named *types.Named) bool {
 }
 
 func excludeUndIgnoredCommentedGenDecl(genDecl *ast.GenDecl) (bool, error) {
-	direction, _, err := codegen.ParseComment(genDecl.Doc)
+	direction, _, err := codegen.ParseDirectiveComment(genDecl.Doc)
 	if err != nil {
 		return false, err
 	}
@@ -388,7 +388,7 @@ func excludeUndIgnoredCommentedGenDecl(genDecl *ast.GenDecl) (bool, error) {
 }
 
 func excludeUndIgnoredCommentedTypeSpec(ts *ast.TypeSpec, _ types.Object) (bool, error) {
-	direction, _, err := codegen.ParseComment(ts.Doc)
+	direction, _, err := codegen.ParseDirectiveComment(ts.Doc)
 	if err != nil {
 		return false, err
 	}
