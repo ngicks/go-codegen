@@ -7,7 +7,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/dstutil"
-	"github.com/ngicks/go-codegen/codegen/astutil"
+	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/und/undtag"
@@ -64,7 +64,7 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap impor
 		unwrapped := unwrapExprAlongPath(elem, edge, 1)
 		index := (*unwrapped).(*dst.IndexExpr)
 		converted, _ := plainConverter(edge.TypeArgs[0].Ty, edge.IsTypeArgMatched())
-		index.Index = astutil.TypeToDst(
+		index.Index = codegen.TypeToDst(
 			converted,
 			node.Type.Obj().Pkg().Path(),
 			importMap,
@@ -74,7 +74,7 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap impor
 		// implementor
 		unwrapped := unwrapExprAlongPath(elem, edge, 1)
 		converted, _ := plainConverter(edge.ChildType, edge.IsChildMatched())
-		*unwrapped = astutil.TypeToDst(
+		*unwrapped = codegen.TypeToDst(
 			converted,
 			node.Type.Obj().Pkg().Path(),
 			importMap,
@@ -136,7 +136,7 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap im
 					}) {
 						ty = types.NewPointer(ty)
 					}
-					*unwrapped = astutil.TypeToDst(
+					*unwrapped = codegen.TypeToDst(
 						ty,
 						edge.ParentNode.Type.Obj().Pkg().Path(),
 						importMap,
@@ -159,7 +159,7 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap im
 					if isPointer {
 						ty = types.NewPointer(ty)
 					}
-					(*unwrapped).(*dst.IndexExpr).Index = astutil.TypeToDst(
+					(*unwrapped).(*dst.IndexExpr).Index = codegen.TypeToDst(
 						ty,
 						edge.ParentNode.Type.Obj().Pkg().Path(),
 						importMap,
@@ -203,7 +203,7 @@ func unwrapUndType(fieldTy *dst.IndexExpr, edge typegraph.TypeDependencyEdge, un
 			if isPointer {
 				ty = types.NewPointer(ty)
 			}
-			fieldTy.Index = astutil.TypeToDst(
+			fieldTy.Index = codegen.TypeToDst(
 				ty,
 				edge.ParentNode.Type.Obj().Pkg().Path(),
 				importMap,

@@ -15,7 +15,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
-	"github.com/ngicks/go-codegen/codegen/astmeta"
+	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
@@ -107,7 +107,7 @@ func GeneratePlain(
 				),
 			)
 
-			buf.WriteString("//" + astmeta.DirectivePrefix + astmeta.DirectiveCommentGenerated + "\n")
+			buf.WriteString("//" + codegen.DirectivePrefix + codegen.DirectiveCommentGenerated + "\n")
 			buf.WriteString(token.TYPE.String())
 			buf.WriteByte(' ')
 			err = printer.Fprint(buf, res.Fset, ats)

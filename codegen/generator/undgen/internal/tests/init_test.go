@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	gocmp "github.com/google/go-cmp/cmp"
-	"github.com/ngicks/go-codegen/codegen/astmeta"
+	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/option"
 	"golang.org/x/tools/go/packages"
@@ -41,7 +41,7 @@ func init() {
 			packages.NeedTypesInfo |
 			packages.NeedTypesSizes,
 		Dir:       "../testtargets",
-		ParseFile: astmeta.NewParser("../testtargets").ParseFile,
+		ParseFile: codegen.NewParser("../testtargets").ParseFile,
 	}
 	var err error
 	dirents, err := os.ReadDir("../testtargets")

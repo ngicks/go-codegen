@@ -1,4 +1,4 @@
-package astmeta
+package codegen
 
 import (
 	"fmt"

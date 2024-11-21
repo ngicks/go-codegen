@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"slices"
 
-	"github.com/ngicks/go-codegen/codegen/astmeta"
+	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/msg"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
@@ -380,7 +380,7 @@ func isUndValidatorImplementor(named *types.Named) bool {
 }
 
 func excludeUndIgnoredCommentedGenDecl(genDecl *ast.GenDecl) (bool, error) {
-	direction, _, err := astmeta.ParseComment(genDecl.Doc)
+	direction, _, err := codegen.ParseComment(genDecl.Doc)
 	if err != nil {
 		return false, err
 	}
@@ -388,7 +388,7 @@ func excludeUndIgnoredCommentedGenDecl(genDecl *ast.GenDecl) (bool, error) {
 }
 
 func excludeUndIgnoredCommentedTypeSpec(ts *ast.TypeSpec, _ types.Object) (bool, error) {
-	direction, _, err := astmeta.ParseComment(ts.Doc)
+	direction, _, err := codegen.ParseComment(ts.Doc)
 	if err != nil {
 		return false, err
 	}
