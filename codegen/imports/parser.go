@@ -337,7 +337,7 @@ func (im ImportMap) MissingImports() iter.Seq2[string, string] {
 }
 
 // AddMissingImports adds missing imports from imports to df,
-// both [*dst.File.Imports] and tge first import decl in [*dst.File.Decls].
+// both [*dst.File.Imports] and the first import decl in [*dst.File.Decls].
 func (im ImportMap) AddMissingImports(df *dst.File) {
 	var replaced bool
 	dstutil.Apply(
