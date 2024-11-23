@@ -204,32 +204,30 @@ func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, node *typegraph.TypeNode, im
 				tag := field.Tag
 
 				isSliceType := true
-				if ok {
-					matchUndType(
-						namedTypeToTargetType(edge.ChildType),
-						false,
-						func() bool {
-							c.Replace(&dst.Field{
-								Names: field.Names,
-								Type: &dst.IndexExpr{
-									X:     importMap.DstExpr(UndTargetTypeSliceUnd),
-									Index: field.Type.(*dst.IndexExpr).Index,
-								},
-								Tag:  field.Tag,
-								Decs: field.Decs,
-							})
-							return true
-						},
-						func(isSlice bool) bool {
-							isSliceType = isSlice
-							return true
-						},
-						func(isSlice bool) bool {
-							isSliceType = isSlice
-							return true
-						},
-					)
-				} else {
+				if !ok || !matchUndType(
+					namedTypeToTargetType(edge.ChildType),
+					false,
+					func() bool {
+						c.Replace(&dst.Field{
+							Names: field.Names,
+							Type: &dst.IndexExpr{
+								X:     importMap.DstExpr(UndTargetTypeSliceUnd),
+								Index: field.Type.(*dst.IndexExpr).Index,
+							},
+							Tag:  field.Tag,
+							Decs: field.Decs,
+						})
+						return true
+					},
+					func(isSlice bool) bool {
+						isSliceType = isSlice
+						return true
+					},
+					func(isSlice bool) bool {
+						isSliceType = isSlice
+						return true
+					},
+				) {
 					c.Replace(
 						&dst.Field{
 							Names: field.Names,
