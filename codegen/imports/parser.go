@@ -1,3 +1,5 @@
+// imports defines an import manager that manages ident-to-imports relation.
+// It is supposed to be used to add imports to existent files while keeping their existent imports.
 package imports
 
 import (
@@ -335,7 +337,7 @@ func (im ImportMap) MissingImports() iter.Seq2[string, string] {
 }
 
 // AddMissingImports adds missing imports from imports to df,
-// both [*dst.File.Imports] and tge first import decl in [*dst.File.Decls].
+// both [*dst.File.Imports] and the first import decl in [*dst.File.Decls].
 func (im ImportMap) AddMissingImports(df *dst.File) {
 	var replaced bool
 	dstutil.Apply(

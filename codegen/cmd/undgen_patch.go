@@ -6,8 +6,8 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/ngicks/go-codegen/codegen/generator/undgen"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
-	"github.com/ngicks/go-codegen/codegen/undgen"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/spf13/cobra"
 )
