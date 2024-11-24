@@ -109,8 +109,8 @@ func unwrapFieldAlongPath(
 
 }
 
-func generateConversionMethod(w io.Writer, data *replaceData, node *typegraph.TypeNode, exprMap map[string]fieldAstExprSet) (err error) {
-	ts := data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
+func generateConversionMethod(w io.Writer, data *typegraph.ReplaceData, node *typegraph.TypeNode, exprMap map[string]fieldAstExprSet) (err error) {
+	ts := data.Dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
 	plainTyName := ts.Name.Name + printTypeParamVars(ts)
 	rawTyName, _ := strings.CutSuffix(ts.Name.Name, "Plain")
 	rawTyName += printTypeParamVars(ts)
@@ -133,7 +133,7 @@ func generateToRawOrToPlain(
 	printf func(format string, args ...any),
 	plainTyName, rawTyName string,
 	ts *dst.TypeSpec,
-	data *replaceData,
+	data *typegraph.ReplaceData,
 	node *typegraph.TypeNode,
 	exprMap map[string]fieldAstExprSet,
 ) {
@@ -153,9 +153,9 @@ func generateToRawOrToPlain(
 	named := node.Type
 	switch named.Underlying().(type) {
 	case *types.Array, *types.Slice, *types.Map:
-		generateConversionMethodElemTypes(toPlain, printf, node, data.importMap, exprMap)
+		generateConversionMethodElemTypes(toPlain, printf, node, data.ImportMap, exprMap)
 	case *types.Struct:
-		generateConversionMethodStructFields(toPlain, printf, ts, node, rawTyName, plainTyName, data.importMap, exprMap)
+		generateConversionMethodStructFields(toPlain, printf, ts, node, rawTyName, plainTyName, data.ImportMap, exprMap)
 	default:
 		slog.Default().Error(
 			"implementation error",

@@ -18,16 +18,16 @@ type fieldDstExprSet struct {
 	Unwrapped dst.Expr
 }
 
-func _replaceToPlainTypes(data *replaceData, node *typegraph.TypeNode) (map[string]fieldDstExprSet, bool) {
-	ts := data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
+func _replaceToPlainTypes(data *typegraph.ReplaceData, node *typegraph.TypeNode) (map[string]fieldDstExprSet, bool) {
+	ts := data.Dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
 	ts.Name.Name += "Plain"
 	named := node.Type
 	switch named.Underlying().(type) {
 	case *types.Array, *types.Slice, *types.Map:
-		wrapped, unwrapped := unwrapElemTypes(ts, node, data.importMap)
+		wrapped, unwrapped := unwrapElemTypes(ts, node, data.ImportMap)
 		return map[string]fieldDstExprSet{"": {wrapped, unwrapped}}, true
 	case *types.Struct:
-		return unwrapStructFields(ts, node, data.importMap)
+		return unwrapStructFields(ts, node, data.ImportMap)
 	}
 	return nil, false
 }

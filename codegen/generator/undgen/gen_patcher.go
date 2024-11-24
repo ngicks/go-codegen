@@ -72,7 +72,7 @@ func GeneratePatcher(
 	}
 
 	for _, data := range xiter.Filter2(
-		func(f *ast.File, data *replaceData) bool { return f != nil && data != nil },
+		func(f *ast.File, data *typegraph.ReplaceData) bool { return f != nil && data != nil },
 		hiter.MapKeys(replacerData, slices.Values(pkg.Syntax)),
 	) {
 		wrapNonUndFields(data)
@@ -80,32 +80,32 @@ func GeneratePatcher(
 		if verbose {
 			slog.Debug(
 				"found",
-				slog.String("filename", data.filename),
+				slog.String("filename", data.Filename),
 				slog.Any(
 					"typesNames",
 					slices.Collect(xiter.Map(
 						func(n *typegraph.TypeNode) string { return n.Type.Obj().Name() },
-						slices.Values(data.targetNodes),
+						slices.Values(data.TargetNodes),
 					)),
 				),
 			)
 		}
 
-		data.importMap.AddMissingImports(data.df)
+		data.ImportMap.AddMissingImports(data.DstFile)
 		res := decorator.NewRestorer()
-		af, err := res.RestoreFile(data.df)
+		af, err := res.RestoreFile(data.DstFile)
 		if err != nil {
-			return fmt.Errorf("converting dst to ast for %q: %w", data.filename, err)
+			return fmt.Errorf("converting dst to ast for %q: %w", data.Filename, err)
 		}
 
 		buf := new(bytes.Buffer) // pool buf?
 
 		if err := printFileHeader(buf, af, res.Fset); err != nil {
-			return fmt.Errorf("%q: %w", data.filename, err)
+			return fmt.Errorf("%q: %w", data.Filename, err)
 		}
 
-		for _, node := range data.targetNodes {
-			dts := data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
+		for _, node := range data.TargetNodes {
+			dts := data.Dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
 			ts := res.Ast.Nodes[dts].(*ast.TypeSpec)
 			// type keyword is attached to *ast.GenDecl
 			// But we are not printing gen decl itself since
@@ -116,7 +116,7 @@ func GeneratePatcher(
 			buf.WriteByte(' ')
 			err = printer.Fprint(buf, res.Fset, ts)
 			if err != nil {
-				return fmt.Errorf("print.Fprint failed for type %s in file %q: %w", data.filename, ts.Name.Name, err)
+				return fmt.Errorf("print.Fprint failed for type %s in file %q: %w", data.Filename, ts.Name.Name, err)
 			}
 			buf.WriteString("\n\n")
 
@@ -124,25 +124,25 @@ func GeneratePatcher(
 				{
 					generateFromValue,
 					func() error {
-						return fmt.Errorf("generating FromValue for type %s in file %q: %w", data.filename, ts.Name.Name, err)
+						return fmt.Errorf("generating FromValue for type %s in file %q: %w", data.Filename, ts.Name.Name, err)
 					},
 				},
 				{
 					generateToValue,
 					func() error {
-						return fmt.Errorf("generating ToValue for type %s in file %q: %w", data.filename, ts.Name.Name, err)
+						return fmt.Errorf("generating ToValue for type %s in file %q: %w", data.Filename, ts.Name.Name, err)
 					},
 				},
 				{
 					generateMerge,
 					func() error {
-						return fmt.Errorf("generating Merge for type %s in file %q: %w", data.filename, ts.Name.Name, err)
+						return fmt.Errorf("generating Merge for type %s in file %q: %w", data.Filename, ts.Name.Name, err)
 					},
 				},
 				{
 					generateApplyPatch,
 					func() error {
-						return fmt.Errorf("generating ApplyPatch for type %s in file %q: %w", data.filename, ts.Name.Name, err)
+						return fmt.Errorf("generating ApplyPatch for type %s in file %q: %w", data.Filename, ts.Name.Name, err)
 					},
 				},
 			} {
@@ -150,7 +150,7 @@ func GeneratePatcher(
 					buf,
 					dts,
 					node,
-					data.importMap,
+					data.ImportMap,
 					"Patch",
 				)
 				if err != nil {
@@ -158,7 +158,7 @@ func GeneratePatcher(
 				}
 			}
 		}
-		err = sourcePrinter.Write(context.Background(), data.filename, buf.Bytes())
+		err = sourcePrinter.Write(context.Background(), data.Filename, buf.Bytes())
 		if err != nil {
 			return err
 		}
@@ -174,9 +174,9 @@ type methodGenSet struct {
 
 type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, typeSuffix string) error
 
-func wrapNonUndFields(data *replaceData) {
-	for _, node := range data.targetNodes {
-		wrapNonUndFieldsWithSliceUnd(data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec), node, data.importMap)
+func wrapNonUndFields(data *typegraph.ReplaceData) {
+	for _, node := range data.TargetNodes {
+		wrapNonUndFieldsWithSliceUnd(data.Dec.Dst.Nodes[node.Ts].(*dst.TypeSpec), node, data.ImportMap)
 	}
 }
 

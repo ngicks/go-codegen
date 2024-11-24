@@ -50,49 +50,49 @@ func GenerateValidator(
 	}
 
 	for _, data := range xiter.Filter2(
-		func(f *ast.File, data *replaceData) bool { return f != nil && data != nil },
-		hiter.MapKeys(replacerData, enumerateFile(pkgs)),
+		func(f *ast.File, data *typegraph.ReplaceData) bool { return f != nil && data != nil },
+		hiter.MapKeys(replacerData, pkgsutil.EnumerateFile(pkgs)),
 	) {
 		if verbose {
 			slog.Debug(
 				"found",
-				slog.String("filename", data.filename),
+				slog.String("filename", data.Filename),
 			)
 		}
 
-		data.importMap.AddMissingImports(data.df)
+		data.ImportMap.AddMissingImports(data.DstFile)
 		res := decorator.NewRestorer()
-		af, err := res.RestoreFile(data.df)
+		af, err := res.RestoreFile(data.DstFile)
 		if err != nil {
-			return fmt.Errorf("converting dst to ast for %q: %w", data.filename, err)
+			return fmt.Errorf("converting dst to ast for %q: %w", data.Filename, err)
 		}
 
 		buf := new(bytes.Buffer) // pool buf?
 
 		if err := printFileHeader(buf, af, res.Fset); err != nil {
-			return fmt.Errorf("%q: %w", data.filename, err)
+			return fmt.Errorf("%q: %w", data.Filename, err)
 		}
 
 		var atLeastOne bool
-		for _, node := range data.targetNodes {
-			dts := data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
+		for _, node := range data.TargetNodes {
+			dts := data.Dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
 			written, err := generateUndValidate(
 				buf,
 				dts,
 				node,
-				data.importMap,
+				data.ImportMap,
 			)
 			if written {
 				atLeastOne = true
 			}
 			if err != nil {
-				return fmt.Errorf("generating UndValidate for type %s in file %q: %w", node.Ts.Name.Name, data.filename, err)
+				return fmt.Errorf("generating UndValidate for type %s in file %q: %w", node.Ts.Name.Name, data.Filename, err)
 			}
 			buf.WriteString("\n\n")
 		}
 
 		if atLeastOne {
-			err = sourcePrinter.Write(context.Background(), data.filename, buf.Bytes())
+			err = sourcePrinter.Write(context.Background(), data.Filename, buf.Bytes())
 			if err != nil {
 				return err
 			}
