@@ -1,4 +1,4 @@
-package undgen
+package matcher
 
 import (
 	"go/types"
@@ -6,34 +6,34 @@ import (
 	"github.com/ngicks/go-iterator-helper/hiter"
 )
 
-type ConversionMethodsSet struct {
-	FromPlain bool
-	ToRaw     string
-	ToPlain   string
+type CyclicConversionMethods struct {
+	From    bool
+	Reverse string
+	Convert string
 }
 
-func (mset ConversionMethodsSet) IsImplementor(ty *types.Named) bool {
-	_, ok := isConversionMethodImplementor(ty, mset, mset.FromPlain)
+func (mset CyclicConversionMethods) IsImplementor(ty *types.Named) bool {
+	_, ok := isConversionMethodImplementor(ty, mset, mset.From)
 	return ok
 }
 
-func (mset ConversionMethodsSet) ConvertedType(ty *types.Named) (*types.Named, bool) {
-	return isConversionMethodImplementor(ty, mset, mset.FromPlain)
+func (mset CyclicConversionMethods) ConvertedType(ty *types.Named) (*types.Named, bool) {
+	return isConversionMethodImplementor(ty, mset, mset.From)
 }
 
 // isConversionMethodImplementor checks if ty can be converted to a type, then converted back from the type to ty
 // though methods described in conversionMethod.
 //
 // Assuming fromPlain is false, ty is an implementor if ty (called type A hereafter)
-// has the method which [ConversionMethodsSet.ToPlain] names
+// has the method which [CyclicConversionMethods.ToPlain] names
 // where the returned value of the method is only one and type B,
-// and also type B implements the method which [ConversionMethodsSet.ToRaw] describes
+// and also type B implements the method which [CyclicConversionMethods.ToRaw] describes
 // where the returned value of the method is only one and type A.
 //
 // If fromPlain is true isConversionMethodImplementor works reversely (it checks assuming ty is type B.)
-func isConversionMethodImplementor(ty *types.Named, conversionMethod ConversionMethodsSet, fromPlain bool) (*types.Named, bool) {
-	toMethod := conversionMethod.ToPlain
-	revMethod := conversionMethod.ToRaw
+func isConversionMethodImplementor(ty *types.Named, conversionMethod CyclicConversionMethods, fromPlain bool) (*types.Named, bool) {
+	toMethod := conversionMethod.Convert
+	revMethod := conversionMethod.Reverse
 	if fromPlain {
 		toMethod, revMethod = revMethod, toMethod
 	}
@@ -101,11 +101,11 @@ func isConversionMethodImplementor(ty *types.Named, conversionMethod ConversionM
 	return nil, false
 }
 
-type ValidatorMethod struct {
+type ErrorMethod struct {
 	Name string
 }
 
-func (method ValidatorMethod) IsImplementor(ty *types.Named) bool {
+func (method ErrorMethod) IsImplementor(ty *types.Named) bool {
 	return isValidatorImplementor(ty, method.Name)
 }
 
