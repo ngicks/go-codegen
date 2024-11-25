@@ -13,32 +13,32 @@ type CyclicConversionMethods struct {
 }
 
 func (mset CyclicConversionMethods) IsImplementor(ty *types.Named) bool {
-	_, ok := isConversionMethodImplementor(ty, mset, mset.From)
+	_, ok := isCyclicConversionMethodsImplementor(ty, mset, mset.From)
 	return ok
 }
 
 func (mset CyclicConversionMethods) ConvertedType(ty *types.Named) (*types.Named, bool) {
-	return isConversionMethodImplementor(ty, mset, mset.From)
+	return isCyclicConversionMethodsImplementor(ty, mset, mset.From)
 }
 
-// isConversionMethodImplementor checks if ty can be converted to a type, then converted back from the type to ty
+// isCyclicConversionMethodsImplementor checks if ty can be converted to a type, then converted back from the type to ty
 // though methods described in conversionMethod.
 //
 // Assuming fromPlain is false, ty is an implementor if ty (called type A hereafter)
-// has the method which [CyclicConversionMethods.ToPlain] names
+// has the method which [CyclicConversionMethods.Convert] names
 // where the returned value of the method is only one and type B,
-// and also type B implements the method which [CyclicConversionMethods.ToRaw] describes
+// and also type B implements the method which [CyclicConversionMethods.Reverse] describes
 // where the returned value of the method is only one and type A.
 //
-// If fromPlain is true isConversionMethodImplementor works reversely (it checks assuming ty is type B.)
-func isConversionMethodImplementor(ty *types.Named, conversionMethod CyclicConversionMethods, fromPlain bool) (*types.Named, bool) {
+// If fromPlain is true isCyclicConversionMethodsImplementor works reversely (it checks assuming ty is type B.)
+func isCyclicConversionMethodsImplementor(ty *types.Named, conversionMethod CyclicConversionMethods, fromPlain bool) (*types.Named, bool) {
 	toMethod := conversionMethod.Convert
 	revMethod := conversionMethod.Reverse
 	if fromPlain {
 		toMethod, revMethod = revMethod, toMethod
 	}
 
-	ms := types.NewMethodSet(types.NewPointer(ty))
+	ms := types.NewMethodSet(asPointer(ty))
 	for _, sel := range hiter.AtterAll(ms) {
 		if sel.Obj().Name() == toMethod {
 			sig, ok := sel.Obj().Type().Underlying().(*types.Signature)
@@ -56,7 +56,7 @@ func isConversionMethodImplementor(ty *types.Named, conversionMethod CyclicConve
 				return nil, false
 			}
 
-			ms := types.NewMethodSet(types.NewPointer(toType))
+			ms := types.NewMethodSet(asPointer(toType))
 			for _, sel := range hiter.AtterAll(ms) {
 				if sel.Obj().Name() != revMethod {
 					continue
@@ -88,7 +88,7 @@ func isConversionMethodImplementor(ty *types.Named, conversionMethod CyclicConve
 				// only if is it instantiated with type param which ty has in same order.
 				if ty.TypeArgs().Len() == 0 && supposeToBeFromType.TypeArgs().Len() > 0 {
 					// try again with instantiated version.
-					toType2, ok := isConversionMethodImplementor(supposeToBeFromType, conversionMethod, fromPlain)
+					toType2, ok := isCyclicConversionMethodsImplementor(supposeToBeFromType, conversionMethod, fromPlain)
 					if !ok {
 						return toType, false
 					}
