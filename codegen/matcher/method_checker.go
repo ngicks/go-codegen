@@ -77,22 +77,19 @@ func isCyclicConversionMethodsImplementor(ty *types.Named, methods CyclicConvers
 					return toType, false
 				}
 
-				objStr1 := ty.String()
-				objStr2 := supposeToBeFromType.String()
-				_ = objStr1 // just for debugger...
-				_ = objStr2
 				if types.Identical(ty, supposeToBeFromType) {
 					return toType, true
 				}
-				// If ty is un-instantiated type then, supposeToBeFromType is same
-				// only if is it instantiated with type param which ty has in same order.
-				if ty.TypeArgs().Len() == 0 && supposeToBeFromType.TypeArgs().Len() > 0 {
-					// try again with instantiated version.
+				// they aren't identical. but is ty un-instantiated?
+				// If yes then, check again with instantiated type
+				if types.Identical(ty, supposeToBeFromType.Origin()) &&
+					ty.TypeArgs().Len() == 0 &&
+					supposeToBeFromType.TypeArgs().Len() > 0 {
 					toType2, ok := isCyclicConversionMethodsImplementor(supposeToBeFromType, methods)
 					if !ok {
 						return toType, false
 					}
-					return toType, toType == toType2
+					return toType, types.Identical(toType, toType2)
 				}
 				return toType, false
 			}

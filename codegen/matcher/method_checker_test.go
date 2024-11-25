@@ -10,16 +10,16 @@ import (
 var (
 	cyclicConversionMethodsImplementor = `package main
 
-type A struct {}
+type A[T any] struct {}
 
-func (a A) UndPlain() B {
-	return B{}
+func (a A[T]) UndPlain() B[T] {
+	return B[T]{}
 }
 
-type B struct{}
+type B[T any] struct{}
 
-func (b B) UndRaw() A {
-	return A{}
+func (b B[T]) UndRaw() A[T] {
+	return A[T]{}
 }
 
 type AP struct {}
@@ -44,8 +44,8 @@ type BI interface {
 
 type NotImplementor struct{}
 
-func (n NotImplementor) UndPlain() B {
-	return B{}
+func (n NotImplementor) UndPlain() B[any] {
+	return B[any]{}
 }
 `
 )
