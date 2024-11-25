@@ -13,12 +13,12 @@ type CyclicConversionMethods struct {
 }
 
 func (mset CyclicConversionMethods) IsImplementor(ty *types.Named) bool {
-	_, ok := isCyclicConversionMethodsImplementor(ty, mset, mset.From)
+	_, ok := isCyclicConversionMethodsImplementor(ty, mset)
 	return ok
 }
 
 func (mset CyclicConversionMethods) ConvertedType(ty *types.Named) (*types.Named, bool) {
-	return isCyclicConversionMethodsImplementor(ty, mset, mset.From)
+	return isCyclicConversionMethodsImplementor(ty, mset)
 }
 
 // isCyclicConversionMethodsImplementor checks if ty can be converted to a type, then converted back from the type to ty
@@ -31,10 +31,10 @@ func (mset CyclicConversionMethods) ConvertedType(ty *types.Named) (*types.Named
 // where the returned value of the method is only one and type A.
 //
 // If fromPlain is true isCyclicConversionMethodsImplementor works reversely (it checks assuming ty is type B.)
-func isCyclicConversionMethodsImplementor(ty *types.Named, conversionMethod CyclicConversionMethods, fromPlain bool) (*types.Named, bool) {
-	toMethod := conversionMethod.Convert
-	revMethod := conversionMethod.Reverse
-	if fromPlain {
+func isCyclicConversionMethodsImplementor(ty *types.Named, methods CyclicConversionMethods) (*types.Named, bool) {
+	toMethod := methods.Convert
+	revMethod := methods.Reverse
+	if methods.From {
 		toMethod, revMethod = revMethod, toMethod
 	}
 
@@ -88,7 +88,7 @@ func isCyclicConversionMethodsImplementor(ty *types.Named, conversionMethod Cycl
 				// only if is it instantiated with type param which ty has in same order.
 				if ty.TypeArgs().Len() == 0 && supposeToBeFromType.TypeArgs().Len() > 0 {
 					// try again with instantiated version.
-					toType2, ok := isCyclicConversionMethodsImplementor(supposeToBeFromType, conversionMethod, fromPlain)
+					toType2, ok := isCyclicConversionMethodsImplementor(supposeToBeFromType, methods)
 					if !ok {
 						return toType, false
 					}
