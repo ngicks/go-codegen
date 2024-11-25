@@ -6,23 +6,31 @@ import (
 	"github.com/ngicks/go-iterator-helper/hiter"
 )
 
+// CyclicConversionMethods describes method that convert a type A to another type B through Convert,
+// which can be converted back to A through Reverse.
+// If From is false, an input type is assumed to be A, otherwise B.
 type CyclicConversionMethods struct {
 	From    bool
 	Reverse string
 	Convert string
 }
 
+// IsImplementor check if given type ty is implementor of mset.
+// Methods can be implemented on pointer receiver.
 func (mset CyclicConversionMethods) IsImplementor(ty *types.Named) bool {
 	_, ok := isCyclicConversionMethodsImplementor(ty, mset)
 	return ok
 }
 
+// ConvertedType returns the type converted through Convert or Reverse depending on From.
+// The returned value is true only if ty is implementor of mset,
+// in that case returned [*types.Named] is guaranteed to be non-nil.
 func (mset CyclicConversionMethods) ConvertedType(ty *types.Named) (*types.Named, bool) {
 	return isCyclicConversionMethodsImplementor(ty, mset)
 }
 
 // isCyclicConversionMethodsImplementor checks if ty can be converted to a type, then converted back from the type to ty
-// though methods described in conversionMethod.
+// through methods described in methods.
 //
 // Assuming fromPlain is false, ty is an implementor if ty (called type A hereafter)
 // has the method which [CyclicConversionMethods.Convert] names
@@ -98,16 +106,20 @@ func isCyclicConversionMethodsImplementor(ty *types.Named, methods CyclicConvers
 	return nil, false
 }
 
+// ErrorMethod describes a method that takes no argument and returns a single error value.
+// Method name must be as Name.
 type ErrorMethod struct {
+	// Method name.
 	Name string
 }
 
+// IsImplementor checks if ty implements a method named as [ErrorMethod.Name] that take no argument and returns an error.
 func (method ErrorMethod) IsImplementor(ty *types.Named) bool {
 	return isValidatorImplementor(ty, method.Name)
 }
 
 func isValidatorImplementor(ty *types.Named, methodName string) bool {
-	ms := types.NewMethodSet(types.NewPointer(ty))
+	ms := types.NewMethodSet(asPointer(ty))
 	for i := range ms.Len() {
 		sel := ms.At(i)
 		if sel.Obj().Name() == methodName {
