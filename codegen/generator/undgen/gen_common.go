@@ -125,7 +125,5 @@ func makeRenamedType(ty *types.Named, name string, pkg *types.Package, method fu
 	if err != nil {
 		panic(err)
 	}
-	aa := types.TypeString(instantiated, (*types.Package).Name)
-	_ = aa
 	return instantiated.(*types.Named)
 }
