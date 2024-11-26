@@ -2,8 +2,6 @@ package matcher
 
 import (
 	"go/types"
-
-	"github.com/ngicks/go-iterator-helper/hiter"
 )
 
 // CyclicConversionMethods describes method that convert a type A to another type B through Convert,
@@ -46,64 +44,33 @@ func isCyclicConversionMethodsImplementor(ty *types.Named, methods CyclicConvers
 		toMethod, revMethod = revMethod, toMethod
 	}
 
-	ms := types.NewMethodSet(asPointer(ty))
-	for _, sel := range hiter.AtterAll(ms) {
-		if sel.Obj().Name() == toMethod {
-			sig, ok := sel.Obj().Type().Underlying().(*types.Signature)
-			if !ok {
-				return nil, false
-			}
-			tup := sig.Results()
-			if tup.Len() != 1 {
-				return nil, false
-			}
-			v := tup.At(0)
-
-			toType, ok := v.Type().(*types.Named)
-			if !ok {
-				return nil, false
-			}
-
-			ms := types.NewMethodSet(asPointer(toType))
-			for _, sel := range hiter.AtterAll(ms) {
-				if sel.Obj().Name() != revMethod {
-					continue
-				}
-
-				sig, ok := sel.Obj().Type().Underlying().(*types.Signature)
-				if !ok {
-					return toType, false
-				}
-				tup := sig.Results()
-				if tup.Len() != 1 {
-					return toType, false
-				}
-				v := tup.At(0)
-
-				supposeToBeFromType, ok := v.Type().(*types.Named)
-				if !ok {
-					return toType, false
-				}
-
-				if types.Identical(ty, supposeToBeFromType) {
-					return toType, true
-				}
-				// they aren't identical. but is ty un-instantiated?
-				// If yes then, check again with instantiated type
-				if types.Identical(ty, supposeToBeFromType.Origin()) &&
-					ty.TypeArgs().Len() == 0 &&
-					supposeToBeFromType.TypeArgs().Len() > 0 {
-					toType2, ok := isCyclicConversionMethodsImplementor(supposeToBeFromType, methods)
-					if !ok {
-						return toType, false
-					}
-					return toType, types.Identical(toType, toType2)
-				}
-				return toType, false
-			}
-		}
+	sel := findMethod(ty, toMethod)
+	toType, _ := noArgSingleValue(sel).(*types.Named)
+	if toType == nil {
+		return nil, false
 	}
-	return nil, false
+
+	sel = findMethod(toType, revMethod)
+	supposeToBeFromType, _ := noArgSingleValue(sel).(*types.Named)
+	if supposeToBeFromType == nil {
+		return toType, false
+	}
+
+	if types.Identical(ty, supposeToBeFromType) {
+		return toType, true
+	}
+	// they aren't identical. but is ty un-instantiated?
+	// If yes then, check again with instantiated type
+	if types.Identical(ty, supposeToBeFromType.Origin()) &&
+		ty.TypeArgs().Len() == 0 &&
+		supposeToBeFromType.TypeArgs().Len() > 0 {
+		toType2, ok := isCyclicConversionMethodsImplementor(supposeToBeFromType, methods)
+		if !ok {
+			return toType, false
+		}
+		return toType, types.Identical(toType, toType2)
+	}
+	return toType, false
 }
 
 // ErrorMethod describes a method that takes no argument and returns a single error value.
@@ -119,26 +86,36 @@ func (method ErrorMethod) IsImplementor(ty *types.Named) bool {
 }
 
 func isValidatorImplementor(ty *types.Named, methodName string) bool {
-	ms := types.NewMethodSet(asPointer(ty))
-	for i := range ms.Len() {
-		sel := ms.At(i)
-		if sel.Obj().Name() == methodName {
-			sig, ok := sel.Obj().Type().Underlying().(*types.Signature)
-			if !ok {
-				return false
-			}
-			tup := sig.Results()
-			if tup.Len() != 1 {
-				return false
-			}
-			v := tup.At(0)
-
-			named, ok := v.Type().(*types.Named)
-			if !ok {
-				return false
-			}
-			return named.Obj().Pkg() == nil && named.Obj().Name() == "error"
-		}
+	sel := findMethod(ty, methodName)
+	named, _ := noArgSingleValue(sel).(*types.Named)
+	if named == nil {
+		return false
 	}
-	return false
+	return named.Obj().Pkg() == nil && named.Obj().Name() == "error"
+}
+
+type ClonerMethod struct {
+	// Method name
+	Name string
+}
+
+func (method ClonerMethod) IsImplementor(ty types.Type) bool {
+	sel := findMethod(ty, method.Name)
+	ret := noArgSingleValue(sel)
+	if ret == nil {
+		return false
+	}
+
+	// receiver type is allowed to be pointer but
+	// returned value must not be pointer.
+	var unwrapped types.Type = ty
+	switch x := ty.(type) {
+	default:
+		return false // is this even possible?
+	case *types.Pointer:
+		unwrapped = x.Elem()
+	case *types.Alias, *types.Named, *types.Interface:
+	}
+
+	return types.Identical(ret, unwrapped)
 }

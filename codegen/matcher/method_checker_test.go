@@ -50,7 +50,7 @@ func (n NotImplementor) UndPlain() B[any] {
 `
 )
 
-func Test(t *testing.T) {
+func TestCyclicConversionMethods(t *testing.T) {
 	_, _, pkg := parseStringSource(cyclicConversionMethodsImplementor)
 
 	cmset := CyclicConversionMethods{
