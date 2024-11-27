@@ -20,15 +20,24 @@ func IsNoCopy(ty types.Type) bool {
 }
 
 func asPointer(ty types.Type) types.Type {
-	ty = types.Unalias(ty)
 	switch x := ty.(type) {
 	default:
 		return ty
 	case *types.Named:
-		if _, isInterface := x.Underlying().(*types.Interface); isInterface {
+		_, isInterface := types.Unalias(ty).Underlying().(*types.Interface)
+		if isInterface {
 			return ty
 		}
 		return types.NewPointer(x)
+	}
+}
+
+func unwrapPointer(ty types.Type) types.Type {
+	switch x := ty.(type) {
+	default:
+		return ty
+	case *types.Pointer:
+		return x.Elem()
 	}
 }
 
@@ -62,4 +71,29 @@ func noArgSingleValue(sel *types.Selection) types.Type {
 	}
 
 	return tup.At(0).Type()
+}
+
+func identicalParametrized(i, j types.Type) bool {
+	if types.Identical(i, j) {
+		return true
+	}
+
+	iAlias, _ := i.(*types.Alias)
+	jAlias, _ := j.(*types.Alias)
+
+	iNamed, _ := i.(*types.Named)
+	jNamed, _ := j.(*types.Named)
+
+	return identicalOrigin(iAlias, jAlias, isNil) || identicalOrigin(iNamed, jNamed, isNil)
+}
+
+func isNil[T any](t *T) bool {
+	return t == nil
+}
+
+func identicalOrigin[T interface{ Origin() U }, U *types.Alias | *types.Named](i, j T, isNil func(T) bool) bool {
+	if isNil(i) || isNil(j) {
+		return false
+	}
+	return types.Identical(types.Type(i.Origin()), types.Type(j.Origin()))
 }

@@ -4,11 +4,11 @@ import (
 	"go/types"
 	"testing"
 
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"gotest.tools/v3/assert"
 )
 
-var (
-	cyclicConversionMethodsImplementor = `package main
+var cyclicConversionMethodsImplementor = `package main
 
 type A[T any] struct {}
 
@@ -48,7 +48,6 @@ func (n NotImplementor) UndPlain() B[any] {
 	return B[any]{}
 }
 `
-)
 
 func TestCyclicConversionMethods(t *testing.T) {
 	_, _, pkg := parseStringSource(cyclicConversionMethodsImplementor)
@@ -69,4 +68,56 @@ func TestCyclicConversionMethods(t *testing.T) {
 	assert.Assert(t, cmset.IsImplementor(ai.Type().(*types.Named)))
 	notImplementor := pkg.Scope().Lookup("NotImplementor")
 	assert.Assert(t, !cmset.IsImplementor(notImplementor.Type().(*types.Named)))
+}
+
+var clonerMethodImplementor = `package main
+
+type C struct{}
+
+func (c C) Clone() C {
+	return C{}
+}
+
+type CP struct{}
+
+func (c *CP) Clone() CP {
+	return CP{}
+}
+
+type Param[T, U any] struct{}
+
+func (p Param[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) Param[T, U] {
+	return Param[T, U]{}
+}
+
+type Total[T, U any] struct {
+	C     C
+	CP    CP
+	CP2  *CP
+	p1    Param[T, U]
+	p2    Param[string, U]
+}
+`
+
+func TestClonerMethod(t *testing.T) {
+	_, _, pkg := parseStringSource(clonerMethodImplementor)
+
+	method := ClonerMethod{Name: "Clone"}
+
+	c := pkg.Scope().Lookup("C")
+	assert.Assert(t, method.IsImplementor(c.Type()))
+	cp := pkg.Scope().Lookup("CP")
+	assert.Assert(t, method.IsImplementor(cp.Type()))
+	param := pkg.Scope().Lookup("Param")
+	assert.Assert(t, !method.IsImplementor(param.Type()))
+	assert.Assert(t, method.IsFuncImplementor(param.Type()))
+
+	total := pkg.Scope().Lookup("Total").Type().(*types.Named).Underlying().(*types.Struct)
+	for i := range hiter.Range(0, 3) {
+		assert.Assert(t, method.IsImplementor(total.Field(i).Type()))
+	}
+	for i := range hiter.Range(3, 4) {
+		assert.Assert(t, !method.IsImplementor(total.Field(i).Type()))
+		assert.Assert(t, method.IsFuncImplementor(total.Field(i).Type()))
+	}
 }
