@@ -25,6 +25,7 @@ import (
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
+	"github.com/ngicks/go-iterator-helper/hiter/stringsiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 )
@@ -287,18 +288,12 @@ func patcherEdgeFilter(edge typegraph.TypeDependencyEdge) bool {
 }
 
 func concatFieldNames(field *dst.Field) string {
-	return hiter.StringsCollect(
+	return stringsiter.Join(
 		0,
-		hiter.SkipLast(
-			1,
-			hiter.Decorate(
-				nil,
-				hiter.WrapSeqIterable(hiter.Once(",")),
-				xiter.Map(
-					func(i *dst.Ident) string { return strconv.Quote(i.Name) },
-					slices.Values(field.Names),
-				),
-			),
+		", ",
+		xiter.Map(
+			func(i *dst.Ident) string { return strconv.Quote(i.Name) },
+			slices.Values(field.Names),
 		),
 	)
 }
