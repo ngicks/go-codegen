@@ -12,8 +12,8 @@ import (
 func gatherPlainUndTypes(
 	pkgs []*packages.Package,
 	parser *imports.ImportParser,
-	edgeFilter func(edge typegraph.TypeDependencyEdge) bool,
-	seqFactory func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode],
+	edgeFilter func(edge typegraph.Edge) bool,
+	seqFactory func(g *typegraph.Graph) iter.Seq2[typegraph.Ident, *typegraph.Node],
 ) (data map[*ast.File]*typegraph.ReplaceData, err error) {
 	graph, err := typegraph.NewTypeGraph(
 		pkgs,
@@ -33,8 +33,8 @@ func gatherPlainUndTypes(
 func gatherValidatableUndTypes(
 	pkgs []*packages.Package,
 	parser *imports.ImportParser,
-	edgeFilter func(edge typegraph.TypeDependencyEdge) bool,
-	seqFactory func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode],
+	edgeFilter func(edge typegraph.Edge) bool,
+	seqFactory func(g *typegraph.Graph) iter.Seq2[typegraph.Ident, *typegraph.Node],
 ) (data map[*ast.File]*typegraph.ReplaceData, err error) {
 	graph, err := typegraph.NewTypeGraph(
 		pkgs,

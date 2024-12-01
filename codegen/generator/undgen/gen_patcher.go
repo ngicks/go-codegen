@@ -55,13 +55,13 @@ func GeneratePatcher(
 		[]*packages.Package{pkg},
 		parser,
 		nil, // no dependant type marking; it is not needed here.
-		func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode] {
+		func(g *typegraph.Graph) iter.Seq2[typegraph.Ident, *typegraph.Node] {
 			if generateEvery {
 				return g.EnumerateTypes()
 			}
 			return g.EnumerateTypesKeys(
-				xiter.Map(func(s string) typegraph.TypeIdent {
-					return typegraph.TypeIdent{PkgPath: pkg.PkgPath, TypeName: s}
+				xiter.Map(func(s string) typegraph.Ident {
+					return typegraph.Ident{PkgPath: pkg.PkgPath, TypeName: s}
 				},
 					slices.Values(targetTypeNames),
 				),
@@ -85,7 +85,7 @@ func GeneratePatcher(
 				slog.Any(
 					"typesNames",
 					slices.Collect(xiter.Map(
-						func(n *typegraph.TypeNode) string { return n.Type.Obj().Name() },
+						func(n *typegraph.Node) string { return n.Type.Obj().Name() },
 						slices.Values(data.TargetNodes),
 					)),
 				),
@@ -173,7 +173,7 @@ type methodGenSet struct {
 	errFunc func() error
 }
 
-type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, typeSuffix string) error
+type methodGenFunc func(w io.Writer, ts *dst.TypeSpec, node *typegraph.Node, imports imports.ImportMap, typeSuffix string) error
 
 func wrapNonUndFields(data *typegraph.ReplaceData) {
 	for _, node := range data.TargetNodes {
@@ -181,7 +181,7 @@ func wrapNonUndFields(data *typegraph.ReplaceData) {
 	}
 }
 
-func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap imports.ImportMap) {
+func wrapNonUndFieldsWithSliceUnd(ts *dst.TypeSpec, node *typegraph.Node, importMap imports.ImportMap) {
 	typeName := ts.Name.Name
 	ts.Name.Name = ts.Name.Name + "Patch"
 	edgeMap := node.ChildEdgeMap(patcherEdgeFilter)
@@ -282,9 +282,9 @@ func unquoteBasicLitString(s string) string {
 	}
 }
 
-func patcherEdgeFilter(edge typegraph.TypeDependencyEdge) bool {
+func patcherEdgeFilter(edge typegraph.Edge) bool {
 	// only direct und type are
-	return len(edge.Stack) == 1 && edge.Stack[0].Kind == typegraph.TypeDependencyEdgeKindStruct
+	return len(edge.Stack) == 1 && edge.Stack[0].Kind == typegraph.EdgeKindStruct
 }
 
 func concatFieldNames(field *dst.Field) string {
@@ -337,7 +337,7 @@ func typeObjectFieldsIter(typeInfo types.Type) iter.Seq2[int, *types.Var] {
 //		}
 //	}
 func generateFromValue(
-	w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, typeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, node *typegraph.Node, imports imports.ImportMap, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
@@ -433,7 +433,7 @@ func generateFromValue(
 //		}
 //	}
 func generateToValue(
-	w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, typeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, node *typegraph.Node, imports imports.ImportMap, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
@@ -467,8 +467,8 @@ func generateToValue(
 	defer printf(`}
 `)
 
-	edgeMap := node.ChildEdgeMap(func(edge typegraph.TypeDependencyEdge) bool {
-		return len(edge.Stack) == 1 && edge.Stack[0].Kind == typegraph.TypeDependencyEdgeKindStruct
+	edgeMap := node.ChildEdgeMap(func(edge typegraph.Edge) bool {
+		return len(edge.Stack) == 1 && edge.Stack[0].Kind == typegraph.EdgeKindStruct
 	})
 	for _, f := range typeObjectFieldsIter(node.Type) {
 		edge, _, _, ok := edgeMap.ByFieldName(f.Name())
@@ -524,7 +524,7 @@ func generateToValue(
 //		}
 //	}
 func generateMerge(
-	w io.Writer, ts *dst.TypeSpec, node *typegraph.TypeNode, imports imports.ImportMap, _ string,
+	w io.Writer, ts *dst.TypeSpec, node *typegraph.Node, imports imports.ImportMap, _ string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 
@@ -609,7 +609,7 @@ func generateMerge(
 //		return merged.ToValue()
 //	}
 func generateApplyPatch(
-	w io.Writer, ts *dst.TypeSpec, _ *typegraph.TypeNode, _ imports.ImportMap, typeSuffix string,
+	w io.Writer, ts *dst.TypeSpec, _ *typegraph.Node, _ imports.ImportMap, typeSuffix string,
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)

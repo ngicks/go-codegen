@@ -37,7 +37,7 @@ func GeneratePlain(
 		pkgs,
 		parser,
 		isUndPlainAllowedEdge,
-		func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode] {
+		func(g *typegraph.Graph) iter.Seq2[typegraph.Ident, *typegraph.Node] {
 			return g.IterUpward(true, isUndPlainAllowedEdge)
 		},
 	)
@@ -55,11 +55,11 @@ func GeneratePlain(
 		)
 
 		modified := hiter.Collect2(xiter.Filter2(
-			func(node *typegraph.TypeNode, exprMap map[string]fieldDstExprSet) bool {
+			func(node *typegraph.Node, exprMap map[string]fieldDstExprSet) bool {
 				return node != nil && exprMap != nil
 			},
 			hiter.Divide(
-				func(node *typegraph.TypeNode) (*typegraph.TypeNode, map[string]fieldDstExprSet) {
+				func(node *typegraph.Node) (*typegraph.Node, map[string]fieldDstExprSet) {
 					exprMap, ok := _replaceToPlainTypes(data, node)
 					if !ok {
 						return nil, nil

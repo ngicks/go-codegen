@@ -41,7 +41,7 @@ func GenerateValidator(
 		pkgs,
 		parser,
 		isUndValidatorAllowedEdge,
-		func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode] {
+		func(g *typegraph.Graph) iter.Seq2[typegraph.Ident, *typegraph.Node] {
 			return g.IterUpward(true, isUndValidatorAllowedEdge)
 		},
 	)
@@ -112,7 +112,7 @@ func GenerateValidator(
 func generateUndValidate(
 	w io.Writer,
 	ts *dst.TypeSpec,
-	node *typegraph.TypeNode,
+	node *typegraph.Node,
 	imports imports.ImportMap,
 ) (written bool, err error) {
 	typeName := ts.Name.Name + printTypeParamVars(ts)
@@ -147,9 +147,9 @@ func generateUndValidate(
 `)
 
 	// unwrappers to reach final destination type(implementor or und types.)
-	validatorUnwrappers := func(pointer []typegraph.TypeDependencyEdgePointer) []func(exp string) string {
+	validatorUnwrappers := func(pointer []typegraph.EdgeRouteNode) []func(exp string) string {
 		var wrappers []func(exp string) string
-		if len(pointer) > 0 && pointer[len(pointer)-1].Kind == typegraph.TypeDependencyEdgeKindPointer {
+		if len(pointer) > 0 && pointer[len(pointer)-1].Kind == typegraph.EdgeKindPointer {
 			pointer = pointer[:len(pointer)-1]
 		}
 		for range pointer {
@@ -178,8 +178,8 @@ func generateUndValidate(
 	case *types.Map, *types.Array, *types.Slice:
 		// should be only one since we prohibit struct literals.
 		ident, edge, _ := edgeMap.First()
-		isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
-			return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
+		isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.EdgeRouteNode) bool {
+			return tdep.Kind == typegraph.EdgeKindPointer
 		})
 		// An implementor or implementor wrapped in und types
 		exp := fmt.Sprintf(
@@ -299,8 +299,8 @@ func generateUndValidate(
 					}
 				} else {
 					nodeValidator = func(ident string) string {
-						isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
-							return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
+						isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.EdgeRouteNode) bool {
+							return tdep.Kind == typegraph.EdgeKindPointer
 						})
 						// An implementor or implementor wrapped in und types
 						return fmt.Sprintf(

@@ -19,14 +19,14 @@ type ReplaceData struct {
 	Dec         *decorator.Decorator
 	DstFile     *dst.File
 	ImportMap   imports.ImportMap
-	TargetNodes []*TypeNode
+	TargetNodes []*Node
 }
 
 // GatherReplaceData converts g into a map of *ast.File to *ReplaceData.
 // The data can be later used to modify ast.
-func (g *TypeGraph) GatherReplaceData(
+func (g *Graph) GatherReplaceData(
 	parser *imports.ImportParser,
-	seqFactory func(g *TypeGraph) iter.Seq2[TypeIdent, *TypeNode],
+	seqFactory func(g *Graph) iter.Seq2[Ident, *Node],
 ) (data map[*ast.File]*ReplaceData, err error) {
 
 	type wrapped struct {
@@ -45,7 +45,7 @@ func (g *TypeGraph) GatherReplaceData(
 	}()
 
 	data = hiter.ReduceGroup(
-		func(accum *ReplaceData, current *TypeNode) *ReplaceData {
+		func(accum *ReplaceData, current *Node) *ReplaceData {
 			if accum == nil {
 				importMap, err := parser.Parse(current.File.Imports)
 				if err != nil {
@@ -68,11 +68,11 @@ func (g *TypeGraph) GatherReplaceData(
 		},
 		nil,
 		xiter.Map2(
-			func(_ TypeIdent, n *TypeNode) (*ast.File, *TypeNode) {
+			func(_ Ident, n *Node) (*ast.File, *Node) {
 				return n.File, n
 			},
 			xiter.Filter2(
-				func(_ TypeIdent, n *TypeNode) bool {
+				func(_ Ident, n *Node) bool {
 					return n != nil
 				},
 				seqFactory(g),
@@ -81,8 +81,8 @@ func (g *TypeGraph) GatherReplaceData(
 	)
 
 	for _, replacer := range data {
-		slices.SortFunc(replacer.TargetNodes, func(i, j *TypeNode) int { return cmp.Compare(i.Pos, j.Pos) })
-		replacer.TargetNodes = slices.CompactFunc(replacer.TargetNodes, func(i, j *TypeNode) bool { return i.Pos == j.Pos })
+		slices.SortFunc(replacer.TargetNodes, func(i, j *Node) int { return cmp.Compare(i.Pos, j.Pos) })
+		replacer.TargetNodes = slices.CompactFunc(replacer.TargetNodes, func(i, j *Node) bool { return i.Pos == j.Pos })
 	}
 
 	return data, nil

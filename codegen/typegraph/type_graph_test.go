@@ -47,7 +47,7 @@ func init() {
 	}
 }
 
-func compareGraphIdent(i, j TypeIdent) int {
+func compareGraphIdent(i, j Ident) int {
 	p := cmp.Compare(i.PkgPath, j.PkgPath)
 	if p != 0 {
 		return p
@@ -65,13 +65,13 @@ func isFakeTargetType(n *types.Named) bool {
 }
 
 func collectIter(
-	seq iter.Seq2[TypeIdent, *TypeNode],
-	filter func(ident TypeIdent, node *TypeNode) bool,
-) []TypeIdent {
+	seq iter.Seq2[Ident, *Node],
+	filter func(ident Ident, node *Node) bool,
+) []Ident {
 	return slices.SortedFunc(
 		hiter.OmitL(
 			xiter.Filter2(
-				func(ident TypeIdent, node *TypeNode) bool {
+				func(ident Ident, node *Node) bool {
 					if filter == nil {
 						return true
 					}
@@ -107,8 +107,8 @@ func Test_edges(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	testdataIdent := func(pkgName string, name string) TypeIdent {
-		return TypeIdent{"github.com/ngicks/go-codegen/codegen/typegraph/testdata/" + pkgName, name}
+	testdataIdent := func(pkgName string, name string) Ident {
+		return Ident{"github.com/ngicks/go-codegen/codegen/typegraph/testdata/" + pkgName, name}
 	}
 
 	node := graph.types[testdataIdent("edges", "MereArray")]
@@ -120,69 +120,69 @@ func Test_edges(t *testing.T) {
 	assert.Assert(t, len(child.TypeArgs) == 2)
 
 	arg0 := child.TypeArgs[0]
-	assert.DeepEqual(t, []TypeDependencyEdgePointer(nil), arg0.Stack)
+	assert.DeepEqual(t, []EdgeRouteNode(nil), arg0.Route)
 	assert.Assert(t, arg0.Node == nil)
 	assert.Assert(t, arg0.Ty == nil)
 	assert.Equal(t, types.String, arg0.Org.(*types.Basic).Kind())
 
 	arg1 := child.TypeArgs[1]
-	assert.DeepEqual(t, []TypeDependencyEdgePointer{{Kind: TypeDependencyEdgeKindPointer}}, arg1.Stack)
+	assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindPointer}}, arg1.Route)
 	assert.Assert(t, arg1.Node == graph.types[testdataIdent("edges", "MereChan")])
 	assert.Equal(t, testdataIdent("edges", "MereChan"), IdentFromTypesObject(arg1.Ty.Obj()))
 	assert.Equal(t, testdataIdent("edges", "MereChan"), IdentFromTypesObject(arg1.Org.(*types.Pointer).Elem().(*types.Named).Obj()))
 
 	type testCase struct {
 		name   string
-		assert func(*TypeNode)
+		assert func(*Node)
 	}
 
 	for _, tc := range []testCase{
 		{
 			name: "MereArray",
-			assert: func(tn *TypeNode) {
-				assert.DeepEqual(t, []TypeDependencyEdgePointer{{Kind: TypeDependencyEdgeKindArray}}, firstElem(tn.Children)[0].Stack)
+			assert: func(tn *Node) {
+				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindArray}}, firstElem(tn.Children)[0].Stack)
 			},
 		},
 		{
 			name: "MereSlice",
-			assert: func(tn *TypeNode) {
-				assert.DeepEqual(t, []TypeDependencyEdgePointer{{Kind: TypeDependencyEdgeKindSlice}}, firstElem(tn.Children)[0].Stack)
+			assert: func(tn *Node) {
+				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindSlice}}, firstElem(tn.Children)[0].Stack)
 			},
 		},
 		{
 			name: "MereMap",
-			assert: func(tn *TypeNode) {
-				assert.DeepEqual(t, []TypeDependencyEdgePointer{{Kind: TypeDependencyEdgeKindMap}}, firstElem(tn.Children)[0].Stack)
+			assert: func(tn *Node) {
+				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindMap}}, firstElem(tn.Children)[0].Stack)
 			},
 		},
 		{
 			name: "MereChan",
-			assert: func(tn *TypeNode) {
-				assert.DeepEqual(t, []TypeDependencyEdgePointer{{Kind: TypeDependencyEdgeKindChan}}, firstElem(tn.Children)[0].Stack)
+			assert: func(tn *Node) {
+				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindChan}}, firstElem(tn.Children)[0].Stack)
 			},
 		},
 		{
 			name: "MereStruct",
-			assert: func(tn *TypeNode) {
+			assert: func(tn *Node) {
 				a := tn.Children[testdataIdent("faketarget", "FakeTarget")][0].Stack
 				b := tn.Children[testdataIdent("faketarget", "FakeTarget2")][0].Stack
-				assert.DeepEqual(t, []TypeDependencyEdgePointer{{Kind: TypeDependencyEdgeKindStruct, Pos: option.Some(0)}, {Kind: TypeDependencyEdgeKindPointer}}, a)
-				assert.DeepEqual(t, []TypeDependencyEdgePointer{{Kind: TypeDependencyEdgeKindStruct, Pos: option.Some(1)}}, b)
+				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindStruct, Pos: option.Some(0)}, {Kind: EdgeKindPointer}}, a)
+				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindStruct, Pos: option.Some(1)}}, b)
 			},
 		},
 		{
 			name: "Complex",
-			assert: func(tn *TypeNode) {
+			assert: func(tn *Node) {
 				assert.DeepEqual(
 					t,
-					[]TypeDependencyEdgePointer{
-						{Kind: TypeDependencyEdgeKindStruct, Pos: option.Some(0)},
-						{Kind: TypeDependencyEdgeKindPointer},
-						{Kind: TypeDependencyEdgeKindMap},
-						{Kind: TypeDependencyEdgeKindSlice},
-						{Kind: TypeDependencyEdgeKindPointer},
-						{Kind: TypeDependencyEdgeKindArray},
-						{Kind: TypeDependencyEdgeKindMap},
+					[]EdgeRouteNode{
+						{Kind: EdgeKindStruct, Pos: option.Some(0)},
+						{Kind: EdgeKindPointer},
+						{Kind: EdgeKindMap},
+						{Kind: EdgeKindSlice},
+						{Kind: EdgeKindPointer},
+						{Kind: EdgeKindArray},
+						{Kind: EdgeKindMap},
 					},
 					tn.Children[testdataIdent("edges", "MereArray")][0].Stack,
 				)
@@ -190,7 +190,7 @@ func Test_edges(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.assert(graph.types[TypeIdent{"github.com/ngicks/go-codegen/codegen/typegraph/testdata/edges", tc.name}])
+			tc.assert(graph.types[Ident{"github.com/ngicks/go-codegen/codegen/typegraph/testdata/edges", tc.name}])
 		})
 	}
 }
@@ -215,7 +215,7 @@ func Test_filterast(t *testing.T) {
 
 	assert.DeepEqual(
 		t,
-		[]TypeIdent{
+		[]Ident{
 			{
 				PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filterast",
 				TypeName: "Decl2",
@@ -251,19 +251,19 @@ func Test_filteredge(t *testing.T) {
 
 	type testCase struct {
 		name       string
-		edgeFilter func(edge TypeDependencyEdge) bool
-		expected   []TypeIdent
+		edgeFilter func(edge Edge) bool
+		expected   []Ident
 	}
 
 	for _, tc := range []testCase{
 		{
 			name: "only direct",
-			edgeFilter: func(edge TypeDependencyEdge) bool {
+			edgeFilter: func(edge Edge) bool {
 				return isMatchedStruct(edge.ParentNode.Type) ||
 					(len(edge.Stack) == 1 &&
-						edge.Stack[0].Kind == TypeDependencyEdgeKindStruct)
+						edge.Stack[0].Kind == EdgeKindStruct)
 			},
-			expected: []TypeIdent{
+			expected: []Ident{
 				{
 					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
 					TypeName: "A",
@@ -280,13 +280,13 @@ func Test_filteredge(t *testing.T) {
 		},
 		{
 			name: "only slice",
-			edgeFilter: func(edge TypeDependencyEdge) bool {
+			edgeFilter: func(edge Edge) bool {
 				return isMatchedStruct(edge.ParentNode.Type) ||
 					(len(edge.Stack) == 2 &&
-						edge.Stack[0].Kind == TypeDependencyEdgeKindStruct &&
-						edge.Stack[1].Kind == TypeDependencyEdgeKindSlice)
+						edge.Stack[0].Kind == EdgeKindStruct &&
+						edge.Stack[1].Kind == EdgeKindSlice)
 			},
-			expected: []TypeIdent{
+			expected: []Ident{
 				{
 					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
 					TypeName: "B",
@@ -303,13 +303,13 @@ func Test_filteredge(t *testing.T) {
 		},
 		{
 			name: "slice and map",
-			edgeFilter: func(edge TypeDependencyEdge) bool {
+			edgeFilter: func(edge Edge) bool {
 				return isMatchedStruct(edge.ParentNode.Type) ||
 					(len(edge.Stack) == 2 &&
-						edge.Stack[0].Kind == TypeDependencyEdgeKindStruct &&
-						(edge.Stack[1].Kind == TypeDependencyEdgeKindSlice || edge.Stack[1].Kind == TypeDependencyEdgeKindMap))
+						edge.Stack[0].Kind == EdgeKindStruct &&
+						(edge.Stack[1].Kind == EdgeKindSlice || edge.Stack[1].Kind == EdgeKindMap))
 			},
-			expected: []TypeIdent{
+			expected: []Ident{
 				{
 					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
 					TypeName: "B",
@@ -338,11 +338,11 @@ func Test_filteredge(t *testing.T) {
 		},
 		{
 			name: "anything but C is not allowed",
-			edgeFilter: func(edge TypeDependencyEdge) bool {
+			edgeFilter: func(edge Edge) bool {
 				obj := edge.ParentNode.Type.Obj()
 				return obj.Name() != "C"
 			},
-			expected: []TypeIdent{
+			expected: []Ident{
 				{
 					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
 					TypeName: "A",
@@ -366,7 +366,7 @@ func Test_filteredge(t *testing.T) {
 			graph.MarkDependant(tc.edgeFilter)
 			idents := collectIter(
 				graph.IterUpward(false, nil),
-				func(ident TypeIdent, node *TypeNode) bool { return node.Matched.IsDependant() },
+				func(ident Ident, node *Node) bool { return node.Matched.IsDependant() },
 			)
 			assert.DeepEqual(
 				t,
@@ -397,7 +397,7 @@ func Test_loop(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	allTypes := []TypeIdent{
+	allTypes := []Ident{
 		{
 			PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/loop",
 			TypeName: "LoopEmbedded",
@@ -426,7 +426,7 @@ func Test_loop(t *testing.T) {
 	graph.MarkDependant(nil)
 	types = collectIter(
 		maps.All(graph.types),
-		func(ident TypeIdent, node *TypeNode) bool { return node.Matched.IsDependant() },
+		func(ident Ident, node *Node) bool { return node.Matched.IsDependant() },
 	)
 	assert.DeepEqual(
 		t,
