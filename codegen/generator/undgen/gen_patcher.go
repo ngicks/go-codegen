@@ -101,7 +101,7 @@ func GeneratePatcher(
 
 		buf := new(bytes.Buffer) // pool buf?
 
-		if err := printFileHeader(buf, af, res.Fset); err != nil {
+		if err := codegen.PrintFileHeader(buf, af, res.Fset); err != nil {
 			return fmt.Errorf("%q: %w", data.Filename, err)
 		}
 
@@ -342,7 +342,7 @@ func generateFromValue(
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
 
-	printf, flush := bufPrintf(w)
+	printf, flush := codegen.BufPrintf(w)
 	defer func() {
 		err = flush()
 	}()
@@ -438,7 +438,7 @@ func generateToValue(
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
 
-	printf, flush := bufPrintf(w)
+	printf, flush := codegen.BufPrintf(w)
 	defer func() {
 		err = flush()
 	}()
@@ -528,7 +528,7 @@ func generateMerge(
 ) (err error) {
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 
-	printf, flush := bufPrintf(w)
+	printf, flush := codegen.BufPrintf(w)
 	defer func() {
 		err = flush()
 	}()
@@ -614,7 +614,7 @@ func generateApplyPatch(
 	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
 	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
 
-	printf, flush := bufPrintf(w)
+	printf, flush := codegen.BufPrintf(w)
 	defer func() {
 		err = flush()
 	}()

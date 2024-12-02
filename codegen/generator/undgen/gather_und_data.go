@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"iter"
 
+	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"golang.org/x/tools/go/packages"
@@ -15,11 +16,11 @@ func gatherPlainUndTypes(
 	edgeFilter func(edge typegraph.Edge) bool,
 	seqFactory func(g *typegraph.Graph) iter.Seq2[typegraph.Ident, *typegraph.Node],
 ) (data map[*ast.File]*typegraph.ReplaceData, err error) {
-	graph, err := typegraph.NewTypeGraph(
+	graph, err := typegraph.New(
 		pkgs,
 		isUndPlainTarget,
-		excludeUndIgnoredCommentedGenDecl,
-		excludeUndIgnoredCommentedTypeSpec,
+		codegen.ExcludeIgnoredGenDecl,
+		codegen.ExcludeIgnoredTypeSpec,
 	)
 	if err != nil {
 		return nil, err
@@ -36,11 +37,11 @@ func gatherValidatableUndTypes(
 	edgeFilter func(edge typegraph.Edge) bool,
 	seqFactory func(g *typegraph.Graph) iter.Seq2[typegraph.Ident, *typegraph.Node],
 ) (data map[*ast.File]*typegraph.ReplaceData, err error) {
-	graph, err := typegraph.NewTypeGraph(
+	graph, err := typegraph.New(
 		pkgs,
 		isUndValidatorTarget,
-		excludeUndIgnoredCommentedGenDecl,
-		excludeUndIgnoredCommentedTypeSpec,
+		codegen.ExcludeIgnoredGenDecl,
+		codegen.ExcludeIgnoredTypeSpec,
 	)
 	if err != nil {
 		return nil, err

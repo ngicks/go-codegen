@@ -115,7 +115,7 @@ func generateConversionMethod(w io.Writer, data *typegraph.ReplaceData, node *ty
 	rawTyName, _ := strings.CutSuffix(ts.Name.Name, "Plain")
 	rawTyName += printTypeParamVars(ts)
 
-	printf, flush := bufPrintf(w)
+	printf, flush := codegen.BufPrintf(w)
 	defer func() {
 		if err == nil {
 			err = flush()

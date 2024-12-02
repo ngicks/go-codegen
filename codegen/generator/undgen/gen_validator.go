@@ -69,7 +69,7 @@ func GenerateValidator(
 
 		buf := new(bytes.Buffer) // pool buf?
 
-		if err := printFileHeader(buf, af, res.Fset); err != nil {
+		if err := codegen.PrintFileHeader(buf, af, res.Fset); err != nil {
 			return fmt.Errorf("%q: %w", data.Filename, err)
 		}
 
@@ -131,7 +131,7 @@ func generateUndValidate(
 		_, err = w.Write(buf.Bytes())
 	}()
 
-	printf, flush := bufPrintf(buf)
+	printf, flush := codegen.BufPrintf(buf)
 	defer func() {
 		fErr := flush()
 		if err != nil {

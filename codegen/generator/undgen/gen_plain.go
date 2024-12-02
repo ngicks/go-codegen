@@ -88,7 +88,7 @@ func GeneratePlain(
 
 		buf := new(bytes.Buffer) // pool buf?
 
-		if err := printFileHeader(buf, af, res.Fset); err != nil {
+		if err := codegen.PrintFileHeader(buf, af, res.Fset); err != nil {
 			return fmt.Errorf("%q: %w", data.Filename, err)
 		}
 

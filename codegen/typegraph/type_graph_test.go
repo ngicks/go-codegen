@@ -93,7 +93,7 @@ func firstElem[M ~map[K]V, K comparable, V any](m M) V {
 
 func Test_edges(t *testing.T) {
 	pkgs := pkgsMap["edges"]
-	graph, err := NewTypeGraph(
+	graph, err := New(
 		pkgs,
 		func(typeInfo *types.Named, external bool) (bool, error) {
 			return isFakeTargetType(typeInfo), nil
@@ -197,7 +197,7 @@ func Test_edges(t *testing.T) {
 
 func Test_filterast(t *testing.T) {
 	pkgs := pkgsMap["filterast"]
-	graph, err := NewTypeGraph(
+	graph, err := New(
 		pkgs,
 		func(typeInfo *types.Named, external bool) (bool, error) {
 			return false, nil
@@ -231,7 +231,7 @@ func Test_filterast(t *testing.T) {
 
 func Test_filteredge(t *testing.T) {
 	pkgs := pkgsMap["filteredge"]
-	graph, err := NewTypeGraph(
+	graph, err := New(
 		pkgs,
 		func(typeInfo *types.Named, external bool) (bool, error) {
 			return isFakeTargetType(typeInfo), nil
@@ -387,7 +387,7 @@ func Test_filteredge(t *testing.T) {
 }
 func Test_loop(t *testing.T) {
 	pkgs := pkgsMap["loop"]
-	graph, err := NewTypeGraph(
+	graph, err := New(
 		pkgs,
 		func(typeInfo *types.Named, external bool) (bool, error) {
 			return isFakeTargetType(typeInfo), nil

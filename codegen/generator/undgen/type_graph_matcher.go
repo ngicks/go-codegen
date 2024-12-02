@@ -2,12 +2,10 @@ package undgen
 
 import (
 	"fmt"
-	"go/ast"
 	"go/types"
 	"reflect"
 	"slices"
 
-	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/msg"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
@@ -145,7 +143,7 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 		elem := named.Underlying().(interface{ Elem() types.Type }).Elem()
 		var found bool
 		// deeply nested map, array, slice is allowed.
-		_ = typegraph.VisitToNamed(
+		_ = typegraph.TraverseToNamed(
 			elem,
 			func(named *types.Named, stack []typegraph.EdgeRouteNode) error {
 				if !isUndAllowedPointer(named, stack) {
@@ -189,7 +187,7 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 					found      bool
 					targetType imports.TargetType
 				)
-				_ = typegraph.VisitToNamed(
+				_ = typegraph.TraverseToNamed(
 					f.Type(),
 					func(named *types.Named, stack []typegraph.EdgeRouteNode) error {
 						if isUndAllowedPointer(named, stack) && isUndType(named) {
@@ -228,7 +226,7 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 				continue
 			}
 			var found bool
-			_ = typegraph.VisitToNamed(
+			_ = typegraph.TraverseToNamed(
 				f.Type(),
 				func(named *types.Named, stack []typegraph.EdgeRouteNode) error {
 					if isUndAllowedPointer(named, stack) && implementorOf(named) {
@@ -377,20 +375,4 @@ func isUndValidatorImplementor(named *types.Named) bool {
 	// und types are already implementors.
 	// exclude them first.
 	return !isUndType(named) && ConstUnd.ValidatorMethod.IsImplementor(named)
-}
-
-func excludeUndIgnoredCommentedGenDecl(genDecl *ast.GenDecl) (bool, error) {
-	direction, _, err := codegen.ParseDirectiveComment(genDecl.Doc)
-	if err != nil {
-		return false, err
-	}
-	return !direction.MustIgnore(), nil
-}
-
-func excludeUndIgnoredCommentedTypeSpec(ts *ast.TypeSpec, _ types.Object) (bool, error) {
-	direction, _, err := codegen.ParseDirectiveComment(ts.Doc)
-	if err != nil {
-		return false, err
-	}
-	return !direction.MustIgnore(), nil
 }
