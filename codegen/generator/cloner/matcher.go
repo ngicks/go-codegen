@@ -1,7 +1,6 @@
 package cloner
 
 import (
-	"fmt"
 	"go/types"
 	"slices"
 
@@ -20,8 +19,8 @@ type NoCopyHandle int
 
 const (
 	// ignore nocopy object
-	NoCopyHandleIgnore = NoCopyHandle(1<<iota - 1)
-	NoCopyHandleDisallow
+	NoCopyHandleIgnore   NoCopyHandle = 0
+	NoCopyHandleDisallow NoCopyHandle = 1 << iota
 	NoCopyHandleCopyPointer
 )
 
@@ -30,11 +29,21 @@ type MatcherConfig struct {
 	ChannelHandle NoCopyHandle
 }
 
+var disallowedEdge = [...]typegraph.EdgeKind{
+	typegraph.EdgeKindChan,
+	typegraph.EdgeKindStruct,
+	typegraph.EdgeKindInterface,
+}
+
 func (c *MatcherConfig) MatchEdge(e typegraph.Edge) bool {
+	s := e.Stack
+	if len(s) > 0 && s[0].Kind == typegraph.EdgeKindStruct {
+		s = s[1:]
+	}
 	return !slices.ContainsFunc(
-		e.Stack,
+		s,
 		func(p typegraph.EdgeRouteNode) bool {
-			return p.Kind == typegraph.EdgeKindChan
+			return slices.Contains(disallowedEdge[:], p.Kind)
 		},
 	)
 }
@@ -48,66 +57,118 @@ func (c *MatcherConfig) MatchType(named *types.Named, external bool) (ok bool, e
 		return false, nil
 	case *types.Struct:
 		for _, f := range pkgsutil.EnumerateFields(x) {
-			fieldOk, err := c.matchTy(f.Type())
-			if err != nil {
+			_, _, kind, fieldOk := c.matchTy(f.Type())
+			if !fieldOk {
 				return false, nil
 			}
-			if fieldOk {
+			if kind != handleKindIgnore {
 				ok = true
 			}
 		}
 	case *types.Array, *types.Slice, *types.Map:
 		ty := x.(interface{ Elem() types.Type }).Elem()
-		ok, err := c.matchTy(ty)
-		return err == nil && ok, nil
+		_, _, _, fieldOk := c.matchTy(ty)
+		return fieldOk, nil
 	}
 	return
 }
 
-func (c *MatcherConfig) matchTy(ty types.Type) (ok bool, err error) {
-	err = typegraph.TraverseTypes(
+type handleKind int
+
+const (
+	handleKindIgnore handleKind = iota + 1
+	handleKindAssign
+	handleKindCallClone
+	handleKindCallCloneFunc
+)
+
+func (c *MatcherConfig) matchTy(ty types.Type) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, ok bool) {
+	ok = true
+	_ = typegraph.TraverseTypes(
 		ty,
-		func(ty types.Type, _ *types.Named, stack []typegraph.EdgeRouteNode) error {
+		func(unwrapped_ types.Type, _ *types.Named, stack_ []typegraph.EdgeRouteNode) error {
+			unwrapped = unwrapped_
+			stack = stack_
 			if slices.ContainsFunc(
+				stack,
+				func(er typegraph.EdgeRouteNode) bool {
+					return slices.Contains([]typegraph.EdgeKind{typegraph.EdgeKindStruct, typegraph.EdgeKindInterface}, er.Kind)
+				},
+			) {
+				// disallow struct, interface literal
+				ok = false
+				return nil
+			}
+			if i := slices.IndexFunc(
 				stack,
 				func(p typegraph.EdgeRouteNode) bool {
 					return p.Kind == typegraph.EdgeKindChan
 				},
-			) {
+			); i >= 0 {
 				switch c.ChannelHandle {
 				case NoCopyHandleIgnore:
-					return nil
+					k = handleKindIgnore
 				case NoCopyHandleDisallow:
-					return fmt.Errorf("channel")
+					ok = false
 				case NoCopyHandleCopyPointer:
+					// chan itself is a pointer type.
+					k = handleKindAssign
+					stack = stack[:i] // reduced to first occurrence of channel
 				}
+				return nil
 			}
-			switch ty.(type) {
+
+			switch unwrapped_.(type) {
 			case *types.Basic:
-				ok = true
-			case *types.Interface, *types.Named:
-				if matcher.IsNoCopy(ty) {
+				k = handleKindAssign
+				return nil
+			case *types.Named:
+				if matcher.IsNoCopy(unwrapped_) {
 					switch c.NoCopyHandle {
 					case NoCopyHandleIgnore:
+						k = handleKindIgnore
 						return nil
 					case NoCopyHandleDisallow:
 					case NoCopyHandleCopyPointer:
-						_, isInterface := ty.(*types.Interface)
+						_, isInterface := unwrapped_.(*types.Interface)
 						if isInterface || (len(stack) > 0 && stack[len(stack)-1].Kind == typegraph.EdgeKindPointer) {
-							ok = true
+							k = handleKindAssign
+							stack = stack[:len(stack)-1] // ignore last pointer.
 							return nil
 						}
 					}
-					return fmt.Errorf("no copy")
+					ok = false
+					return nil
 				}
-				if clonerMatcher.IsFuncImplementor(ty) ||
-					clonerMatcher.IsImplementor(ty) {
-					ok = true
+				if clonerMatcher.IsFuncImplementor(unwrapped_) {
+					k = handleKindCallCloneFunc
+				} else if clonerMatcher.IsImplementor(unwrapped_) {
+					k = handleKindCallClone
 				}
 			}
 			return nil
 		},
 		nil,
 	)
-	return ok, err
+	return
+}
+
+func (c *MatcherConfig) handleField(node *typegraph.Node, edge typegraph.Edge, ty types.Type) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind) {
+	if edge.ChildType != nil { // already counted as edge.
+		if edge.ChildType.TypeParams().Len() == 0 {
+			k = handleKindCallClone
+		} else {
+			k = handleKindCallCloneFunc
+		}
+		unwrapped = edge.ChildType
+		stack = edge.Stack
+		return
+	}
+	unwrapped, stack, k, ok := c.matchTy(ty)
+	if !ok {
+		k = handleKindIgnore
+		return
+	}
+	// TODO: use node/edge priv data to detect ignored field.
+	return
 }

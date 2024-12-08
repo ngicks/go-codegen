@@ -20,7 +20,7 @@ var undgenPlainCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fset := cmd.Flags()
 
-		dir, pkg, verbose, ignoreGenerated, dry, err := undCommonOpts(fset, true)
+		dir, pkg, verbose, ignoreGenerated, dry, err := commonOpts(fset, true)
 		if err != nil {
 			return err
 		}
@@ -63,6 +63,6 @@ var undgenPlainCmd = &cobra.Command{
 
 func init() {
 	fset := undgenPlainCmd.Flags()
-	undCommonFlags(fset, true)
+	commonFlags(fset, true)
 	undgenCmd.AddCommand(undgenPlainCmd)
 }

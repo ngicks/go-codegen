@@ -37,7 +37,7 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fset := cmd.Flags()
-		dir, pkg, verbose, ignoreGenerated, dry, err := undCommonOpts(fset, false)
+		dir, pkg, verbose, ignoreGenerated, dry, err := commonOpts(fset, false)
 		if err != nil {
 			return err
 		}
@@ -78,6 +78,6 @@ Generated files are suffixed with und_patch before file extension, i.e. <origina
 
 func init() {
 	fset := undgenPatchCmd.Flags()
-	undCommonFlags(fset, false)
+	commonFlags(fset, false)
 	undgenCmd.AddCommand(undgenPatchCmd)
 }

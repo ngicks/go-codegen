@@ -11,6 +11,7 @@ import (
 	"io"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/dave/dst"
 	"github.com/ngicks/go-codegen/codegen/imports"
@@ -25,6 +26,38 @@ func BufPrintf(w io.Writer) (func(format string, args ...any), func() error) {
 		}, func() error {
 			return bufw.Flush()
 		}
+}
+
+func PrintTypeParamsAst(ts *ast.TypeSpec) string {
+	if ts.TypeParams == nil || len(ts.TypeParams.List) == 0 {
+		return ""
+	}
+	var typeParams strings.Builder
+	for _, f := range ts.TypeParams.List {
+		for _, name := range f.Names {
+			if typeParams.Len() > 0 {
+				typeParams.WriteByte(',')
+			}
+			typeParams.WriteString(name.Name)
+		}
+	}
+	return "[" + typeParams.String() + "]"
+}
+
+func PrintTypeParamsDst(ts *dst.TypeSpec) string {
+	if ts.TypeParams == nil || len(ts.TypeParams.List) == 0 {
+		return ""
+	}
+	var typeParams strings.Builder
+	for _, f := range ts.TypeParams.List {
+		for _, name := range f.Names {
+			if typeParams.Len() > 0 {
+				typeParams.WriteByte(',')
+			}
+			typeParams.WriteString(name.Name)
+		}
+	}
+	return "[" + typeParams.String() + "]"
 }
 
 func PrintAstExprPanicking(expr ast.Expr) string {

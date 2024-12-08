@@ -106,14 +106,13 @@ func unwrapFieldAlongPath(
 		}
 		return expr
 	}
-
 }
 
 func generateConversionMethod(w io.Writer, data *typegraph.ReplaceData, node *typegraph.Node, exprMap map[string]fieldAstExprSet) (err error) {
 	ts := data.Dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
-	plainTyName := ts.Name.Name + printTypeParamVars(ts)
+	plainTyName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
 	rawTyName, _ := strings.CutSuffix(ts.Name.Name, "Plain")
-	rawTyName += printTypeParamVars(ts)
+	rawTyName += codegen.PrintTypeParamsDst(ts)
 
 	printf, flush := codegen.BufPrintf(w)
 	defer func() {

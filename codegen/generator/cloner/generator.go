@@ -22,23 +22,25 @@ type Config struct {
 	MatcherConfig *MatcherConfig
 }
 
+func (c *Config) getMatcherConfig() *MatcherConfig {
+	if c.MatcherConfig != nil {
+		return c.MatcherConfig
+	}
+	return &MatcherConfig{}
+}
+
 func (c *Config) Generate(
 	ctx context.Context,
 	sourcePrinter *suffixwriter.Writer,
 	pkgs []*packages.Package,
 	extra []imports.TargetImport,
 ) error {
-	matcherConfig := c.MatcherConfig
-	if matcherConfig == nil {
-		matcherConfig = &MatcherConfig{}
-	}
-
 	parser := imports.NewParserPackages(pkgs)
 	parser.AppendExtra(extra...)
 
 	graph, err := typegraph.New(
 		pkgs,
-		matcherConfig.MatchType,
+		c.getMatcherConfig().MatchType,
 		codegen.ExcludeIgnoredGenDecl,
 		codegen.ExcludeIgnoredTypeSpec,
 	)
@@ -46,7 +48,7 @@ func (c *Config) Generate(
 		return err
 	}
 
-	graph.MarkDependant(matcherConfig.MatchEdge)
+	graph.MarkDependant(c.getMatcherConfig().MatchEdge)
 
 	replacerData, err := graph.GatherReplaceData(
 		parser,
@@ -80,7 +82,7 @@ func (c *Config) Generate(
 		}
 
 		for _, node := range data.TargetNodes {
-			err = generateMethod(buf, node)
+			err = generateMethod(c, buf, node, data)
 			if err != nil {
 				return err
 			}

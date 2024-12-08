@@ -10,7 +10,8 @@ func IsCloneByAssign(ty types.Type) bool {
 	default:
 		return false
 	case *types.Basic:
-		return x.Kind() != types.UnsafePointer
+		// both uintptr and unsafe.Pointer are just thought as a mere numeric value.
+		return true
 	case *types.Named:
 		return IsCloneByAssign(ty.Underlying())
 	case *types.Struct:

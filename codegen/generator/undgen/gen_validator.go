@@ -115,7 +115,7 @@ func generateUndValidate(
 	node *typegraph.Node,
 	imports imports.ImportMap,
 ) (written bool, err error) {
-	typeName := ts.Name.Name + printTypeParamVars(ts)
+	typeName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
 	undtagImportIdent, _ := imports.Ident(UndPathUndTag)
 	validateImportIdent, _ := imports.Ident(UndPathValidate)
 

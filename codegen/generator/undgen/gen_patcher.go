@@ -298,22 +298,6 @@ func concatFieldNames(field *dst.Field) string {
 	)
 }
 
-func printTypeParamVars(ts *dst.TypeSpec) string {
-	if ts.TypeParams == nil {
-		return ""
-	}
-	// appends [TypeParams, ...] without type constraint to type names.
-	// Uses same _FieldName_ for type param vars for some sort of pretty printing.
-	var typeParams strings.Builder
-	for _, f := range ts.TypeParams.List {
-		if typeParams.Len() > 0 {
-			typeParams.WriteByte(',')
-		}
-		typeParams.WriteString(f.Names[0].Name)
-	}
-	return "[" + typeParams.String() + "]"
-}
-
 func typeObjectFieldsIter(typeInfo types.Type) iter.Seq2[int, *types.Var] {
 	return func(yield func(int, *types.Var) bool) {
 		structTy, ok := typeInfo.Underlying().(*types.Struct)
@@ -339,8 +323,8 @@ func typeObjectFieldsIter(typeInfo types.Type) iter.Seq2[int, *types.Var] {
 func generateFromValue(
 	w io.Writer, ts *dst.TypeSpec, node *typegraph.Node, imports imports.ImportMap, typeSuffix string,
 ) (err error) {
-	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
-	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
+	patchTypeName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
+	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + codegen.PrintTypeParamsDst(ts)
 
 	printf, flush := codegen.BufPrintf(w)
 	defer func() {
@@ -435,8 +419,8 @@ func generateFromValue(
 func generateToValue(
 	w io.Writer, ts *dst.TypeSpec, node *typegraph.Node, imports imports.ImportMap, typeSuffix string,
 ) (err error) {
-	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
-	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
+	patchTypeName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
+	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + codegen.PrintTypeParamsDst(ts)
 
 	printf, flush := codegen.BufPrintf(w)
 	defer func() {
@@ -526,7 +510,7 @@ func generateToValue(
 func generateMerge(
 	w io.Writer, ts *dst.TypeSpec, node *typegraph.Node, imports imports.ImportMap, _ string,
 ) (err error) {
-	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
+	patchTypeName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
 
 	printf, flush := codegen.BufPrintf(w)
 	defer func() {
@@ -611,8 +595,8 @@ func generateMerge(
 func generateApplyPatch(
 	w io.Writer, ts *dst.TypeSpec, _ *typegraph.Node, _ imports.ImportMap, typeSuffix string,
 ) (err error) {
-	patchTypeName := ts.Name.Name + printTypeParamVars(ts)
-	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + printTypeParamVars(ts)
+	patchTypeName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
+	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + codegen.PrintTypeParamsDst(ts)
 
 	printf, flush := codegen.BufPrintf(w)
 	defer func() {

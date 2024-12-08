@@ -3,10 +3,10 @@ package simple
 type A struct {
 	A string
 	B int
-	C int
+	C *int
 }
 
 type B struct {
-	A []string
+	A []*[]string
 	B map[string]int
 }
