@@ -18,38 +18,38 @@ type fieldDstExprSet struct {
 	Unwrapped dst.Expr
 }
 
-func _replaceToPlainTypes(data *replaceData, node *typegraph.TypeNode) (map[string]fieldDstExprSet, bool) {
-	ts := data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
+func _replaceToPlainTypes(data *typegraph.ReplaceData, node *typegraph.Node) (map[string]fieldDstExprSet, bool) {
+	ts := data.Dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
 	ts.Name.Name += "Plain"
 	named := node.Type
 	switch named.Underlying().(type) {
 	case *types.Array, *types.Slice, *types.Map:
-		wrapped, unwrapped := unwrapElemTypes(ts, node, data.importMap)
+		wrapped, unwrapped := unwrapElemTypes(ts, node, data.ImportMap)
 		return map[string]fieldDstExprSet{"": {wrapped, unwrapped}}, true
 	case *types.Struct:
-		return unwrapStructFields(ts, node, data.importMap)
+		return unwrapStructFields(ts, node, data.ImportMap)
 	}
 	return nil, false
 }
 
-func unwrapExprAlongPath(expr *dst.Expr, edge typegraph.TypeDependencyEdge, skip int) *dst.Expr {
+func unwrapExprAlongPath(expr *dst.Expr, edge typegraph.Edge, skip int) *dst.Expr {
 	unwrapped := expr
 	for _, p := range edge.Stack[skip:] {
 		switch p.Kind {
-		case typegraph.TypeDependencyEdgeKindArray, typegraph.TypeDependencyEdgeKindSlice:
+		case typegraph.EdgeKindArray, typegraph.EdgeKindSlice:
 			next := (*unwrapped).(*dst.ArrayType)
 			unwrapped = &next.Elt
-		case typegraph.TypeDependencyEdgeKindMap:
+		case typegraph.EdgeKindMap:
 			next := (*unwrapped).(*dst.MapType)
 			unwrapped = &next.Value
-		case typegraph.TypeDependencyEdgeKindPointer:
+		case typegraph.EdgeKindPointer:
 			break
 		}
 	}
 	return unwrapped
 }
 
-func unwrapElemTypes(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap imports.ImportMap) (wrapped dst.Expr, unwrapped dst.Expr) {
+func unwrapElemTypes(ts *dst.TypeSpec, node *typegraph.Node, importMap imports.ImportMap) (wrapped dst.Expr, unwrapped dst.Expr) {
 	var elem *dst.Expr
 	switch x := ts.Type.(type) {
 	case *dst.ArrayType: // slice or array. difference is Len expr.
@@ -83,7 +83,7 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap impor
 	}
 }
 
-func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap imports.ImportMap) (map[string]fieldDstExprSet, bool) {
+func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.Node, importMap imports.ImportMap) (map[string]fieldDstExprSet, bool) {
 	edgeMap := node.ChildEdgeMap(isUndPlainAllowedEdge)
 
 	exprMap := make(map[string]fieldDstExprSet)
@@ -131,8 +131,8 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap im
 				converted, ok := plainConverter(edge.ChildType, edge.IsChildMatched())
 				if ok {
 					ty = converted
-					if edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
-						return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
+					if edge.LastPointer().IsSomeAnd(func(tdep typegraph.EdgeRouteNode) bool {
+						return tdep.Kind == typegraph.EdgeKindPointer
 					}) {
 						ty = types.NewPointer(ty)
 					}
@@ -182,7 +182,7 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.TypeNode, importMap im
 	return exprMap, atLeastOne
 }
 
-func unwrapUndType(fieldTy *dst.IndexExpr, edge typegraph.TypeDependencyEdge, undOpt undtag.UndOpt, importMap imports.ImportMap) (expr dst.Expr, modified bool) {
+func unwrapUndType(fieldTy *dst.IndexExpr, edge typegraph.Edge, undOpt undtag.UndOpt, importMap imports.ImportMap) (expr dst.Expr, modified bool) {
 	modified = true
 
 	// default: unchanged.
@@ -195,7 +195,7 @@ func unwrapUndType(fieldTy *dst.IndexExpr, edge typegraph.TypeDependencyEdge, un
 	if ok, isPointer := edge.HasSingleNamedTypeArg(nil); ok {
 		var isMatched bool
 		if node := edge.TypeArgs[0].Node; node != nil {
-			isMatched = (node.Matched &^ typegraph.TypeNodeMatchKindExternal) > 0
+			isMatched = (node.Matched &^ typegraph.MatchKindExternal) > 0
 		}
 		converted, ok := plainConverter(edge.TypeArgs[0].Ty, isMatched)
 		if ok {
