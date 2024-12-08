@@ -78,11 +78,13 @@ type handleKind int
 const (
 	handleKindIgnore handleKind = iota + 1
 	handleKindAssign
+	handleKindCallCb
 	handleKindCallClone
 	handleKindCallCloneFunc
 )
 
 func (c *MatcherConfig) matchTy(ty types.Type) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, ok bool) {
+	k = handleKindIgnore
 	ok = true
 	_ = typegraph.TraverseTypes(
 		ty,
@@ -122,6 +124,9 @@ func (c *MatcherConfig) matchTy(ty types.Type) (unwrapped types.Type, stack []ty
 			case *types.Basic:
 				k = handleKindAssign
 				return nil
+			case *types.TypeParam:
+				k = handleKindCallCb
+				return nil
 			case *types.Named:
 				if matcher.IsNoCopy(unwrapped_) {
 					switch c.NoCopyHandle {
@@ -153,7 +158,7 @@ func (c *MatcherConfig) matchTy(ty types.Type) (unwrapped types.Type, stack []ty
 	return
 }
 
-func (c *MatcherConfig) handleField(node *typegraph.Node, edge typegraph.Edge, ty types.Type) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind) {
+func (c *MatcherConfig) handleField(_ *typegraph.Node, edge typegraph.Edge, ty types.Type) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind) {
 	if edge.ChildType != nil { // already counted as edge.
 		if edge.ChildType.TypeParams().Len() == 0 {
 			k = handleKindCallClone

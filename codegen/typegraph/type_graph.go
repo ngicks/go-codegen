@@ -520,6 +520,8 @@ func TraverseTypes(
 			}
 		}
 		return nil
+	case *types.TypeParam:
+		return cb(x, nil, stack)
 	}
 }
 

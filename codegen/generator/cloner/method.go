@@ -48,9 +48,25 @@ func generateCloner(
 ) error {
 	typeName := node.Ts.Name.Name + codegen.PrintTypeParamsAst(node.Ts)
 
+	var cloneCallbacks [][2]string
+
 	if node.Type.TypeParams().Len() == 0 {
 		printf("func (v %[1]s) Clone() %[1]s {\n", typeName)
 	} else {
+		cloneCallbacks = slices.Collect(
+			xiter.Map(
+				func(p *types.TypeParam) [2]string {
+					name := p.Obj().Name()
+					first, size := utf8.DecodeRuneInString(name)
+					return [2]string{
+						"clone" + string(unicode.ToUpper(first)) + name[size:],
+						name,
+					}
+				},
+				hiter.OmitF(hiter.AtterAll(node.Type.TypeParams())),
+			),
+		)
+
 		printf(
 			"func (v %[1]s) CloneFunc(%[2]s) %[1]s {\n",
 			typeName,
@@ -58,17 +74,10 @@ func generateCloner(
 				1024,
 				", ",
 				xiter.Map(
-					func(p *types.TypeParam) string {
-						name := p.Obj().Name()
-						first, size := utf8.DecodeRuneInString(name)
-						return fmt.Sprintf(
-							"clone%[1]s func(%[2]s) %[2]s",
-							// rare but it can be non-capitalized.
-							string(unicode.ToUpper(first))+name[size:],
-							name,
-						)
+					func(s [2]string) string {
+						return fmt.Sprintf("%[1]s func(%[2]s) %[2]s", s[0], s[1])
 					},
-					hiter.OmitF(hiter.AtterAll(node.Type.TypeParams())),
+					slices.Values(cloneCallbacks),
 				),
 			),
 		)
@@ -104,7 +113,7 @@ func generateCloner(
 				)
 			}
 
-			_, stack, handleKind := c.getMatcherConfig().handleField(
+			unwrapped, stack, handleKind := c.getMatcherConfig().handleField(
 				node,
 				edge,
 				node.Type.Underlying().(*types.Struct).Field(i).Type(),
@@ -134,6 +143,10 @@ func generateCloner(
 					panic(fmt.Errorf("unknown kind: %d", handleKind))
 				case handleKindAssign:
 					cloneExpr = func(s string) string { return s }
+				case handleKindCallCb:
+					cloneExpr = func(s string) string {
+						return fmt.Sprintf("%s(%s)", cloneCallbacks[unwrapped.(*types.TypeParam).Index()][0], s)
+					}
 				case handleKindCallClone:
 					cloneExpr = func(s string) string { return s + ".Clone()" }
 				case handleKindCallCloneFunc:
