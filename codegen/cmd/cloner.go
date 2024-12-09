@@ -4,6 +4,8 @@ Copyright © 2024 ngicks <yknt.bsl@gmail.com>
 package cmd
 
 import (
+	"log/slog"
+
 	"github.com/ngicks/go-codegen/codegen/generator/cloner"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
@@ -43,6 +45,9 @@ You can use github.com/ngicks/go-codegen/pkg/cloneruntime for some help.
 			args []string,
 		) error {
 			cfg := &cloner.Config{}
+			if verbose {
+				cfg.Logger = slog.Default()
+			}
 			return cfg.Generate(cmd.Context(), writer, pkgs, []imports.TargetImport{})
 		},
 	),

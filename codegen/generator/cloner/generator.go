@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"go/ast"
+	"io"
 	"iter"
+	"log/slog"
 
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/codegen"
@@ -20,6 +22,7 @@ import (
 
 type Config struct {
 	MatcherConfig *MatcherConfig
+	Logger        *slog.Logger
 }
 
 func (c *Config) matcherConfig() *MatcherConfig {
@@ -27,6 +30,18 @@ func (c *Config) matcherConfig() *MatcherConfig {
 		return c.MatcherConfig
 	}
 	return &MatcherConfig{}
+}
+
+var (
+	// use DiscardHandler after Go 1.24
+	noopLogger = slog.New(slog.NewTextHandler(io.Discard, nil))
+)
+
+func (c *Config) logger() *slog.Logger {
+	if c.Logger == nil {
+		return noopLogger
+	}
+	return c.Logger
 }
 
 func (c *Config) Generate(
