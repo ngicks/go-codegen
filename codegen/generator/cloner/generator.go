@@ -27,9 +27,10 @@ type Config struct {
 
 func (c *Config) matcherConfig() *MatcherConfig {
 	if c.MatcherConfig != nil {
+		c.MatcherConfig.logger = c.logger()
 		return c.MatcherConfig
 	}
-	return &MatcherConfig{}
+	return &MatcherConfig{logger: c.logger()}
 }
 
 var (

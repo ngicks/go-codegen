@@ -7,4 +7,5 @@ type ContainsNoCopy struct {
 	NoCopy *sync.Mutex
 	//cloner:copyptr
 	NoCopyMap map[int]*sync.Mutex
+	Ignored   *sync.Mutex
 }

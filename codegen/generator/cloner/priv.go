@@ -11,6 +11,16 @@ import (
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 )
 
+const (
+	DirectivePrefix         = "cloner:"
+	directiveCommentIgnore  = "ignore"
+	DirectiveCommentCopyPtr = "copyptr"
+)
+
+var (
+	ErrUnknownDirective = errors.New("unknown directive")
+)
+
 type clonerPriv struct {
 	lines map[int]direction
 }
@@ -26,14 +36,6 @@ func (d direction) override(c MatcherConfig) MatcherConfig {
 	}
 	return c
 }
-
-var (
-	ErrUnknownDirective = errors.New("unknown directive")
-)
-
-const (
-	DirectiveCommentCopyPtr = "copyptr"
-)
 
 func parseNode(n *typegraph.Node) (any, error) {
 	// store in global cache.
@@ -57,7 +59,7 @@ func parseNode(n *typegraph.Node) (any, error) {
 	lines := make(map[int]direction)
 	for i, f := range st.Fields.List {
 		lineDirective, err := codegen.ParseFieldDirectiveCommentDst(
-			"cloner:",
+			DirectivePrefix,
 			f.Decs,
 			func(lines []string) (direction, error) {
 				var parsed direction

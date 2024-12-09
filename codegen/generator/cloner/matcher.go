@@ -2,6 +2,7 @@ package cloner
 
 import (
 	"go/types"
+	"log/slog"
 	"slices"
 
 	"github.com/ngicks/go-codegen/codegen/matcher"
@@ -27,6 +28,8 @@ const (
 type MatcherConfig struct {
 	NoCopyHandle  NoCopyHandle
 	ChannelHandle NoCopyHandle
+
+	logger *slog.Logger
 }
 
 var disallowedEdge = [...]typegraph.EdgeKind{
@@ -49,30 +52,58 @@ func (c *MatcherConfig) MatchEdge(e typegraph.Edge) bool {
 }
 
 func (c *MatcherConfig) MatchType(named *types.Named, external bool) (ok bool, err error) {
-	if !matcher.IsNoCopy(named) && matcher.IsCloneByAssign(named) {
-		return true, nil
+	// TODO: change match ty signature to receive priv data, then patch c.
+	logger := c.logger
+	attr := []any{}
+	if pkg := named.Obj().Pkg(); pkg != nil {
+		attr = append(attr, slog.String("pkgPath", named.Obj().Pkg().Path()))
 	}
+	attr = append(attr, slog.String("name", named.Obj().Name()))
+	logger.Debug("matching", attr...)
+
 	switch x := named.Underlying().(type) {
 	default:
+		logger.Debug(
+			"not matched: unsupported type",
+			slog.Any("supported", []string{"struct", "array", "slice", "map"}),
+		)
 		return false, nil
 	case *types.Struct:
-		for _, f := range pkgsutil.EnumerateFields(x) {
-			unwrapped, _, kind, fieldOk := c.matchTy(f.Type())
+		for i, f := range pkgsutil.EnumerateFields(x) {
+			logger := logger.With(slog.Int("at", i), slog.String("fieldName", f.Name()))
+			unwrapped, _, kind, fieldOk := c.matchTy(f.Type(), logger)
 			if !fieldOk {
+				logger.Debug("not matched")
 				return false, nil
 			}
 			if kind == handleKindIgnore {
+				logger.Debug("field ignored")
 				continue
 			}
 			if !external || (external && (clonerMatcher.IsFuncImplementor(unwrapped) || clonerMatcher.IsImplementor(unwrapped))) {
+				logger.Debug(
+					"field ok",
+					slog.Bool("external", external),
+					slog.Bool("implementsCloneFunc", clonerMatcher.IsFuncImplementor(unwrapped)),
+					slog.Bool("implementsClone", clonerMatcher.IsFuncImplementor(unwrapped)),
+				)
 				ok = true
 			}
 		}
+		if ok {
+			logger.Debug("matched")
+		} else {
+			logger.Debug("not matched")
+		}
 	case *types.Array, *types.Slice, *types.Map:
 		ty := x.(interface{ Elem() types.Type }).Elem()
-		_, _, kind, fieldOk := c.matchTy(ty)
+		_, _, kind, fieldOk := c.matchTy(ty, logger)
 		if kind == handleKindIgnore {
+			logger.Debug("not matched: type ignored")
 			return false, nil
+		}
+		if fieldOk {
+			logger.Debug("matched: type ok")
 		}
 		return fieldOk, nil
 	}
@@ -89,7 +120,7 @@ const (
 	handleKindCallCloneFunc
 )
 
-func (c *MatcherConfig) matchTy(ty types.Type) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, ok bool) {
+func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, ok bool) {
 	k = handleKindIgnore
 	ok = true
 	_ = typegraph.TraverseTypes(
@@ -103,7 +134,10 @@ func (c *MatcherConfig) matchTy(ty types.Type) (unwrapped types.Type, stack []ty
 					return slices.Contains([]typegraph.EdgeKind{typegraph.EdgeKindStruct, typegraph.EdgeKindInterface}, er.Kind)
 				},
 			) {
-				// disallow struct, interface literal
+				logger.Debug(
+					"disallowed route edge node: struct literal or interface literal",
+					slog.Any("stack", stack),
+				)
 				ok = false
 				return nil
 			}
@@ -115,8 +149,19 @@ func (c *MatcherConfig) matchTy(ty types.Type) (unwrapped types.Type, stack []ty
 			); i >= 0 {
 				switch c.ChannelHandle {
 				case NoCopyHandleIgnore:
+					logger.Debug("ignoring field since it contains channel: if it should be copied place " +
+						"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+						" as field doc comment",
+					)
 					k = handleKindIgnore
 				case NoCopyHandleDisallow:
+					logger.Debug(
+						"ignoring type since it contains channel: if this is mistake change MatchConfig or place " +
+							"//" + DirectivePrefix + directiveCommentIgnore +
+							" or " +
+							"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+							" as field doc comment",
+					)
 					ok = false
 				case NoCopyHandleCopyPointer:
 					// chan itself is a pointer type.
@@ -137,9 +182,20 @@ func (c *MatcherConfig) matchTy(ty types.Type) (unwrapped types.Type, stack []ty
 				if matcher.IsNoCopy(unwrapped_) {
 					switch c.NoCopyHandle {
 					case NoCopyHandleIgnore:
+						logger.Debug("ignoring field since it contains no copy object: if it should be copied place " +
+							"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+							" as field doc comment",
+						)
 						k = handleKindIgnore
 						return nil
 					case NoCopyHandleDisallow:
+						logger.Debug(
+							"ignoring type since it contains no copy object: if this is mistake change MatchConfig or place " +
+								"//" + DirectivePrefix + directiveCommentIgnore +
+								" or " +
+								"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+								" as field doc comment",
+						)
 					case NoCopyHandleCopyPointer:
 						_, isInterface := unwrapped_.(*types.Interface)
 						if isInterface || (len(stack) > 0 && stack[len(stack)-1].Kind == typegraph.EdgeKindPointer) {
@@ -147,6 +203,7 @@ func (c *MatcherConfig) matchTy(ty types.Type) (unwrapped types.Type, stack []ty
 							stack = stack[:len(stack)-1] // ignore last pointer.
 							return nil
 						}
+						logger.Debug("ignoring type: configured to copy pointer of no copy objects but field does not contain it as a pointer or an interface")
 					}
 					ok = false
 					return nil
@@ -181,7 +238,7 @@ func (c *MatcherConfig) handleField(
 		}
 	}
 
-	unwrapped, stack, k, ok := conf.matchTy(ty)
+	unwrapped, stack, k, ok := conf.matchTy(ty, noopLogger)
 	if !ok {
 		k = handleKindIgnore
 		return
