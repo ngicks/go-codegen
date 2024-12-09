@@ -49,7 +49,7 @@ func (c *MatcherConfig) MatchEdge(e typegraph.Edge) bool {
 }
 
 func (c *MatcherConfig) MatchType(named *types.Named, external bool) (ok bool, err error) {
-	if matcher.IsCloneByAssign(named) {
+	if !matcher.IsNoCopy(named) && matcher.IsCloneByAssign(named) {
 		return true, nil
 	}
 	switch x := named.Underlying().(type) {
@@ -57,17 +57,23 @@ func (c *MatcherConfig) MatchType(named *types.Named, external bool) (ok bool, e
 		return false, nil
 	case *types.Struct:
 		for _, f := range pkgsutil.EnumerateFields(x) {
-			_, _, kind, fieldOk := c.matchTy(f.Type())
+			unwrapped, _, kind, fieldOk := c.matchTy(f.Type())
 			if !fieldOk {
 				return false, nil
 			}
-			if kind != handleKindIgnore {
+			if kind == handleKindIgnore {
+				continue
+			}
+			if !external || (external && (clonerMatcher.IsFuncImplementor(unwrapped) || clonerMatcher.IsImplementor(unwrapped))) {
 				ok = true
 			}
 		}
 	case *types.Array, *types.Slice, *types.Map:
 		ty := x.(interface{ Elem() types.Type }).Elem()
-		_, _, _, fieldOk := c.matchTy(ty)
+		_, _, kind, fieldOk := c.matchTy(ty)
+		if kind == handleKindIgnore {
+			return false, nil
+		}
 		return fieldOk, nil
 	}
 	return
@@ -158,7 +164,21 @@ func (c *MatcherConfig) matchTy(ty types.Type) (unwrapped types.Type, stack []ty
 	return
 }
 
-func (c *MatcherConfig) handleField(_ *typegraph.Node, edge typegraph.Edge, ty types.Type) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind) {
+func (c *MatcherConfig) handleField(
+	pos int,
+	n *typegraph.Node,
+	edge typegraph.Edge,
+	ty types.Type,
+) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind) {
+	conf := *c
+	priv, ok := n.Priv.(clonerPriv)
+	if ok {
+		direction, ok := priv.lines[pos]
+		if ok {
+			conf = direction.override(conf)
+		}
+	}
+
 	if edge.ChildType != nil { // already counted as edge.
 		if edge.ChildType.TypeParams().Len() == 0 {
 			k = handleKindCallClone
@@ -169,11 +189,12 @@ func (c *MatcherConfig) handleField(_ *typegraph.Node, edge typegraph.Edge, ty t
 		stack = edge.Stack
 		return
 	}
-	unwrapped, stack, k, ok := c.matchTy(ty)
+
+	unwrapped, stack, k, ok = conf.matchTy(ty)
 	if !ok {
 		k = handleKindIgnore
 		return
 	}
-	// TODO: use node/edge priv data to detect ignored field.
+
 	return
 }

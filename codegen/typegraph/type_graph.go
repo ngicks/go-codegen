@@ -3,6 +3,7 @@ package typegraph
 
 import (
 	"cmp"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -101,8 +102,6 @@ type Edge struct {
 	ChildType *types.Named
 	// non-instantiated child node.
 	ChildNode *Node
-	// private data
-	Priv any
 }
 
 func (e Edge) IsChildMatched() bool {
@@ -242,11 +241,7 @@ func New(
 		return graph, err
 	}
 
-	parser := graph.privParser
-	if parser == nil {
-		parser = func(external bool, parent, child *Node, childTy *types.Named) any { return nil }
-	}
-	err = graph.buildEdge(matcher, parser)
+	err = graph.buildEdge(matcher)
 	if err != nil {
 		return graph, err
 	}
@@ -260,6 +255,11 @@ func (g *Graph) listTypes(
 	genDeclFilter func(*ast.GenDecl) (bool, error),
 	typeSpecFilter func(*ast.TypeSpec, types.Object) (bool, error),
 ) error {
+	parser := g.privParser
+	if parser == nil {
+		parser = func(n *Node) (any, error) { return nil, nil }
+	}
+
 	for pkg, fileSeq := range pkgsutil.EnumerateGenDecls(pkgs) {
 		if err := pkgsutil.LoadError(pkg); err != nil {
 			return err
@@ -300,9 +300,14 @@ func (g *Graph) listTypes(
 					}
 
 					node := addType(g.types, pkg, file, currentPos, ts, named)
-					ok, err := matcher(named, false)
+					var err error
+					node.Priv, err = parser(node)
 					if err != nil {
-						return err
+						return fmt.Errorf("parsing priv: %w", err)
+					}
+					ok, err = matcher(named, false)
+					if err != nil {
+						return fmt.Errorf("matching type: %w", err)
 					}
 					if ok {
 						node.Matched |= MatchKindMatched
@@ -341,7 +346,6 @@ func addType(
 
 func (g *Graph) buildEdge(
 	matcher func(named *types.Named, external bool) (bool, error),
-	privParser func(external bool, parent, child *Node, childTy *types.Named) any,
 ) error {
 	for _, node := range g.types {
 		// Underlying matches what of go spec.
@@ -349,7 +353,6 @@ func (g *Graph) buildEdge(
 		//
 		// type Foo struct {Foo string; Bar int}
 		//          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this part is underlying
-		//
 		err := visitTypes(
 			node,
 			node.Type.Underlying(),
@@ -357,7 +360,6 @@ func (g *Graph) buildEdge(
 			g.types,
 			g.external,
 			nil,
-			privParser,
 		)
 		if err != nil {
 			return err
@@ -374,7 +376,6 @@ func visitTypes(
 	allType map[Ident]*Node,
 	externalType map[Ident]*Node,
 	stack []EdgeRouteNode,
-	privParser func(external bool, parent, child *Node, childTy *types.Named) any,
 ) error {
 	return TraverseToNamed(
 		ty,
@@ -391,7 +392,6 @@ func visitTypes(
 					),
 					named,
 					node,
-					privParser(false, parentNode, node, named),
 				)
 				return nil
 			}
@@ -411,7 +411,6 @@ func visitTypes(
 				),
 				named,
 				externalNode,
-				privParser(true, parentNode, node, named),
 			)
 			return nil
 		},
@@ -530,7 +529,6 @@ func (parent *Node) drawEdge(
 	typeArgs []TypeArg,
 	childTy *types.Named,
 	child *Node,
-	priv any,
 ) {
 	if parent.Children == nil {
 		parent.Children = make(map[Ident][]Edge)
@@ -545,7 +543,6 @@ func (parent *Node) drawEdge(
 		ParentNode: parent,
 		ChildType:  childTy,
 		ChildNode:  child,
-		Priv:       priv,
 	}
 
 	parentIdent := IdentFromTypesObject(parent.Type.Obj())
@@ -684,6 +681,23 @@ func (g *Graph) EnumerateTypes() iter.Seq2[Ident, *Node] {
 		return cmp.Compare(g.types[i].Pos, g.types[j].Pos)
 	})
 	return hiter.MapKeys(g.types, slices.Values(keys))
+}
+
+func (g *Graph) Get(i Ident) (*Node, bool) {
+	n, ok := g.types[i]
+	return n, ok
+}
+
+func (g *Graph) GetByType(ty types.Type) (*Node, bool) {
+	named, ok := ty.(*types.Named)
+	if !ok {
+		return nil, false
+	}
+	if named.Obj().Pkg() == nil {
+		// error built-in interface
+		return nil, false
+	}
+	return g.Get(IdentFromTypesObject(named.Obj()))
 }
 
 func (g *Graph) EnumerateTypesKeys(keys iter.Seq[Ident]) iter.Seq2[Ident, *Node] {

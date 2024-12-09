@@ -58,6 +58,7 @@ func (c *Config) Generate(
 		c.matcherConfig().MatchType,
 		codegen.ExcludeIgnoredGenDecl,
 		codegen.ExcludeIgnoredTypeSpec,
+		typegraph.WithPrivParser(parseNode),
 	)
 	if err != nil {
 		return err

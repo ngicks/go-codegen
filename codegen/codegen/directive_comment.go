@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
+	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
 
 const (
@@ -33,17 +34,44 @@ func ParseDirectiveComment(comments *ast.CommentGroup) (Direction, bool, error) 
 }
 
 func ParseDirectiveCommentDst(comments dst.NodeDecs) (Direction, bool, error) {
+	return parseDirective(slices.Values(afterLastEmptyLine(comments.Start)))
+}
+
+func afterLastEmptyLine(lines []string) []string {
 	var idx int
-	for i, s := range slices.Backward(comments.Start) {
-		if s == "\n" {
-			if strings.HasPrefix(comments.Start[i-1], "/*") {
+	for i, s := range slices.Backward(lines) {
+		if s == "\n" { // needs strictly to be empty. dst doesn't handle lines with only white spaces correctly.
+			if i > 0 && strings.HasPrefix(lines[i-1], "/*") {
 				continue
 			}
 			idx = i + 1
 			break
 		}
 	}
-	return parseDirective(slices.Values(comments.Start[idx:]))
+	return lines[idx:]
+}
+
+func clip1(lines []string) []string {
+	if len(lines) == 0 {
+		return lines
+	}
+	return lines[:1]
+}
+
+func ParseFieldDirectiveCommentDst[T any](
+	prefix string,
+	comments dst.FieldDecorations,
+	parser func(s []string) (T, error),
+) (T, error) {
+	lines := directiveComments(
+		xiter.Concat(
+			slices.Values(afterLastEmptyLine(comments.Start)),
+			slices.Values(clip1(comments.End)),
+		),
+		prefix,
+		true,
+	)
+	return parser(lines)
 }
 
 func parseDirective(seq iter.Seq[string]) (Direction, bool, error) {

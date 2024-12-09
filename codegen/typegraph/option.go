@@ -1,12 +1,10 @@
 package typegraph
 
-import "go/types"
-
 type Option interface {
 	apply(g *Graph) Option
 }
 
-type PrivParser func(external bool, parent, child *Node, childTy *types.Named) any
+type PrivParser func(n *Node) (any, error)
 
 type privParserOption PrivParser
 
