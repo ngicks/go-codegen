@@ -166,34 +166,33 @@ func (c *MatcherConfig) matchTy(ty types.Type) (unwrapped types.Type, stack []ty
 
 func (c *MatcherConfig) handleField(
 	pos int,
-	n *typegraph.Node,
-	edge typegraph.Edge,
+	parent *typegraph.Node,
+	child *typegraph.Node,
 	ty types.Type,
 ) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind) {
 	conf := *c
-	priv, ok := n.Priv.(clonerPriv)
-	if ok {
-		direction, ok := priv.lines[pos]
+	if parent != nil && pos >= 0 {
+		priv, ok := parent.Priv.(clonerPriv)
 		if ok {
-			conf = direction.override(conf)
+			direction, ok := priv.lines[pos]
+			if ok {
+				conf = direction.override(conf)
+			}
 		}
 	}
 
-	if edge.ChildType != nil { // already counted as edge.
-		if edge.ChildType.TypeParams().Len() == 0 {
+	unwrapped, stack, k, ok := conf.matchTy(ty)
+	if !ok {
+		k = handleKindIgnore
+		return
+	}
+
+	if child != nil && child.Matched != 0 {
+		if child.Type.TypeParams().Len() == 0 {
 			k = handleKindCallClone
 		} else {
 			k = handleKindCallCloneFunc
 		}
-		unwrapped = edge.ChildType
-		stack = edge.Stack
-		return
-	}
-
-	unwrapped, stack, k, ok = conf.matchTy(ty)
-	if !ok {
-		k = handleKindIgnore
-		return
 	}
 
 	return

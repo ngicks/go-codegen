@@ -98,7 +98,7 @@ func (c *Config) Generate(
 		}
 
 		for _, node := range data.TargetNodes {
-			err = generateMethod(c, buf, node, data)
+			err = generateMethod(c, buf, graph, node, data)
 			if err != nil {
 				return err
 			}
