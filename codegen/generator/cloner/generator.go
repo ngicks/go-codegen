@@ -22,7 +22,7 @@ type Config struct {
 	MatcherConfig *MatcherConfig
 }
 
-func (c *Config) getMatcherConfig() *MatcherConfig {
+func (c *Config) matcherConfig() *MatcherConfig {
 	if c.MatcherConfig != nil {
 		return c.MatcherConfig
 	}
@@ -40,7 +40,7 @@ func (c *Config) Generate(
 
 	graph, err := typegraph.New(
 		pkgs,
-		c.getMatcherConfig().MatchType,
+		c.matcherConfig().MatchType,
 		codegen.ExcludeIgnoredGenDecl,
 		codegen.ExcludeIgnoredTypeSpec,
 	)
@@ -48,7 +48,7 @@ func (c *Config) Generate(
 		return err
 	}
 
-	graph.MarkDependant(c.getMatcherConfig().MatchEdge)
+	graph.MarkDependant(c.matcherConfig().MatchEdge)
 
 	replacerData, err := graph.GatherReplaceData(
 		parser,
