@@ -77,7 +77,10 @@ func parseNode(n *typegraph.Node) (any, error) {
 			},
 		)
 		if err != nil {
-			return nil, fmt.Errorf(": %w", err)
+			return nil, fmt.Errorf(
+				"parsing %q.%s: %w",
+				n.Type.Obj().Pkg().Path(), n.Type.Obj().Name(), err,
+			)
 		}
 
 		lineDirective.Pos = i

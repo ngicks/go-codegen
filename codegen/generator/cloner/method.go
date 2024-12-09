@@ -41,14 +41,18 @@ func generateMethod(
 	printf, flush := codegen.BufPrintf(buf)
 
 	err = generateCloner(c, printf, g, replacer.ImportMap, node, ats, dts)
-	if !errors.Is(err, errNotHandled) {
-		err = flush()
-		if err != nil {
-			return err
-		}
-		_, err = w.Write(buf.Bytes())
+	if err != nil {
+		return err
 	}
-	return
+	err = flush()
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(buf.Bytes())
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func generateCloner(
@@ -67,6 +71,7 @@ func generateCloner(
 	if node.Type.TypeParams().Len() == 0 {
 		printf("func (v %[1]s) Clone() %[1]s {\n", typeName)
 	} else {
+		// [][2]string{{"cloneT","T"}}
 		cloneCallbacks = gatherCloneCallback(node.Type.TypeParams())
 
 		printf(

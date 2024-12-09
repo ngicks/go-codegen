@@ -3,6 +3,7 @@ package cloner
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"go/ast"
 	"io"
@@ -98,16 +99,23 @@ func (c *Config) Generate(
 			return fmt.Errorf("%q: %w", data.Filename, err)
 		}
 
+		handled := 0
 		for _, node := range data.TargetNodes {
 			err = generateMethod(c, buf, graph, node, data)
 			if err != nil {
+				if errors.Is(err, errNotHandled) {
+					continue
+				}
 				return err
 			}
+			handled++
 		}
 
-		err = sourcePrinter.Write(ctx, data.Filename, buf.Bytes())
-		if err != nil {
-			return err
+		if handled > 0 {
+			err = sourcePrinter.Write(ctx, data.Filename, buf.Bytes())
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
