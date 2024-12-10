@@ -3,6 +3,7 @@
 // go run github.com/ngicks/go-codegen/codegen cloner --help
 package paramcb
 
+//codegen:generated
 func (v A[T]) CloneFunc(cloneT func(T) T) A[T] {
 	return A[T]{
 		A: v.A.CloneFunc(
@@ -49,6 +50,7 @@ func (v A[T]) CloneFunc(cloneT func(T) T) A[T] {
 	}
 }
 
+//codegen:generated
 func (v B[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) B[T, U] {
 	return B[T, U]{
 		T: cloneT(v.T),
@@ -56,6 +58,7 @@ func (v B[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) B[T, U] {
 	}
 }
 
+//codegen:generated
 func (v C[T]) CloneFunc(cloneT func(T) T) C[T] {
 	return C[T]{
 		T: cloneT(v.T),

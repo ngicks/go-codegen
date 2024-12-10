@@ -5,6 +5,7 @@ package nocopy
 
 import "sync"
 
+//codegen:generated
 func (v ContainsNoCopy) Clone() ContainsNoCopy {
 	return ContainsNoCopy{
 		NoCopy: v.NoCopy,

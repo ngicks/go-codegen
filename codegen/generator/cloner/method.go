@@ -68,6 +68,7 @@ func generateCloner(
 
 	var cloneCallbacks [][2]string
 
+	printf("//" + codegen.DirectivePrefix + codegen.DirectiveCommentGenerated + "\n")
 	if node.Type.TypeParams().Len() == 0 {
 		printf("func (v %[1]s) Clone() %[1]s {\n", typeName)
 	} else {

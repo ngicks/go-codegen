@@ -3,6 +3,7 @@
 // go run github.com/ngicks/go-codegen/codegen cloner --help
 package implementor
 
+//codegen:generated
 func (v ContainsImplementor[T]) CloneFunc(cloneT func(T) T) ContainsImplementor[T] {
 	return ContainsImplementor[T]{
 		U: v.U.CloneFunc(

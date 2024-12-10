@@ -3,6 +3,7 @@
 // go run github.com/ngicks/go-codegen/codegen cloner --help
 package param
 
+//codegen:generated
 func (v Param[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) Param[T, U] {
 	return Param[T, U]{
 		U: cloneU(v.U),
@@ -10,6 +11,7 @@ func (v Param[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) Param[T, U] {
 	}
 }
 
+//codegen:generated
 func (v Param2[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) Param2[T, U] {
 	return Param2[T, U]{
 		U: func(v map[string]*U) map[string]*U {

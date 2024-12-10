@@ -3,6 +3,7 @@
 // go run github.com/ngicks/go-codegen/codegen cloner --help
 package simple
 
+//codegen:generated
 func (v A) Clone() A {
 	return A{
 		A: v.A,
@@ -21,6 +22,7 @@ func (v A) Clone() A {
 	}
 }
 
+//codegen:generated
 func (v B) Clone() B {
 	return B{
 		A: func(v []*[]string) []*[]string {
