@@ -52,7 +52,6 @@ func TestGenerate_%[1]s(t *testing.T) {
 		context.Background(),
 		testPrinter.Writer,
 		pkgs,
-		nil,
 	)
 	assert.NilError(t, err)
 	results := testPrinter.Results()

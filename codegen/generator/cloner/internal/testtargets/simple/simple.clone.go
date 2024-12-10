@@ -3,6 +3,11 @@
 // go run github.com/ngicks/go-codegen/codegen cloner --help
 package simple
 
+import (
+	"maps"
+	"slices"
+)
+
 //codegen:generated
 func (v A) Clone() A {
 	return A{
@@ -35,12 +40,7 @@ func (v B) Clone() B {
 				inner := new([]string)
 				if v != nil {
 					v := *v
-					outer := &inner
-					inner := make([]string, len(v))
-					for k, v := range v {
-						inner[k] = v
-					}
-					(*outer) = &inner
+					*inner = slices.Clone(v)
 				}
 				(*outer)[k] = inner
 			}
@@ -48,16 +48,6 @@ func (v B) Clone() B {
 
 			return out
 		}(v.A),
-		B: func(v map[string]int) map[string]int {
-			out := make(map[string]int, len(v))
-
-			inner := out
-			for k, v := range v {
-				inner[k] = v
-			}
-			out = inner
-
-			return out
-		}(v.B),
+		B: maps.Clone(v.B),
 	}
 }

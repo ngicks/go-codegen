@@ -3,7 +3,9 @@
 // go run github.com/ngicks/go-codegen/codegen cloner --help
 package nocopy
 
-import "sync"
+import (
+	"sync"
+)
 
 //codegen:generated
 func (v ContainsNoCopy) Clone() ContainsNoCopy {

@@ -473,6 +473,7 @@ func TraverseToNamed(
 ) error {
 	return TraverseTypes(
 		ty,
+		nil,
 		func(ty types.Type, named *types.Named, stack []EdgeRouteNode) error {
 			if named == nil {
 				return nil
@@ -485,9 +486,14 @@ func TraverseToNamed(
 
 func TraverseTypes(
 	ty types.Type,
+	stopper func(ty types.Type) bool,
 	cb func(ty types.Type, named *types.Named, stack []EdgeRouteNode) error,
 	stack []EdgeRouteNode,
 ) error {
+	if stopper != nil && stopper(ty) {
+		named, _ := ty.(*types.Named)
+		return cb(ty, named, stack)
+	}
 	// types may recurse.
 	// but should be impossible without naming type,
 	// which breaks visitToNamed from infinite loop.
@@ -497,29 +503,34 @@ func TraverseTypes(
 	case *types.Alias:
 		// TODO: check for type param after go1.24
 		// see https://github.com/golang/go/issues/46477
-		return TraverseTypes(x.Rhs(), cb, append(stack, EdgeRouteNode{Kind: EdgeKindAlias}))
+		return TraverseTypes(x.Rhs(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindAlias}))
 	case *types.Array:
-		return TraverseTypes(x.Elem(), cb, append(stack, EdgeRouteNode{Kind: EdgeKindArray}))
+		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindArray}))
 	case *types.Basic:
 		return cb(x, nil, stack)
 	case *types.Chan:
-		return TraverseTypes(x.Elem(), cb, append(stack, EdgeRouteNode{Kind: EdgeKindChan}))
+		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindChan}))
 	case *types.Interface:
 		return cb(x, nil, stack)
 	case *types.Map:
-		return TraverseTypes(x.Elem(), cb, append(stack, EdgeRouteNode{Kind: EdgeKindMap}))
+		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindMap}))
 	case *types.Named:
 		return cb(x, x, stack)
 	case *types.Pointer:
-		return TraverseTypes(x.Elem(), cb, append(stack, EdgeRouteNode{Kind: EdgeKindPointer}))
+		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindPointer}))
 	case *types.Slice:
-		return TraverseTypes(x.Elem(), cb, append(stack, EdgeRouteNode{Kind: EdgeKindSlice}))
+		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindSlice}))
 	case *types.Struct:
 		// We don't support type-parametrized struct fields.
 		// Thus not checking type args.
 		for i := range x.NumFields() {
 			f := x.Field(i)
-			err := TraverseTypes(f.Type(), cb, append(stack, EdgeRouteNode{Kind: EdgeKindStruct, Pos: option.Some(i)}))
+			err := TraverseTypes(
+				f.Type(),
+				stopper,
+				cb,
+				append(stack, EdgeRouteNode{Kind: EdgeKindStruct, Pos: option.Some(i)}),
+			)
 			if err != nil {
 				return err
 			}

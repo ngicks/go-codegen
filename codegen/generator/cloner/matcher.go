@@ -29,6 +29,8 @@ type MatcherConfig struct {
 	NoCopyHandle  NoCopyHandle
 	ChannelHandle NoCopyHandle
 
+	CustomHandlers CustomHandlers
+
 	logger *slog.Logger
 }
 
@@ -81,7 +83,7 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 			}
 
 			logger := logger.With(slog.Int("at", i), slog.String("fieldName", f.Name()))
-			unwrapped, _, kind, fieldOk := conf.matchTy(f.Type(), logger)
+			unwrapped, _, kind, _, fieldOk := conf.matchTy(f.Type(), logger)
 			if !fieldOk {
 				logger.Debug("not matched")
 				return false, nil
@@ -107,7 +109,7 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 		}
 	case *types.Array, *types.Slice, *types.Map:
 		ty := x.(interface{ Elem() types.Type }).Elem()
-		_, _, kind, fieldOk := c.matchTy(ty, logger)
+		_, _, kind, _, fieldOk := c.matchTy(ty, logger)
 		if kind == handleKindIgnore {
 			logger.Debug("not matched: type ignored")
 			return false, nil
@@ -128,13 +130,19 @@ const (
 	handleKindCallCb
 	handleKindCallClone
 	handleKindCallCloneFunc
+	handleKindUseCustomHandler
 )
 
-func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, ok bool) {
+func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, customHandlerIndex int, ok bool) {
 	k = handleKindIgnore
 	ok = true
+	customHandlerIndex = -1
 	_ = typegraph.TraverseTypes(
 		ty,
+		func(ty types.Type) bool {
+			customHandlerIndex = c.CustomHandlers.Match(ty)
+			return customHandlerIndex >= 0
+		},
 		func(unwrapped_ types.Type, _ *types.Named, stack_ []typegraph.EdgeRouteNode) error {
 			unwrapped = unwrapped_
 			stack = stack_
@@ -181,6 +189,11 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 				return nil
 			}
 
+			if customHandlerIndex >= 0 {
+				k = handleKindUseCustomHandler
+				return nil
+			}
+
 			switch unwrapped_.(type) {
 			case *types.Basic:
 				k = handleKindAssign
@@ -189,7 +202,8 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 				k = handleKindCallCb
 				return nil
 			case *types.Named:
-				if matcher.IsNoCopy(unwrapped_) {
+				switch {
+				case matcher.IsNoCopy(unwrapped_):
 					switch c.NoCopyHandle {
 					case NoCopyHandleIgnore:
 						logger.Debug("ignoring field since it contains no copy object: if it should be copied place " +
@@ -217,12 +231,14 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 					}
 					ok = false
 					return nil
-				}
-				if clonerMatcher.IsFuncImplementor(unwrapped_) {
+				case clonerMatcher.IsFuncImplementor(unwrapped_):
 					k = handleKindCallCloneFunc
-				} else if clonerMatcher.IsImplementor(unwrapped_) {
+				case clonerMatcher.IsImplementor(unwrapped_):
 					k = handleKindCallClone
+				case matcher.IsCloneByAssign(unwrapped_):
+					k = handleKindAssign
 				}
+
 			}
 			return nil
 		},
@@ -236,7 +252,7 @@ func (c *MatcherConfig) handleField(
 	parent *typegraph.Node,
 	child *typegraph.Node,
 	ty types.Type,
-) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind) {
+) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, customHandlerIndex int) {
 	conf := *c
 	if parent != nil && pos >= 0 {
 		priv, ok := parent.Priv.(clonerPriv)
@@ -248,9 +264,13 @@ func (c *MatcherConfig) handleField(
 		}
 	}
 
-	unwrapped, stack, k, ok := conf.matchTy(ty, noopLogger)
+	unwrapped, stack, k, customHandlerIndex, ok := conf.matchTy(ty, noopLogger)
 	if !ok {
 		k = handleKindIgnore
+		return
+	}
+
+	if customHandlerIndex >= 0 {
 		return
 	}
 

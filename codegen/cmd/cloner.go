@@ -7,7 +7,6 @@ import (
 	"log/slog"
 
 	"github.com/ngicks/go-codegen/codegen/generator/cloner"
-	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/spf13/cobra"
 	"golang.org/x/tools/go/packages"
@@ -48,7 +47,7 @@ You can use github.com/ngicks/go-codegen/pkg/cloneruntime for some help.
 			if verbose {
 				cfg.Logger = slog.Default()
 			}
-			return cfg.Generate(cmd.Context(), writer, pkgs, []imports.TargetImport{})
+			return cfg.Generate(cmd.Context(), writer, pkgs)
 		},
 	),
 }

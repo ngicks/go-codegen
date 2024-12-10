@@ -104,7 +104,7 @@ func generateCloner(
 
 			edge, _, _, _ := edges.ByFieldPos(i)
 
-			_, _, handleKind := c.matcherConfig().handleField(
+			_, _, handleKind, _ := c.matcherConfig().handleField(
 				i,
 				node,
 				edge.ChildNode,
@@ -151,7 +151,7 @@ func generateCloner(
 		_, edge, _ := edges.First()
 
 		ty := node.Type.Underlying()
-		_, _, handleKind := c.matcherConfig().handleField(
+		_, _, handleKind, _ := c.matcherConfig().handleField(
 			-1,
 			node,
 			edge.ChildNode,
@@ -218,7 +218,7 @@ func cloneTy(
 	ty types.Type,
 	cloneCallbacks [][2]string,
 ) (clonerExpr func(s string) string, callable bool, err error) {
-	unwrapped, stack, handleKind := c.matcherConfig().handleField(
+	unwrapped, stack, handleKind, idx := c.matcherConfig().handleField(
 		pos,
 		parent,
 		child,
@@ -264,6 +264,7 @@ func cloneTy(
 				var childTy types.Type
 				_ = typegraph.TraverseTypes(
 					x,
+					nil,
 					func(ty types.Type, named *types.Named, stack []typegraph.EdgeRouteNode) error {
 						childTy = ty
 						return nil
@@ -315,6 +316,8 @@ func cloneTy(
 		cloneExpr = func(s string) string {
 			return s + builder.String()
 		}
+	case handleKindUseCustomHandler:
+		cloneExpr = c.matcherConfig().CustomHandlers[idx].Expr(importMap)
 	}
 
 	if unwrapper != nil {

@@ -3,6 +3,8 @@
 // go run github.com/ngicks/go-codegen/codegen cloner --help
 package simpleasm
 
+import "slices"
+
 //codegen:generated
 func (v A) Clone() A {
 	return func(v [5][]map[string]*[][]string) [5][]map[string]*[][]string {
@@ -23,12 +25,7 @@ func (v A) Clone() A {
 						outer := &inner
 						inner := make([][]string, len(v))
 						for k, v := range v {
-							outer := &inner
-							inner := make([]string, len(v))
-							for k, v := range v {
-								inner[k] = v
-							}
-							(*outer)[k] = inner
+							inner[k] = slices.Clone(v)
 						}
 						(*outer) = &inner
 					}

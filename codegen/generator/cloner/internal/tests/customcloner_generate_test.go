@@ -11,8 +11,8 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestGenerate_simpleasm(t *testing.T) {
-	pkgs := testTargets["simpleasm"]
+func TestGenerate_customcloner(t *testing.T) {
+	pkgs := testTargets["customcloner"]
 	testPrinter := suffixwriter.NewTestWriter(".cloner", suffixwriter.WithCwd("../testtargets"))
 	cfg := cloner.Config{}
 	err := cfg.Generate(

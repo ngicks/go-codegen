@@ -28,10 +28,12 @@ type Config struct {
 
 func (c *Config) matcherConfig() *MatcherConfig {
 	if c.MatcherConfig != nil {
-		c.MatcherConfig.logger = c.logger()
-		return c.MatcherConfig
+		conf := *c.MatcherConfig
+		conf.CustomHandlers = append(builtinCustomHandlers[:], conf.CustomHandlers...)
+		conf.logger = c.logger()
+		return &conf
 	}
-	return &MatcherConfig{logger: c.logger()}
+	return &MatcherConfig{CustomHandlers: builtinCustomHandlers[:], logger: c.logger()}
 }
 
 var (
@@ -50,10 +52,9 @@ func (c *Config) Generate(
 	ctx context.Context,
 	sourcePrinter *suffixwriter.Writer,
 	pkgs []*packages.Package,
-	extra []imports.TargetImport,
 ) error {
 	parser := imports.NewParserPackages(pkgs)
-	parser.AppendExtra(extra...)
+	parser.AppendExtra(c.matcherConfig().CustomHandlers.Imports()...)
 
 	graph, err := typegraph.New(
 		pkgs,

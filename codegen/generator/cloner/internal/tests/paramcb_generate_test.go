@@ -19,7 +19,6 @@ func TestGenerate_paramcb(t *testing.T) {
 		context.Background(),
 		testPrinter.Writer,
 		pkgs,
-		nil,
 	)
 	assert.NilError(t, err)
 	results := testPrinter.Results()
