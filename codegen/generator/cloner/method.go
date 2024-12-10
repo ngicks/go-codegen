@@ -95,6 +95,8 @@ func generateCloner(
 	edges := node.ChildEdgeMap(c.MatcherConfig.MatchEdge)
 
 	switch node.Type.Underlying().(type) {
+	default:
+		return errNotHandled
 	case *types.Struct:
 		aStruct := ats.Type.(*ast.StructType)
 		dStruct := dts.Type.(*dst.StructType)
@@ -149,6 +151,45 @@ func generateCloner(
 		if handled == 0 {
 			err = errNotHandled
 		}
+	case *types.Array, *types.Slice, *types.Map:
+		_, edge, _ := edges.First()
+
+		ty := node.Type.Underlying()
+		_, _, handleKind := c.matcherConfig().handleField(
+			-1,
+			node,
+			edge.ChildNode,
+			ty,
+		)
+
+		if handleKind == handleKindIgnore {
+			return errNotHandled
+		}
+
+		clonerExpr, callable, err := cloneTy(
+			c,
+			node.Type.Obj().Pkg().Path(),
+			importMap,
+			g,
+			node,
+			edge.ChildNode,
+			-1,
+			ats.Type,
+			ty,
+			cloneCallbacks,
+		)
+		switch {
+		case errors.Is(err, errParamNotOk):
+			return err
+		}
+
+		printf("return ")
+		if callable {
+			printf(strings.ReplaceAll(clonerExpr("v")+"(v)", "%", "%%"))
+		} else {
+			printf(strings.ReplaceAll(clonerExpr("v"), "%", "%%"))
+		}
+		printf("\n")
 	}
 	return
 }
