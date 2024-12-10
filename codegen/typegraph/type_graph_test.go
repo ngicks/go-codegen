@@ -95,8 +95,8 @@ func Test_edges(t *testing.T) {
 	pkgs := pkgsMap["edges"]
 	graph, err := New(
 		pkgs,
-		func(typeInfo *types.Named, external bool) (bool, error) {
-			return isFakeTargetType(typeInfo), nil
+		func(node *Node, external bool) (bool, error) {
+			return isFakeTargetType(node.Type), nil
 		},
 		func(gd *ast.GenDecl) (bool, error) {
 			return !strings.Contains(gd.Doc.Text(), "filterGenDecl"), nil
@@ -199,7 +199,7 @@ func Test_filterast(t *testing.T) {
 	pkgs := pkgsMap["filterast"]
 	graph, err := New(
 		pkgs,
-		func(typeInfo *types.Named, external bool) (bool, error) {
+		func(node *Node, external bool) (bool, error) {
 			return false, nil
 		},
 		func(gd *ast.GenDecl) (bool, error) {
@@ -233,8 +233,8 @@ func Test_filteredge(t *testing.T) {
 	pkgs := pkgsMap["filteredge"]
 	graph, err := New(
 		pkgs,
-		func(typeInfo *types.Named, external bool) (bool, error) {
-			return isFakeTargetType(typeInfo), nil
+		func(node *Node, external bool) (bool, error) {
+			return isFakeTargetType(node.Type), nil
 		},
 		nil,
 		nil,
@@ -389,8 +389,8 @@ func Test_loop(t *testing.T) {
 	pkgs := pkgsMap["loop"]
 	graph, err := New(
 		pkgs,
-		func(typeInfo *types.Named, external bool) (bool, error) {
-			return isFakeTargetType(typeInfo), nil
+		func(node *Node, external bool) (bool, error) {
+			return isFakeTargetType(node.Type), nil
 		},
 		nil,
 		nil,

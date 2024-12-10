@@ -51,8 +51,9 @@ func (c *MatcherConfig) MatchEdge(e typegraph.Edge) bool {
 	)
 }
 
-func (c *MatcherConfig) MatchType(named *types.Named, external bool) (ok bool, err error) {
-	// TODO: change match ty signature to receive priv data, then patch c.
+func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool, err error) {
+	named := node.Type
+
 	logger := c.logger
 	attr := []any{}
 	if pkg := named.Obj().Pkg(); pkg != nil {
@@ -70,8 +71,17 @@ func (c *MatcherConfig) MatchType(named *types.Named, external bool) (ok bool, e
 		return false, nil
 	case *types.Struct:
 		for i, f := range pkgsutil.EnumerateFields(x) {
+			conf := *c
+			if priv, ok := node.Priv.(clonerPriv); ok {
+				direction, ok := priv.lines[i]
+				if ok {
+					logger.Debug("match conf overridden", slog.Any("directive", direction))
+					conf = direction.override(conf)
+				}
+			}
+
 			logger := logger.With(slog.Int("at", i), slog.String("fieldName", f.Name()))
-			unwrapped, _, kind, fieldOk := c.matchTy(f.Type(), logger)
+			unwrapped, _, kind, fieldOk := conf.matchTy(f.Type(), logger)
 			if !fieldOk {
 				logger.Debug("not matched")
 				return false, nil

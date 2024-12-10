@@ -118,12 +118,12 @@ func _isUndAllowedEdge(edge typegraph.Edge, implementorOf func(named *types.Name
 	return false
 }
 
-func isUndPlainTarget(named *types.Named, external bool) (bool, error) {
-	return _isUndTarget(named, external, isUndConversionImplementor)
+func isUndPlainTarget(node *typegraph.Node, external bool) (bool, error) {
+	return _isUndTarget(node.Type, external, isUndConversionImplementor)
 }
 
-func isUndValidatorTarget(named *types.Named, external bool) (bool, error) {
-	return _isUndTarget(named, external, isUndValidatorImplementor)
+func isUndValidatorTarget(node *typegraph.Node, external bool) (bool, error) {
+	return _isUndTarget(node.Type, external, isUndValidatorImplementor)
 }
 
 func _isUndTarget(named *types.Named, external bool, implementorOf func(named *types.Named) bool) (bool, error) {

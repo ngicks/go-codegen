@@ -221,7 +221,7 @@ func FirstTypeIdent(m map[Ident][]Edge) (Ident, Edge) {
 
 func New(
 	pkgs []*packages.Package,
-	matcher func(typeInfo *types.Named, external bool) (bool, error),
+	matcher func(node *Node, external bool) (bool, error),
 	genDeclFilter func(*ast.GenDecl) (bool, error),
 	typeSpecFilter func(*ast.TypeSpec, types.Object) (bool, error),
 	opts ...Option,
@@ -251,7 +251,7 @@ func New(
 
 func (g *Graph) listTypes(
 	pkgs []*packages.Package,
-	matcher func(named *types.Named, external bool) (bool, error),
+	matcher func(node *Node, external bool) (bool, error),
 	genDeclFilter func(*ast.GenDecl) (bool, error),
 	typeSpecFilter func(*ast.TypeSpec, types.Object) (bool, error),
 ) error {
@@ -305,7 +305,7 @@ func (g *Graph) listTypes(
 					if err != nil {
 						return fmt.Errorf("parsing priv: %w", err)
 					}
-					ok, err = matcher(named, false)
+					ok, err = matcher(node, false)
 					if err != nil {
 						return fmt.Errorf("matching type: %w", err)
 					}
@@ -345,7 +345,7 @@ func addType(
 }
 
 func (g *Graph) buildEdge(
-	matcher func(named *types.Named, external bool) (bool, error),
+	matcher func(node *Node, external bool) (bool, error),
 ) error {
 	for _, node := range g.types {
 		// Underlying matches what of go spec.
@@ -372,7 +372,7 @@ func (g *Graph) buildEdge(
 func visitTypes(
 	parentNode *Node,
 	ty types.Type,
-	matcher func(named *types.Named, external bool) (bool, error),
+	matcher func(node *Node, external bool) (bool, error),
 	allType map[Ident]*Node,
 	externalType map[Ident]*Node,
 	stack []EdgeRouteNode,
@@ -395,7 +395,13 @@ func visitTypes(
 				)
 				return nil
 			}
-			ok, err := matcher(named, true)
+			ok, err := matcher(
+				&Node{
+					Pos:  -1,
+					Type: named,
+				},
+				true,
+			)
 			if !ok || err != nil {
 				return err
 			}
@@ -420,7 +426,7 @@ func visitTypes(
 
 func visitOnTypeArgs(
 	typeList *types.TypeList,
-	matcher func(named *types.Named, external bool) (bool, error),
+	matcher func(node *Node, external bool) (bool, error),
 	allType map[Ident]*Node,
 	externalType map[Ident]*Node,
 ) []TypeArg {
@@ -434,7 +440,7 @@ func visitOnTypeArgs(
 				// TODO: split this `check if internal types, if not, then add as external type` sequence as a function or a method.
 				node, ok := allType[IdentFromTypesObject(named.Obj())]
 				if !ok {
-					ok, err := matcher(named, true)
+					ok, err := matcher(&Node{Pos: -1, Type: named}, true)
 					if ok && err == nil {
 						externalNode := addType(externalType, nil, nil, -1, nil, named)
 						externalNode.Matched |= MatchKindExternal
