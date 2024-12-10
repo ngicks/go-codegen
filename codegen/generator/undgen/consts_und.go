@@ -1,11 +1,14 @@
 package undgen
 
-import "github.com/ngicks/go-codegen/codegen/imports"
+import (
+	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/matcher"
+)
 
 type ConstSet struct {
 	Imports          []imports.TargetImport
-	ConversionMethod ConversionMethodsSet
-	ValidatorMethod  ValidatorMethod
+	ConversionMethod matcher.CyclicConversionMethods
+	ValidatorMethod  matcher.ErrorMethod
 }
 
 var ConstUnd = ConstSet{
@@ -44,11 +47,11 @@ var ConstUnd = ConstSet{
 			Types:  []string{"Empty"},
 		},
 	},
-	ConversionMethod: ConversionMethodsSet{
-		ToRaw:   "UndRaw",
-		ToPlain: "UndPlain",
+	ConversionMethod: matcher.CyclicConversionMethods{
+		Reverse: "UndRaw",
+		Convert: "UndPlain",
 	},
-	ValidatorMethod: ValidatorMethod{
+	ValidatorMethod: matcher.ErrorMethod{
 		Name: "UndValidate",
 	},
 }

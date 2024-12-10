@@ -23,11 +23,11 @@ type fieldAstExprSet struct {
 	Unwrapped ast.Expr
 }
 
-func unwrapExprOne(expr ast.Expr, kind typegraph.TypeDependencyEdgeKind) ast.Expr {
+func unwrapExprOne(expr ast.Expr, kind typegraph.EdgeKind) ast.Expr {
 	switch kind {
-	case typegraph.TypeDependencyEdgeKindArray, typegraph.TypeDependencyEdgeKindSlice:
+	case typegraph.EdgeKindArray, typegraph.EdgeKindSlice:
 		return expr.(*ast.ArrayType).Elt
-	case typegraph.TypeDependencyEdgeKindMap:
+	case typegraph.EdgeKindMap:
 		return expr.(*ast.MapType).Value
 	}
 	return expr
@@ -35,7 +35,7 @@ func unwrapExprOne(expr ast.Expr, kind typegraph.TypeDependencyEdgeKind) ast.Exp
 
 func unwrapFieldAlongPath(
 	fromExpr, toExpr ast.Expr,
-	edge typegraph.TypeDependencyEdge,
+	edge typegraph.Edge,
 	skip int,
 ) func(wrappee func(string) string, fieldExpr string) string {
 	if fromExpr == nil || toExpr == nil {
@@ -45,16 +45,16 @@ func unwrapFieldAlongPath(
 	output := codegen.PrintAstExprPanicking(toExpr)
 
 	s := edge.Stack[skip:]
-	if len(s) > 0 && s[len(s)-1].Kind == typegraph.TypeDependencyEdgeKindPointer {
+	if len(s) > 0 && s[len(s)-1].Kind == typegraph.EdgeKindPointer {
 		s = s[:len(s)-1]
 	}
 	if len(s) == 0 {
 		return nil
 	}
 
-	initializer := func(expr ast.Expr, kind typegraph.TypeDependencyEdgeKind) string {
+	initializer := func(expr ast.Expr, kind typegraph.EdgeKind) string {
 		switch kind {
-		case typegraph.TypeDependencyEdgeKindArray:
+		case typegraph.EdgeKindArray:
 			return fmt.Sprintf("%s{}", codegen.PrintAstExprPanicking(expr))
 		default:
 			return fmt.Sprintf("make(%s, len(v))", codegen.PrintAstExprPanicking(expr))
@@ -106,16 +106,15 @@ func unwrapFieldAlongPath(
 		}
 		return expr
 	}
-
 }
 
-func generateConversionMethod(w io.Writer, data *replaceData, node *typegraph.TypeNode, exprMap map[string]fieldAstExprSet) (err error) {
-	ts := data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
-	plainTyName := ts.Name.Name + printTypeParamVars(ts)
+func generateConversionMethod(w io.Writer, data *typegraph.ReplaceData, node *typegraph.Node, exprMap map[string]fieldAstExprSet) (err error) {
+	ts := data.Dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
+	plainTyName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
 	rawTyName, _ := strings.CutSuffix(ts.Name.Name, "Plain")
-	rawTyName += printTypeParamVars(ts)
+	rawTyName += codegen.PrintTypeParamsDst(ts)
 
-	printf, flush := bufPrintf(w)
+	printf, flush := codegen.BufPrintf(w)
 	defer func() {
 		if err == nil {
 			err = flush()
@@ -133,8 +132,8 @@ func generateToRawOrToPlain(
 	printf func(format string, args ...any),
 	plainTyName, rawTyName string,
 	ts *dst.TypeSpec,
-	data *replaceData,
-	node *typegraph.TypeNode,
+	data *typegraph.ReplaceData,
+	node *typegraph.Node,
 	exprMap map[string]fieldAstExprSet,
 ) {
 	printf("//%s%s\n", codegen.DirectivePrefix, codegen.DirectiveCommentGenerated)
@@ -153,9 +152,9 @@ func generateToRawOrToPlain(
 	named := node.Type
 	switch named.Underlying().(type) {
 	case *types.Array, *types.Slice, *types.Map:
-		generateConversionMethodElemTypes(toPlain, printf, node, data.importMap, exprMap)
+		generateConversionMethodElemTypes(toPlain, printf, node, data.ImportMap, exprMap)
 	case *types.Struct:
-		generateConversionMethodStructFields(toPlain, printf, ts, node, rawTyName, plainTyName, data.importMap, exprMap)
+		generateConversionMethodStructFields(toPlain, printf, ts, node, rawTyName, plainTyName, data.ImportMap, exprMap)
 	default:
 		slog.Default().Error(
 			"implementation error",
@@ -170,7 +169,7 @@ func generateToRawOrToPlain(
 func generateConversionMethodElemTypes(
 	toPlain bool,
 	printf func(format string, args ...any),
-	node *typegraph.TypeNode,
+	node *typegraph.Node,
 	importMap imports.ImportMap,
 	exprMap map[string]fieldAstExprSet,
 ) {
@@ -217,8 +216,8 @@ func generateConversionMethodElemTypes(
 		printf(`return ` + unwrapper(converter, "v"))
 		return
 	} else {
-		isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
-			return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
+		isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.EdgeRouteNode) bool {
+			return tdep.Kind == typegraph.EdgeKindPointer
 		})
 		// implementor
 		printf(`return ` + unwrapper(
@@ -246,7 +245,7 @@ func generateConversionMethodStructFields(
 	toPlain bool,
 	printf func(format string, args ...any),
 	ts *dst.TypeSpec,
-	node *typegraph.TypeNode,
+	node *typegraph.Node,
 	rawTyName, plainTyName string,
 	importMap imports.ImportMap,
 	exprMap map[string]fieldAstExprSet,
@@ -300,8 +299,8 @@ func generateConversionMethodStructFields(
 					ty := edge.PrintChildArgConverted(plainConverter, importMap)
 					fieldConverter, needsArg = generateConversionMethodDirect(toPlain, edge, undOpt, ty, importMap)
 				} else if isUndConversionImplementor(edge.ChildType) || edge.IsChildMatched() {
-					isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
-						return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
+					isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.EdgeRouteNode) bool {
+						return tdep.Kind == typegraph.EdgeKindPointer
 					})
 					fieldConverter = _generateConversionMethodInvocationExpr(
 						toPlain,
@@ -359,7 +358,7 @@ func generateConversionMethodStructFields(
 	)
 }
 
-func generateConversionMethodDirect(toPlain bool, edge typegraph.TypeDependencyEdge, undOpt undtag.UndOpt, typeParam string, importMap imports.ImportMap) (convert func(ident string) string, needsArg bool) {
+func generateConversionMethodDirect(toPlain bool, edge typegraph.Edge, undOpt undtag.UndOpt, typeParam string, importMap imports.ImportMap) (convert func(ident string) string, needsArg bool) {
 	matchUndTypeBool(
 		namedTypeToTargetType(edge.ChildType),
 		false,
@@ -389,7 +388,7 @@ func generateConversionMethodDirect(toPlain bool, edge typegraph.TypeDependencyE
 	if ok, isPointer := edge.HasSingleNamedTypeArg(nil); ok {
 		var isMatched bool
 		if node := edge.TypeArgs[0].Node; node != nil {
-			isMatched = (node.Matched &^ typegraph.TypeNodeMatchKindExternal) > 0
+			isMatched = (node.Matched &^ typegraph.MatchKindExternal) > 0
 		}
 		_, ok := plainConverter(edge.TypeArgs[0].Ty, isMatched)
 		if ok {
@@ -410,7 +409,7 @@ func generateConversionMethodDirect(toPlain bool, edge typegraph.TypeDependencyE
 
 func _generateConversionMethodImplementorMapper(
 	toPlain bool,
-	edge typegraph.TypeDependencyEdge,
+	edge typegraph.Edge,
 	rawType, plainTy string,
 	importMap imports.ImportMap,
 	isPointer bool,

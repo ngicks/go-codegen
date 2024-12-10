@@ -1,6 +1,7 @@
 package imports
 
 import (
+	"go/types"
 	"path"
 	"slices"
 	"strings"
@@ -23,6 +24,19 @@ func (ti TargetImports) Append(imports ...TargetImport) {
 type TargetType struct {
 	ImportPath string
 	Name       string
+}
+
+func (t TargetType) Is(ty types.Type) bool {
+	named, ok := ty.(*types.Named)
+	if !ok {
+		return false
+	}
+	pkg := named.Obj().Pkg()
+	var pkgPath string
+	if pkg != nil {
+		pkgPath = pkg.Path()
+	}
+	return t.ImportPath == pkgPath && t.Name == named.Obj().Name()
 }
 
 type TargetImport struct {

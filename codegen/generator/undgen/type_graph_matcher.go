@@ -2,12 +2,10 @@ package undgen
 
 import (
 	"fmt"
-	"go/ast"
 	"go/types"
 	"reflect"
 	"slices"
 
-	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/msg"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
@@ -16,25 +14,25 @@ import (
 	"github.com/ngicks/und/undtag"
 )
 
-var undFieldAllowedEdges = []typegraph.TypeDependencyEdgeKind{
-	typegraph.TypeDependencyEdgeKindAlias,
-	typegraph.TypeDependencyEdgeKindArray,
-	typegraph.TypeDependencyEdgeKindMap,
-	typegraph.TypeDependencyEdgeKindSlice,
+var undFieldAllowedEdges = []typegraph.EdgeKind{
+	typegraph.EdgeKindAlias,
+	typegraph.EdgeKindArray,
+	typegraph.EdgeKindMap,
+	typegraph.EdgeKindSlice,
 	// typeDependencyEdgeKindStruct, // struct literal is not allowed
 }
 
-func isUndAllowedEdgeKind(k typegraph.TypeDependencyEdgeKind) bool {
+func isUndAllowedEdgeKind(k typegraph.EdgeKind) bool {
 	return slices.Contains(undFieldAllowedEdges, k)
 }
 
-func isUndAllowedPointer(ty *types.Named, p []typegraph.TypeDependencyEdgePointer) bool {
+func isUndAllowedPointer(ty *types.Named, p []typegraph.EdgeRouteNode) bool {
 	if len(p) == 0 {
 		// directly attached named type.
 		// Basically for type param.
 		return true
 	}
-	if p[0].Kind == typegraph.TypeDependencyEdgeKindStruct {
+	if p[0].Kind == typegraph.EdgeKindStruct {
 		p = p[1:]
 	}
 	if len(p) == 0 {
@@ -44,31 +42,31 @@ func isUndAllowedPointer(ty *types.Named, p []typegraph.TypeDependencyEdgePointe
 	if !slices.Contains(undFieldAllowedEdges, last.Kind) &&
 		// non und type is allowed to be pointer.
 		// but only for the last element
-		last.Kind != typegraph.TypeDependencyEdgeKindPointer && isUndType(ty) {
+		last.Kind != typegraph.EdgeKindPointer && isUndType(ty) {
 		return false
 	}
 	return hiter.Every(
-		func(p typegraph.TypeDependencyEdgePointer) bool {
+		func(p typegraph.EdgeRouteNode) bool {
 			return isUndAllowedEdgeKind(p.Kind)
 		},
 		slices.Values(rest),
 	)
 }
 
-func isUndPlainAllowedEdge(edge typegraph.TypeDependencyEdge) bool {
+func isUndPlainAllowedEdge(edge typegraph.Edge) bool {
 	return _isUndAllowedEdge(edge, isUndConversionImplementor)
 }
 
-func isUndValidatorAllowedEdge(edge typegraph.TypeDependencyEdge) bool {
+func isUndValidatorAllowedEdge(edge typegraph.Edge) bool {
 	return _isUndAllowedEdge(edge, isUndValidatorImplementor)
 }
 
-func _isUndAllowedEdge(edge typegraph.TypeDependencyEdge, implementorOf func(named *types.Named) bool) bool {
+func _isUndAllowedEdge(edge typegraph.Edge, implementorOf func(named *types.Named) bool) bool {
 	if !isUndAllowedPointer(edge.ChildType, edge.Stack) {
 		return false
 	}
 	// struct field
-	if len(edge.Stack) > 0 && edge.Stack[0].Kind == typegraph.TypeDependencyEdgeKindStruct && edge.Stack[0].Pos.IsSome() {
+	if len(edge.Stack) > 0 && edge.Stack[0].Kind == typegraph.EdgeKindStruct && edge.Stack[0].Pos.IsSome() {
 		// case 1. tagged und types.
 		st := edge.ParentNode.Type.Underlying().(*types.Struct)
 		_, ok := reflect.StructTag(st.Tag(edge.Stack[0].Pos.Value())).Lookup(undtag.TagName)
@@ -101,7 +99,7 @@ func _isUndAllowedEdge(edge typegraph.TypeDependencyEdge, implementorOf func(nam
 		switch edge.Stack[0].Kind {
 		default:
 			return false
-		case typegraph.TypeDependencyEdgeKindMap, typegraph.TypeDependencyEdgeKindArray, typegraph.TypeDependencyEdgeKindSlice:
+		case typegraph.EdgeKindMap, typegraph.EdgeKindArray, typegraph.EdgeKindSlice:
 		}
 		if implementorOf(edge.ChildType) {
 			return true
@@ -120,12 +118,12 @@ func _isUndAllowedEdge(edge typegraph.TypeDependencyEdge, implementorOf func(nam
 	return false
 }
 
-func isUndPlainTarget(named *types.Named, external bool) (bool, error) {
-	return _isUndTarget(named, external, isUndConversionImplementor)
+func isUndPlainTarget(node *typegraph.Node, external bool) (bool, error) {
+	return _isUndTarget(node.Type, external, isUndConversionImplementor)
 }
 
-func isUndValidatorTarget(named *types.Named, external bool) (bool, error) {
-	return _isUndTarget(named, external, isUndValidatorImplementor)
+func isUndValidatorTarget(node *typegraph.Node, external bool) (bool, error) {
+	return _isUndTarget(node.Type, external, isUndValidatorImplementor)
 }
 
 func _isUndTarget(named *types.Named, external bool, implementorOf func(named *types.Named) bool) (bool, error) {
@@ -145,9 +143,9 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 		elem := named.Underlying().(interface{ Elem() types.Type }).Elem()
 		var found bool
 		// deeply nested map, array, slice is allowed.
-		_ = typegraph.VisitToNamed(
+		_ = typegraph.TraverseToNamed(
 			elem,
-			func(named *types.Named, stack []typegraph.TypeDependencyEdgePointer) error {
+			func(named *types.Named, stack []typegraph.EdgeRouteNode) error {
 				if !isUndAllowedPointer(named, stack) {
 					return nil
 				}
@@ -189,9 +187,9 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 					found      bool
 					targetType imports.TargetType
 				)
-				_ = typegraph.VisitToNamed(
+				_ = typegraph.TraverseToNamed(
 					f.Type(),
-					func(named *types.Named, stack []typegraph.TypeDependencyEdgePointer) error {
+					func(named *types.Named, stack []typegraph.EdgeRouteNode) error {
 						if isUndAllowedPointer(named, stack) && isUndType(named) {
 							found = true
 							targetType = namedTypeToTargetType(named)
@@ -228,9 +226,9 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 				continue
 			}
 			var found bool
-			_ = typegraph.VisitToNamed(
+			_ = typegraph.TraverseToNamed(
 				f.Type(),
-				func(named *types.Named, stack []typegraph.TypeDependencyEdgePointer) error {
+				func(named *types.Named, stack []typegraph.EdgeRouteNode) error {
 					if isUndAllowedPointer(named, stack) && implementorOf(named) {
 						found = true
 					}
@@ -377,20 +375,4 @@ func isUndValidatorImplementor(named *types.Named) bool {
 	// und types are already implementors.
 	// exclude them first.
 	return !isUndType(named) && ConstUnd.ValidatorMethod.IsImplementor(named)
-}
-
-func excludeUndIgnoredCommentedGenDecl(genDecl *ast.GenDecl) (bool, error) {
-	direction, _, err := codegen.ParseDirectiveComment(genDecl.Doc)
-	if err != nil {
-		return false, err
-	}
-	return !direction.MustIgnore(), nil
-}
-
-func excludeUndIgnoredCommentedTypeSpec(ts *ast.TypeSpec, _ types.Object) (bool, error) {
-	direction, _, err := codegen.ParseDirectiveComment(ts.Doc)
-	if err != nil {
-		return false, err
-	}
-	return !direction.MustIgnore(), nil
 }

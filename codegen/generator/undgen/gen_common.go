@@ -1,13 +1,7 @@
 package undgen
 
 import (
-	"bufio"
-	"fmt"
-	"go/ast"
-	"go/printer"
-	"go/token"
 	"go/types"
-	"io"
 	"reflect"
 	"slices"
 
@@ -25,58 +19,9 @@ func or[T any](left bool, l, r T) T {
 	}
 }
 
-func printFileHeader(w io.Writer, af *ast.File, fset *token.FileSet) error {
-	if err := printPackage(w, af); err != nil {
-		return err
-	}
-	if err := printImport(w, af, fset); err != nil {
-		return err
-	}
-	return nil
-}
-
-func printPackage(w io.Writer, af *ast.File) error {
-	_, err := fmt.Fprintf(w, "%s %s\n\n",
-		token.PACKAGE.String(), af.Name.Name,
-	)
-	return err
-}
-
-func printImport(w io.Writer, af *ast.File, fset *token.FileSet) error {
-	for i, dec := range af.Decls {
-		genDecl, ok := dec.(*ast.GenDecl)
-		if !ok {
-			continue
-		}
-		if genDecl.Tok != token.IMPORT {
-			// it's possible that the file has multiple import spec.
-			// but it always starts with import spec.
-			break
-		}
-		err := printer.Fprint(w, fset, genDecl)
-		if err != nil {
-			return fmt.Errorf("print.Fprint failed printing %dth import spec: %w", i, err)
-		}
-		_, err = io.WriteString(w, "\n\n")
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // returns conversion.Empty
 func conversionEmptyExpr(importMap imports.ImportMap) *dst.SelectorExpr {
 	return importMap.DstExpr(UndTargetTypeConversionEmpty)
-}
-
-func bufPrintf(w io.Writer) (func(format string, args ...any), func() error) {
-	bufw := bufio.NewWriter(w)
-	return func(format string, args ...any) {
-			fmt.Fprintf(bufw, format, args...)
-		}, func() error {
-			return bufw.Flush()
-		}
 }
 
 func importIdent(ty imports.TargetType, imports imports.ImportMap) string {
@@ -125,7 +70,5 @@ func makeRenamedType(ty *types.Named, name string, pkg *types.Package, method fu
 	if err != nil {
 		panic(err)
 	}
-	aa := types.TypeString(instantiated, (*types.Package).Name)
-	_ = aa
 	return instantiated.(*types.Named)
 }
