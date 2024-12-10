@@ -12,7 +12,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/dave/dst"
 	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
@@ -35,12 +34,11 @@ func generateMethod(
 	replacer *typegraph.ReplaceData,
 ) (err error) {
 	ats := node.Ts
-	dts := replacer.Dec.Dst.Nodes[ats].(*dst.TypeSpec)
 
 	buf := new(bytes.Buffer)
 	printf, flush := codegen.BufPrintf(buf)
 
-	err = generateCloner(c, printf, g, replacer.ImportMap, node, ats, dts)
+	err = generateCloner(c, printf, g, replacer.ImportMap, node, ats)
 	if err != nil {
 		return err
 	}
@@ -62,7 +60,6 @@ func generateCloner(
 	importMap imports.ImportMap,
 	node *typegraph.Node,
 	ats *ast.TypeSpec,
-	dts *dst.TypeSpec,
 ) (err error) {
 	typeName := node.Ts.Name.Name + codegen.PrintTypeParamsAst(node.Ts)
 
@@ -99,11 +96,10 @@ func generateCloner(
 		return errNotHandled
 	case *types.Struct:
 		aStruct := ats.Type.(*ast.StructType)
-		dStruct := dts.Type.(*dst.StructType)
 		printf("return %s{\n", typeName)
 		defer printf("}\n")
 		var handled int
-		for af, _ := range hiter.Pairs(codegen.FieldAst(aStruct), codegen.FieldDst(dStruct)) {
+		for af := range codegen.FieldAst(aStruct) {
 			i := af.Pos
 
 			edge, _, _, _ := edges.ByFieldPos(i)
