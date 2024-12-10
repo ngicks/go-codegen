@@ -62,7 +62,7 @@ func ParseFieldDirectiveCommentDst[T any](
 	prefix string,
 	comments dst.FieldDecorations,
 	parser func(s []string) (T, error),
-) (T, error) {
+) (T, bool, error) {
 	lines := directiveComments(
 		xiter.Concat(
 			slices.Values(afterLastEmptyLine(comments.Start)),
@@ -71,7 +71,11 @@ func ParseFieldDirectiveCommentDst[T any](
 		prefix,
 		true,
 	)
-	return parser(lines)
+	if len(lines) == 0 {
+		return *new(T), false, nil
+	}
+	t, err := parser(lines)
+	return t, true, err
 }
 
 func parseDirective(seq iter.Seq[string]) (Direction, bool, error) {

@@ -13,7 +13,7 @@ import (
 
 const (
 	DirectivePrefix         = "cloner:"
-	directiveCommentIgnore  = "ignore"
+	DirectiveCommentIgnore  = "ignore"
 	DirectiveCommentCopyPtr = "copyptr"
 )
 
@@ -27,11 +27,17 @@ type clonerPriv struct {
 
 type direction struct {
 	Pos     int
+	Ignore  bool
 	CopyPtr bool
 }
 
 func (d direction) override(c MatcherConfig) MatcherConfig {
-	if d.CopyPtr {
+	switch {
+	case d.Ignore:
+		c.ChannelHandle = NoCopyHandleIgnore
+		c.NoCopyHandle = NoCopyHandleIgnore
+	case d.CopyPtr:
+		c.ChannelHandle = NoCopyHandleCopyPointer
 		c.NoCopyHandle = NoCopyHandleCopyPointer
 	}
 	return c
@@ -58,7 +64,7 @@ func parseNode(n *typegraph.Node) (any, error) {
 	}
 	lines := make(map[int]direction)
 	for i, f := range st.Fields.List {
-		lineDirective, err := codegen.ParseFieldDirectiveCommentDst(
+		lineDirective, ok, err := codegen.ParseFieldDirectiveCommentDst(
 			DirectivePrefix,
 			f.Decs,
 			func(lines []string) (direction, error) {
@@ -66,6 +72,8 @@ func parseNode(n *typegraph.Node) (any, error) {
 				for _, line := range lines {
 					for _, directive := range strings.Split(line, ",") {
 						switch directive {
+						case DirectiveCommentIgnore:
+							parsed.Ignore = true
 						case DirectiveCommentCopyPtr:
 							parsed.CopyPtr = true
 						default:
@@ -83,9 +91,10 @@ func parseNode(n *typegraph.Node) (any, error) {
 			)
 		}
 
-		lineDirective.Pos = i
-
-		lines[i] = lineDirective
+		if ok {
+			lineDirective.Pos = i
+			lines[i] = lineDirective
+		}
 	}
 
 	return clonerPriv{lines}, nil

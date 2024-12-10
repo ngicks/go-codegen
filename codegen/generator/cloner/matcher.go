@@ -167,7 +167,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 				case NoCopyHandleDisallow:
 					logger.Debug(
 						"ignoring type since it contains channel: if this is mistake change MatchConfig or place " +
-							"//" + DirectivePrefix + directiveCommentIgnore +
+							"//" + DirectivePrefix + DirectiveCommentIgnore +
 							" or " +
 							"//" + DirectivePrefix + DirectiveCommentCopyPtr +
 							" as field doc comment",
@@ -201,7 +201,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 					case NoCopyHandleDisallow:
 						logger.Debug(
 							"ignoring type since it contains no copy object: if this is mistake change MatchConfig or place " +
-								"//" + DirectivePrefix + directiveCommentIgnore +
+								"//" + DirectivePrefix + DirectiveCommentIgnore +
 								" or " +
 								"//" + DirectivePrefix + DirectiveCommentCopyPtr +
 								" as field doc comment",
