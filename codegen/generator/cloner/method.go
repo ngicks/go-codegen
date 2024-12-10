@@ -434,6 +434,7 @@ func unwrapFieldAlongPath(
 
 					inner := out
 					%s
+					out = inner
 
 					return out
 				}`,

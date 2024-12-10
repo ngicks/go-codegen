@@ -16,6 +16,7 @@ func (v ContainsNoCopy) Clone() ContainsNoCopy {
 			for k, v := range v {
 				inner[k] = v
 			}
+			out = inner
 
 			return out
 		}(v.NoCopyMap),

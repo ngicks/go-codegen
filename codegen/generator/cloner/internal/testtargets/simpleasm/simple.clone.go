@@ -38,6 +38,7 @@ func (v A) Clone() A {
 			}
 			(*outer)[k] = inner
 		}
+		out = inner
 
 		return out
 	}(v)

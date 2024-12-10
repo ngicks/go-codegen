@@ -27,6 +27,7 @@ func (v Param2[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) Param2[T, U]
 				}
 				(*outer)[k] = inner
 			}
+			out = inner
 
 			return out
 		}(v.U),
@@ -38,6 +39,7 @@ func (v Param2[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) Param2[T, U]
 				v := *v
 				*inner = cloneT(v)
 			}
+			out = inner
 
 			return out
 		}(v.T),

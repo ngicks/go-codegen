@@ -20,6 +20,7 @@ func (v A[T]) CloneFunc(cloneT func(T) T) A[T] {
 				for k, v := range v {
 					inner[k] = v
 				}
+				out = inner
 
 				return out
 			},
@@ -43,6 +44,7 @@ func (v A[T]) CloneFunc(cloneT func(T) T) A[T] {
 						},
 					)
 				}
+				out = inner
 
 				return out
 			},

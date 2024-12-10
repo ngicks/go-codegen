@@ -16,6 +16,7 @@ func (v A) Clone() A {
 				v := *v
 				*inner = v
 			}
+			out = inner
 
 			return out
 		}(v.C),
@@ -43,6 +44,7 @@ func (v B) Clone() B {
 				}
 				(*outer)[k] = inner
 			}
+			out = inner
 
 			return out
 		}(v.A),
@@ -53,6 +55,7 @@ func (v B) Clone() B {
 			for k, v := range v {
 				inner[k] = v
 			}
+			out = inner
 
 			return out
 		}(v.B),
