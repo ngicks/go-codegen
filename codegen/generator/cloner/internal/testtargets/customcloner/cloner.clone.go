@@ -9,20 +9,41 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/ngicks/go-codegen/pkg/cloneruntime"
 	"github.com/ngicks/und"
 )
 
 //codegen:generated
 func (v Custom) Clone() Custom {
 	return Custom{
-		T: cloneruntime.Time(v.T),
+		T: func(t time.Time) time.Time {
+			return time.Date(
+				t.Year(),
+				t.Month(),
+				t.Day(),
+				t.Hour(),
+				t.Minute(),
+				t.Second(),
+				t.Nanosecond(),
+				t.Location(),
+			)
+		}(v.T),
 		TM: func(v map[string]time.Time) map[string]time.Time {
 			out := make(map[string]time.Time, len(v))
 
 			inner := out
 			for k, v := range v {
-				inner[k] = cloneruntime.Time(v)
+				inner[k] = func(t time.Time) time.Time {
+					return time.Date(
+						t.Year(),
+						t.Month(),
+						t.Day(),
+						t.Hour(),
+						t.Minute(),
+						t.Second(),
+						t.Nanosecond(),
+						t.Location(),
+					)
+				}(v)
 			}
 			out = inner
 

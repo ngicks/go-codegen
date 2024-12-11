@@ -1,6 +1,7 @@
 package cloner
 
 import (
+	"fmt"
 	"go/types"
 	"slices"
 
@@ -100,15 +101,31 @@ var builtinCustomHandlers = [...]CustomHandler{
 		Imports: []imports.TargetImport{
 			{
 				Import: imports.Import{
-					Path: "github.com/ngicks/go-codegen/pkg/cloneruntime",
-					Name: "cloneruntime",
+					Path: "time",
+					Name: "time",
 				},
 			},
 		},
 		Expr: func(im imports.ImportMap) func(s string) string {
 			return func(s string) string {
-				ident, _ := im.Ident("github.com/ngicks/go-codegen/pkg/cloneruntime")
-				return ident + ".Time(" + s + ")"
+				ident, _ := im.Ident("time")
+				tok := "t"
+				if tok == ident {
+					tok = "tt"
+				}
+				return fmt.Sprintf(
+					`func(%[1]s %[2]s.Time) %[2]s.Time {
+						return %[2]s.Date(
+							%[1]s.Year(),
+							%[1]s.Month(),
+							%[1]s.Day(),
+							%[1]s.Hour(),
+							%[1]s.Minute(),
+							%[1]s.Second(),
+							%[1]s.Nanosecond(),
+							%[1]s.Location(),
+						)
+					}(%[3]s)`, tok, ident, s)
 			}
 		},
 	},

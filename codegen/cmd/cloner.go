@@ -52,7 +52,6 @@ cloner command generates 2 kinds of clone methods
 2) CloneFunc() for generic types.
 
 CloneFunc requires clone function for each type parameters.
-You can use github.com/ngicks/go-codegen/pkg/cloneruntime for some help.
 `,
 	RunE: runCommand(
 		"cloner",
