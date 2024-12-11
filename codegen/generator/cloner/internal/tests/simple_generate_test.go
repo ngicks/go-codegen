@@ -14,7 +14,11 @@ import (
 func TestGenerate_simple(t *testing.T) {
 	pkgs := testTargets["simple"]
 	testPrinter := suffixwriter.NewTestWriter(".cloner", suffixwriter.WithCwd("../testtargets"))
-	cfg := cloner.Config{}
+	cfg := cloner.Config{
+		MatcherConfig: &cloner.MatcherConfig{
+			ChannelHandle: cloner.NoCopyHandleDisallow,
+		},
+	}
 	err := cfg.Generate(
 		context.Background(),
 		testPrinter.Writer,

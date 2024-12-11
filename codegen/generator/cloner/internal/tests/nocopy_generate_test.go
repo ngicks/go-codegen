@@ -14,7 +14,11 @@ import (
 func TestGenerate_nocopy(t *testing.T) {
 	pkgs := testTargets["nocopy"]
 	testPrinter := suffixwriter.NewTestWriter(".cloner", suffixwriter.WithCwd("../testtargets"))
-	cfg := cloner.Config{}
+	cfg := cloner.Config{
+		MatcherConfig: &cloner.MatcherConfig{
+			ChannelHandle: cloner.NoCopyHandleDisallow,
+		},
+	}
 	err := cfg.Generate(
 		context.Background(),
 		testPrinter.Writer,
