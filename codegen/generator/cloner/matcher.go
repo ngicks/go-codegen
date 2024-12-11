@@ -288,7 +288,7 @@ func (c *MatcherConfig) handleField(
 		return
 	}
 
-	if child != nil && child.Matched != 0 {
+	if child != nil && child.Matched&^typegraph.MatchKindExternal > 0 {
 		if child.Type.TypeParams().Len() == 0 {
 			k = handleKindCallClone
 		} else {
