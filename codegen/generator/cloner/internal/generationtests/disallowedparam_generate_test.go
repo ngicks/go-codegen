@@ -1,4 +1,4 @@
-package tests
+package generationtests
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestGenerate_simple(t *testing.T) {
-	pkgs := testTargets["simple"]
+func TestGenerate_disallowedparam(t *testing.T) {
+	pkgs := testTargets["disallowedparam"]
 	testPrinter := suffixwriter.NewTestWriter(".cloner", suffixwriter.WithCwd("../testtargets"))
 	cfg := cloner.Config{
 		MatcherConfig: &cloner.MatcherConfig{

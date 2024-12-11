@@ -1,4 +1,4 @@
-package tests
+package generationtests
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestGenerate_nocopy(t *testing.T) {
-	pkgs := testTargets["nocopy"]
+func TestGenerate_dependant(t *testing.T) {
+	pkgs := testTargets["dependant"]
 	testPrinter := suffixwriter.NewTestWriter(".cloner", suffixwriter.WithCwd("../testtargets"))
 	cfg := cloner.Config{
 		MatcherConfig: &cloner.MatcherConfig{

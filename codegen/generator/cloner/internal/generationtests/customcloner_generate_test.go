@@ -1,4 +1,4 @@
-package tests
+package generationtests
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestGenerate_alias(t *testing.T) {
-	pkgs := testTargets["alias"]
+func TestGenerate_customcloner(t *testing.T) {
+	pkgs := testTargets["customcloner"]
 	testPrinter := suffixwriter.NewTestWriter(".cloner", suffixwriter.WithCwd("../testtargets"))
 	cfg := cloner.Config{
 		MatcherConfig: &cloner.MatcherConfig{

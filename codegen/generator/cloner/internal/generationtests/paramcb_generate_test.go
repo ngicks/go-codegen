@@ -1,4 +1,4 @@
-package tests
+package generationtests
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestGenerate_simpleasm(t *testing.T) {
-	pkgs := testTargets["simpleasm"]
+func TestGenerate_paramcb(t *testing.T) {
+	pkgs := testTargets["paramcb"]
 	testPrinter := suffixwriter.NewTestWriter(".cloner", suffixwriter.WithCwd("../testtargets"))
 	cfg := cloner.Config{
 		MatcherConfig: &cloner.MatcherConfig{

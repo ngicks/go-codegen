@@ -31,7 +31,7 @@ func main() {
 		}
 		_, err = fmt.Fprintf(
 			f,
-			`package tests
+			`package generationtests
 
 import (
 	"context"
