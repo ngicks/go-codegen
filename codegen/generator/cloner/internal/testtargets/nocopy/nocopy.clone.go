@@ -22,5 +22,28 @@ func (v ContainsNoCopy) Clone() ContainsNoCopy {
 
 			return out
 		}(v.NoCopyMap),
+		C: v.C,
+		CC: func(v map[string]chan int) map[string]chan int {
+			out := make(map[string]chan int, len(v))
+
+			inner := out
+			for k, v := range v {
+				inner[k] = v
+			}
+			out = inner
+
+			return out
+		}(v.CC),
+		CS: func(v []chan int) []chan int {
+			out := make([]chan int, len(v))
+
+			inner := out
+			for k, v := range v {
+				inner[k] = make(chan int, cap(v))
+			}
+			out = inner
+
+			return out
+		}(v.CS),
 	}
 }

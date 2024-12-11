@@ -15,6 +15,7 @@ const (
 	DirectivePrefix         = "cloner:"
 	DirectiveCommentIgnore  = "ignore"
 	DirectiveCommentCopyPtr = "copyptr"
+	DirectiveCommentMake    = "make"
 )
 
 var (
@@ -30,18 +31,21 @@ type direction struct {
 	Pos     int
 	Ignore  bool
 	CopyPtr bool
+	Make    bool
 }
 
 func (d direction) override(c MatcherConfig) MatcherConfig {
 	switch {
 	case d.Ignore:
-		c.ChannelHandle = NoCopyHandleIgnore
-		c.NoCopyHandle = NoCopyHandleIgnore
-		c.FuncHandle = NoCopyHandleIgnore
+		c.ChannelHandle = CopyHandleIgnore
+		c.NoCopyHandle = CopyHandleIgnore
+		c.FuncHandle = CopyHandleIgnore
 	case d.CopyPtr:
-		c.ChannelHandle = NoCopyHandleCopyPointer
-		c.NoCopyHandle = NoCopyHandleCopyPointer
-		c.FuncHandle = NoCopyHandleCopyPointer
+		c.ChannelHandle = CopyHandleCopyPointer
+		c.NoCopyHandle = CopyHandleCopyPointer
+		c.FuncHandle = CopyHandleCopyPointer
+	case d.Make:
+		c.ChannelHandle = CopyHandleMake
 	}
 	return c
 }
@@ -79,6 +83,8 @@ func parseNode(n *typegraph.Node) (any, error) {
 							parsed.Ignore = true
 						case DirectiveCommentCopyPtr:
 							parsed.CopyPtr = true
+						case DirectiveCommentMake:
+							parsed.Make = true
 						default:
 							return parsed, fmt.Errorf("%w: %q", ErrUnknownDirective, directive)
 						}

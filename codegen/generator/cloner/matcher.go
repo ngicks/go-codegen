@@ -19,19 +19,23 @@ var (
 	}
 )
 
-type NoCopyHandle int
+type CopyHandle int
 
 const (
 	// ignore nocopy object
-	NoCopyHandleIgnore   NoCopyHandle = 0
-	NoCopyHandleDisallow NoCopyHandle = 1 << iota
-	NoCopyHandleCopyPointer
+	CopyHandleIgnore CopyHandle = 0
+	// disallow nocopy object
+	CopyHandleDisallow CopyHandle = 1 << iota
+	CopyHandleCopyPointer
+	_
+	// Only for channel. make a new channel.
+	CopyHandleMake
 )
 
 type MatcherConfig struct {
-	NoCopyHandle  NoCopyHandle
-	ChannelHandle NoCopyHandle
-	FuncHandle    NoCopyHandle
+	NoCopyHandle  CopyHandle
+	ChannelHandle CopyHandle
+	FuncHandle    CopyHandle
 
 	CustomHandlers CustomHandlers
 
@@ -143,6 +147,7 @@ type handleKind int
 const (
 	handleKindIgnore handleKind = iota + 1
 	handleKindAssign
+	handleKindNewChannel // special case for channel.
 	handleKindCallCb
 	handleKindCallClone
 	handleKindCallCloneFunc
@@ -182,13 +187,13 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 				},
 			); i >= 0 {
 				switch c.ChannelHandle {
-				case NoCopyHandleIgnore:
+				case CopyHandleIgnore:
 					logger.Debug("ignoring field since it contains channel: if it should be copied place " +
 						"//" + DirectivePrefix + DirectiveCommentCopyPtr +
 						" as field doc comment",
 					)
 					k = handleKindIgnore
-				case NoCopyHandleDisallow:
+				case CopyHandleDisallow:
 					logger.Debug(
 						"ignoring type since it contains channel: if this is mistake change MatchConfig or place " +
 							"//" + DirectivePrefix + DirectiveCommentIgnore +
@@ -197,9 +202,12 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 							" as field doc comment",
 					)
 					ok = false
-				case NoCopyHandleCopyPointer:
+				case CopyHandleCopyPointer:
 					// chan itself is a pointer type.
 					k = handleKindAssign
+					stack = stack[:i] // reduced to first occurrence of channel
+				case CopyHandleMake:
+					k = handleKindNewChannel
 					stack = stack[:i] // reduced to first occurrence of channel
 				}
 				return nil
@@ -221,14 +229,14 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 				switch {
 				case matcher.IsNoCopy(unwrapped_):
 					switch c.NoCopyHandle {
-					case NoCopyHandleIgnore:
+					case CopyHandleIgnore:
 						logger.Debug("ignoring field since it contains no copy object: if it should be copied place " +
 							"//" + DirectivePrefix + DirectiveCommentCopyPtr +
 							" as field doc comment",
 						)
 						k = handleKindIgnore
 						return nil
-					case NoCopyHandleDisallow:
+					case CopyHandleDisallow:
 						logger.Debug(
 							"ignoring type since it contains no copy object: if this is mistake change MatchConfig or place " +
 								"//" + DirectivePrefix + DirectiveCommentIgnore +
@@ -236,7 +244,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 								"//" + DirectivePrefix + DirectiveCommentCopyPtr +
 								" as field doc comment",
 						)
-					case NoCopyHandleCopyPointer:
+					case CopyHandleCopyPointer:
 						_, isInterface := unwrapped_.(*types.Interface)
 						if isInterface || (len(stack) > 0 && stack[len(stack)-1].Kind == typegraph.EdgeKindPointer) {
 							k = handleKindAssign
@@ -293,13 +301,13 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 
 func handleSig(c *MatcherConfig, logger *slog.Logger) option.Option[handleKind] {
 	switch c.FuncHandle {
-	case NoCopyHandleIgnore:
+	case CopyHandleIgnore:
 		logger.Debug("ignoring field since it contains function: if it should be copied place " +
 			"//" + DirectivePrefix + DirectiveCommentCopyPtr +
 			" as field doc comment",
 		)
 		return option.Some(handleKindIgnore)
-	case NoCopyHandleDisallow:
+	case CopyHandleDisallow:
 		logger.Debug(
 			"ignoring type since it contains function: if this is mistake change MatchConfig or place " +
 				"//" + DirectivePrefix + DirectiveCommentIgnore +
@@ -308,7 +316,7 @@ func handleSig(c *MatcherConfig, logger *slog.Logger) option.Option[handleKind] 
 				" as field doc comment",
 		)
 		return option.None[handleKind]()
-	case NoCopyHandleCopyPointer:
+	case CopyHandleCopyPointer:
 		// func itself is a pointer type.
 		return option.Some(handleKindAssign)
 	}

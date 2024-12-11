@@ -20,6 +20,7 @@ var (
 	chanIgnore   bool
 	chanDisallow bool
 	chanCopy     bool
+	chanMake     bool
 )
 
 func init() {
@@ -36,6 +37,7 @@ func init() {
 	fset.BoolVar(&chanIgnore, "chan-ignore", false, "")
 	fset.BoolVar(&chanDisallow, "chan-disallow", false, "")
 	fset.BoolVar(&chanCopy, "chan-copy", false, "")
+	fset.BoolVar(&chanMake, "chan-make", false, "")
 
 	rootCmd.AddCommand(clonerCmd)
 }
@@ -73,19 +75,21 @@ CloneFunc requires clone function for each type parameters.
 
 			switch {
 			case noCopyIgnore:
-				cfg.MatcherConfig.NoCopyHandle = cloner.NoCopyHandleIgnore
+				cfg.MatcherConfig.NoCopyHandle = cloner.CopyHandleIgnore
 			case noCopyDisallow:
-				cfg.MatcherConfig.NoCopyHandle = cloner.NoCopyHandleDisallow
+				cfg.MatcherConfig.NoCopyHandle = cloner.CopyHandleDisallow
 			case noCopyCopy:
-				cfg.MatcherConfig.NoCopyHandle = cloner.NoCopyHandleCopyPointer
+				cfg.MatcherConfig.NoCopyHandle = cloner.CopyHandleCopyPointer
 			}
 			switch {
 			case chanIgnore:
-				cfg.MatcherConfig.ChannelHandle = cloner.NoCopyHandleIgnore
+				cfg.MatcherConfig.ChannelHandle = cloner.CopyHandleIgnore
 			case chanDisallow:
-				cfg.MatcherConfig.ChannelHandle = cloner.NoCopyHandleDisallow
+				cfg.MatcherConfig.ChannelHandle = cloner.CopyHandleDisallow
 			case chanCopy:
-				cfg.MatcherConfig.ChannelHandle = cloner.NoCopyHandleCopyPointer
+				cfg.MatcherConfig.ChannelHandle = cloner.CopyHandleCopyPointer
+			case chanMake:
+				cfg.MatcherConfig.ChannelHandle = cloner.CopyHandleMake
 			}
 
 			return cfg.Generate(cmd.Context(), writer, pkgs)

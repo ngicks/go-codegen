@@ -236,7 +236,7 @@ func cloneTy(
 		stack = stack[:len(stack)-1]
 	}
 
-	unwrapper := unwrapFieldAlongPath(
+	unwrappedExpr, unwrapper := unwrapFieldAlongPath(
 		// af.Field.Type, af.Field.Type,
 		expr, expr,
 		stack,
@@ -249,6 +249,10 @@ func cloneTy(
 		panic(fmt.Errorf("unknown kind: %d", handleKind))
 	case handleKindAssign:
 		cloneExpr = func(s string) string { return s }
+	case handleKindNewChannel:
+		cloneExpr = func(s string) string {
+			return fmt.Sprintf("make(%s, cap(%s))", codegen.PrintAstExprPanicking(unwrappedExpr), s)
+		}
 	case handleKindCallCb:
 		cloneExpr = func(s string) string {
 			return fmt.Sprintf("%s(%s)", cloneCallbacks[unwrapped.(*types.TypeParam).Index()][0], s)
@@ -348,16 +352,16 @@ func unwrapFieldAlongPath(
 	fromExpr, toExpr ast.Expr,
 	stack []typegraph.EdgeRouteNode,
 	skip int,
-) func(wrappee func(string) string) string {
+) (unwrapped ast.Expr, unwrapper func(wrappee func(string) string) string) {
 	if fromExpr == nil || toExpr == nil {
-		return nil
+		return toExpr, nil
 	}
 	input := codegen.PrintAstExprPanicking(fromExpr)
 	output := codegen.PrintAstExprPanicking(toExpr)
 
 	s := stack[skip:]
 	if len(s) == 0 {
-		return nil
+		return toExpr, nil
 	}
 
 	initializer := func(expr ast.Expr, kind typegraph.EdgeKind) string {
@@ -372,7 +376,7 @@ func unwrapFieldAlongPath(
 	}
 
 	var wrappers []func(string) string
-	unwrapped := toExpr
+	unwrapped = toExpr
 	for p := range hiter.Window(s, 2) {
 		unwrapped = unwrapExprOne(unwrapped, p[0].Kind)
 		initializerExpr := initializer(unwrapped, p[1].Kind)
@@ -429,7 +433,7 @@ func unwrapFieldAlongPath(
 		})
 	}
 
-	return func(wrappee func(string) string) string {
+	return unwrapExprOne(unwrapped, s[len(s)-1].Kind), func(wrappee func(string) string) string {
 		wrappers = slices.Insert(wrappers, 0, func(expr string) string {
 			return fmt.Sprintf(
 				`func (v %s) %s {

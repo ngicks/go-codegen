@@ -49,7 +49,7 @@ func TestGenerate_%[1]s(t *testing.T) {
 	testPrinter := suffixwriter.NewTestWriter(".cloner", suffixwriter.WithCwd("../testtargets"))
 	cfg := cloner.Config{
 		MatcherConfig: &cloner.MatcherConfig{
-			ChannelHandle: cloner.NoCopyHandleDisallow,
+			ChannelHandle: cloner.CopyHandleDisallow,
 		},
 	}
 	err := cfg.Generate(
