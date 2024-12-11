@@ -232,6 +232,9 @@ func cloneTy(
 	if len(stack) > 0 && stack[0].Kind == typegraph.EdgeKindStruct {
 		stack = stack[1:]
 	}
+	if len(stack) > 0 && stack[len(stack)-1].Kind == typegraph.EdgeKindAlias {
+		stack = stack[:len(stack)-1]
+	}
 
 	unwrapper := unwrapFieldAlongPath(
 		// af.Field.Type, af.Field.Type,
