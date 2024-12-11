@@ -19,6 +19,19 @@ func IsNoCopy(ty types.Type) bool {
 	return sel.Obj().Name() == "Lock" && results.Len() == 0
 }
 
+func Name(ty types.Type) (pkgPath string, name string) {
+	x, ok := ty.(interface{ Obj() *types.TypeName })
+	if ok {
+		if pkg := x.Obj().Pkg(); pkg != nil {
+			pkgPath = pkg.Path()
+		}
+		name = x.Obj().Name()
+		return
+	}
+	name = ty.String()
+	return
+}
+
 func asPointer(ty types.Type) types.Type {
 	switch x := ty.(type) {
 	default:

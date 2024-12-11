@@ -123,7 +123,7 @@ func (method ClonerMethod) IsImplementor(ty types.Type) bool {
 }
 
 // *types.Alias, *types.Named
-type hasTypeParam interface {
+type HasTypeParam interface {
 	TypeParams() *types.TypeParamList
 	TypeArgs() *types.TypeList
 }
@@ -132,7 +132,7 @@ func (method ClonerMethod) IsFuncImplementor(ty types.Type) bool {
 	// unwrap single pointer *T -> T then check type params and args.
 	// The type may still be wrapped in pointer but double (or more) pointer type can not be a method receiver.
 	// Thus it can be ignored anyway.
-	parametrizedType, ok := unwrapPointer(ty).(hasTypeParam)
+	parametrizedType, ok := unwrapPointer(ty).(HasTypeParam)
 	if !ok {
 		return false
 	}

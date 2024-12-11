@@ -4,10 +4,12 @@ import (
 	"go/types"
 	"log/slog"
 	"slices"
+	"strconv"
 
 	"github.com/ngicks/go-codegen/codegen/matcher"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/option"
 )
 
@@ -58,15 +60,14 @@ func (c *MatcherConfig) MatchEdge(e typegraph.Edge) bool {
 }
 
 func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool, err error) {
-	named := node.Type
-
 	logger := c.logger
-	attr := []any{}
-	if pkg := named.Obj().Pkg(); pkg != nil {
-		attr = append(attr, slog.String("pkgPath", named.Obj().Pkg().Path()))
+
+	pkgPath, name := matcher.Name(node.Type)
+	if pkgPath != "" {
+		pkgPath = strconv.Quote(pkgPath) + "."
 	}
-	attr = append(attr, slog.String("name", named.Obj().Name()))
-	logger.Debug("matching", attr...)
+
+	logger.Debug("matching", slog.String("name", pkgPath+name))
 
 	priv := option.Assert[clonerPriv](node.Priv).Or(option.Some(clonerPriv{}))
 	defer func() {
@@ -78,7 +79,7 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 		node.Priv = v
 	}()
 
-	switch x := named.Underlying().(type) {
+	switch x := node.Type.Underlying().(type) {
 	default:
 		logger.Debug(
 			"not matched: unsupported type",
@@ -252,7 +253,30 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 				case matcher.IsCloneByAssign(unwrapped_):
 					k = handleKindAssign
 				}
+			}
 
+			if k != handleKindIgnore && k != handleKindCallCloneFunc {
+				return nil
+			}
+
+			param, assertOk := unwrapped_.(matcher.HasTypeParam)
+			if assertOk && param.TypeArgs().Len() > 0 {
+				for i, arg := range hiter.AtterAll(param.TypeArgs()) {
+					pkgPath, name := matcher.Name(unwrapped_)
+					if pkgPath != "" {
+						pkgPath = strconv.Quote(pkgPath) + "."
+					}
+					_, _, kind, _, argOk := c.matchTy(arg, logger.With("typeArgFor", pkgPath+name))
+					if !argOk {
+						logger.Debug("ignoring type: type arg at " + strconv.FormatInt(int64(i), 10) + " is disallowed")
+						ok = false
+						return nil
+					} else if kind == handleKindIgnore {
+						logger.Debug("ignoring field: type arg at " + strconv.FormatInt(int64(i), 10) + " is ignored")
+						k = handleKindIgnore
+						return nil
+					}
+				}
 			}
 			return nil
 		},
