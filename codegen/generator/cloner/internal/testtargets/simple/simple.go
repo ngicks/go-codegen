@@ -9,4 +9,5 @@ type A struct {
 type B struct {
 	A []*[]string
 	B map[string]int
+	C []*map[int][3]string
 }

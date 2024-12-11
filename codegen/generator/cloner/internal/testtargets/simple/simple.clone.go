@@ -49,5 +49,27 @@ func (v B) Clone() B {
 			return out
 		}(v.A),
 		B: maps.Clone(v.B),
+		C: func(v []*map[int][3]string) []*map[int][3]string {
+			out := make([]*map[int][3]string, len(v))
+
+			inner := out
+			for k, v := range v {
+				outer := &inner
+				inner := new(map[int][3]string)
+				if v != nil {
+					v := *v
+					outer := &inner
+					inner := make(map[int][3]string, len(v))
+					for k, v := range v {
+						inner[k] = v
+					}
+					(*outer) = &inner
+				}
+				(*outer)[k] = inner
+			}
+			out = inner
+
+			return out
+		}(v.C),
 	}
 }

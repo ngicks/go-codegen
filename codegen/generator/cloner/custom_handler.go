@@ -52,9 +52,9 @@ var builtinCustomHandlers = [...]CustomHandler{
 			// but this Matcher signature can't determine whether they are a hand-written Clone implementor or just a generation target thus an implementor.
 			// Generation targets aren't implementors on the first run, but are them on the second or later run.
 			// TODO: expand interface and detect implementor or matched type?
-			_, ok = s.Elem().(*types.Basic)
+
 			// Basic includes unsafe pointer and uintptr but I assume placing them is fully intentional and safe to copy.
-			return ok || isKnownCloneByAssign(s.Elem())
+			return isBasicOrKnownCloneByAssign(s.Elem())
 		},
 		Imports: []imports.TargetImport{
 			{
@@ -77,8 +77,7 @@ var builtinCustomHandlers = [...]CustomHandler{
 				return false
 			}
 			// Same as above. Only for basic types or known clone-by-assign.
-			_, ok = s.Elem().(*types.Basic)
-			return ok || isKnownCloneByAssign(s.Elem())
+			return isBasicOrKnownCloneByAssign(s.Elem())
 		},
 		Imports: []imports.TargetImport{
 			{
@@ -114,9 +113,12 @@ var builtinCustomHandlers = [...]CustomHandler{
 		},
 	},
 	{
-		// just do nothing for known clone-by-assign types.
+		// just do nothing for array of bare known clone-by-assign types.
 		Matcher: func(t types.Type) bool {
-			return isKnownCloneByAssign(t)
+			if a, ok := t.(*types.Array); ok {
+				t = a.Elem()
+			}
+			return isBasicOrKnownCloneByAssign(t)
 		},
 		Expr: func(im imports.ImportMap) func(s string) string {
 			return func(s string) string {
@@ -124,6 +126,13 @@ var builtinCustomHandlers = [...]CustomHandler{
 			}
 		},
 	},
+}
+
+func isBasicOrKnownCloneByAssign(ty types.Type) bool {
+	if _, ok := ty.(*types.Basic); ok {
+		return true
+	}
+	return isKnownCloneByAssign(ty)
 }
 
 var knownCloneByAssign = map[imports.TargetType]struct{}{
