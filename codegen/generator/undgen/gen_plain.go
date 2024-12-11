@@ -17,6 +17,7 @@ import (
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -36,7 +37,7 @@ func GeneratePlain(
 		pkgs,
 		parser,
 		isUndPlainAllowedEdge,
-		func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode] {
+		func(g *typegraph.Graph) iter.Seq2[typegraph.Ident, *typegraph.Node] {
 			return g.IterUpward(true, isUndPlainAllowedEdge)
 		},
 	)
@@ -45,20 +46,20 @@ func GeneratePlain(
 	}
 
 	for _, data := range xiter.Filter2(
-		func(f *ast.File, data *replaceData) bool { return f != nil && data != nil },
-		hiter.MapKeys(replacerData, enumerateFile(pkgs)),
+		func(f *ast.File, data *typegraph.ReplaceData) bool { return f != nil && data != nil },
+		hiter.MapKeys(replacerData, pkgsutil.EnumerateFile(pkgs)),
 	) {
 		slog.Debug(
 			"found",
-			slog.String("filename", data.filename),
+			slog.String("filename", data.Filename),
 		)
 
 		modified := hiter.Collect2(xiter.Filter2(
-			func(node *typegraph.TypeNode, exprMap map[string]fieldDstExprSet) bool {
+			func(node *typegraph.Node, exprMap map[string]fieldDstExprSet) bool {
 				return node != nil && exprMap != nil
 			},
 			hiter.Divide(
-				func(node *typegraph.TypeNode) (*typegraph.TypeNode, map[string]fieldDstExprSet) {
+				func(node *typegraph.Node) (*typegraph.Node, map[string]fieldDstExprSet) {
 					exprMap, ok := _replaceToPlainTypes(data, node)
 					if !ok {
 						return nil, nil
@@ -70,7 +71,7 @@ func GeneratePlain(
 					)
 					return node, exprMap
 				},
-				slices.Values(data.targetNodes),
+				slices.Values(data.TargetNodes),
 			),
 		))
 
@@ -78,21 +79,21 @@ func GeneratePlain(
 			continue
 		}
 
-		data.importMap.AddMissingImports(data.df)
+		data.ImportMap.AddMissingImports(data.DstFile)
 		res := decorator.NewRestorer()
-		af, err := res.RestoreFile(data.df)
+		af, err := res.RestoreFile(data.DstFile)
 		if err != nil {
-			return fmt.Errorf("converting dst to ast for %q: %w", data.filename, err)
+			return fmt.Errorf("converting dst to ast for %q: %w", data.Filename, err)
 		}
 
 		buf := new(bytes.Buffer) // pool buf?
 
-		if err := printFileHeader(buf, af, res.Fset); err != nil {
-			return fmt.Errorf("%q: %w", data.filename, err)
+		if err := codegen.PrintFileHeader(buf, af, res.Fset); err != nil {
+			return fmt.Errorf("%q: %w", data.Filename, err)
 		}
 
 		for node, exprMap := range hiter.Values2(modified) {
-			dts := data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
+			dts := data.Dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
 			ats := res.Ast.Nodes[dts].(*ast.TypeSpec)
 
 			astExprMap := maps.Collect(
@@ -112,7 +113,7 @@ func GeneratePlain(
 			buf.WriteByte(' ')
 			err = printer.Fprint(buf, res.Fset, ats)
 			if err != nil {
-				return fmt.Errorf("print.Fprint failed for type %s in file %q: %w", data.filename, ats.Name.Name, err)
+				return fmt.Errorf("print.Fprint failed for type %s in file %q: %w", data.Filename, ats.Name.Name, err)
 			}
 			buf.WriteString("\n\n")
 
@@ -124,7 +125,7 @@ func GeneratePlain(
 			buf.WriteString("\n\n")
 		}
 
-		err = sourcePrinter.Write(context.Background(), data.filename, buf.Bytes())
+		err = sourcePrinter.Write(context.Background(), data.Filename, buf.Bytes())
 		if err != nil {
 			return err
 		}

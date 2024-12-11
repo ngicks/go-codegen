@@ -1,19 +1,64 @@
 package codegen
 
 import (
+	"bufio"
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/printer"
 	"go/token"
 	"go/types"
+	"io"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/dave/dst"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
+
+func BufPrintf(w io.Writer) (func(format string, args ...any), func() error) {
+	bufw := bufio.NewWriter(w)
+	return func(format string, args ...any) {
+			fmt.Fprintf(bufw, format, args...)
+		}, func() error {
+			return bufw.Flush()
+		}
+}
+
+func PrintTypeParamsAst(ts *ast.TypeSpec) string {
+	if ts.TypeParams == nil || len(ts.TypeParams.List) == 0 {
+		return ""
+	}
+	var typeParams strings.Builder
+	for _, f := range ts.TypeParams.List {
+		for _, name := range f.Names {
+			if typeParams.Len() > 0 {
+				typeParams.WriteByte(',')
+			}
+			typeParams.WriteString(name.Name)
+		}
+	}
+	return "[" + typeParams.String() + "]"
+}
+
+func PrintTypeParamsDst(ts *dst.TypeSpec) string {
+	if ts.TypeParams == nil || len(ts.TypeParams.List) == 0 {
+		return ""
+	}
+	var typeParams strings.Builder
+	for _, f := range ts.TypeParams.List {
+		for _, name := range f.Names {
+			if typeParams.Len() > 0 {
+				typeParams.WriteByte(',')
+			}
+			typeParams.WriteString(name.Name)
+		}
+	}
+	return "[" + typeParams.String() + "]"
+}
 
 func PrintAstExprPanicking(expr ast.Expr) string {
 	buf := new(bytes.Buffer)
@@ -157,4 +202,49 @@ func TypeToAst(ty types.Type, pkgPath string, importMap imports.ImportMap) ast.E
 			),
 		}
 	}
+}
+
+func PrintFileHeader(w io.Writer, af *ast.File, fset *token.FileSet) error {
+	if err := printPackage(w, af); err != nil {
+		return err
+	}
+	if err := printImport(w, af, fset); err != nil {
+		return err
+	}
+	return nil
+}
+
+func printPackage(w io.Writer, af *ast.File) error {
+	_, err := fmt.Fprintf(w, "%s %s\n\n",
+		token.PACKAGE.String(), af.Name.Name,
+	)
+	return err
+}
+
+func printImport(w io.Writer, af *ast.File, fset *token.FileSet) error {
+	for i, dec := range af.Decls {
+		genDecl, ok := dec.(*ast.GenDecl)
+		if !ok {
+			continue
+		}
+		if genDecl.Tok != token.IMPORT {
+			// it's possible that the file has multiple import spec.
+			// but it always starts with import spec.
+			break
+		}
+		err := printer.Fprint(w, fset, genDecl)
+		if err != nil {
+			return fmt.Errorf("print.Fprint failed printing %dth import spec: %w", i, err)
+		}
+		_, err = io.WriteString(w, "\n")
+		if err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(w, "\n")
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

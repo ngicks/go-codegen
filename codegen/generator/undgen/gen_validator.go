@@ -41,7 +41,7 @@ func GenerateValidator(
 		pkgs,
 		parser,
 		isUndValidatorAllowedEdge,
-		func(g *typegraph.TypeGraph) iter.Seq2[typegraph.TypeIdent, *typegraph.TypeNode] {
+		func(g *typegraph.Graph) iter.Seq2[typegraph.Ident, *typegraph.Node] {
 			return g.IterUpward(true, isUndValidatorAllowedEdge)
 		},
 	)
@@ -50,49 +50,49 @@ func GenerateValidator(
 	}
 
 	for _, data := range xiter.Filter2(
-		func(f *ast.File, data *replaceData) bool { return f != nil && data != nil },
-		hiter.MapKeys(replacerData, enumerateFile(pkgs)),
+		func(f *ast.File, data *typegraph.ReplaceData) bool { return f != nil && data != nil },
+		hiter.MapKeys(replacerData, pkgsutil.EnumerateFile(pkgs)),
 	) {
 		if verbose {
 			slog.Debug(
 				"found",
-				slog.String("filename", data.filename),
+				slog.String("filename", data.Filename),
 			)
 		}
 
-		data.importMap.AddMissingImports(data.df)
+		data.ImportMap.AddMissingImports(data.DstFile)
 		res := decorator.NewRestorer()
-		af, err := res.RestoreFile(data.df)
+		af, err := res.RestoreFile(data.DstFile)
 		if err != nil {
-			return fmt.Errorf("converting dst to ast for %q: %w", data.filename, err)
+			return fmt.Errorf("converting dst to ast for %q: %w", data.Filename, err)
 		}
 
 		buf := new(bytes.Buffer) // pool buf?
 
-		if err := printFileHeader(buf, af, res.Fset); err != nil {
-			return fmt.Errorf("%q: %w", data.filename, err)
+		if err := codegen.PrintFileHeader(buf, af, res.Fset); err != nil {
+			return fmt.Errorf("%q: %w", data.Filename, err)
 		}
 
 		var atLeastOne bool
-		for _, node := range data.targetNodes {
-			dts := data.dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
+		for _, node := range data.TargetNodes {
+			dts := data.Dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
 			written, err := generateUndValidate(
 				buf,
 				dts,
 				node,
-				data.importMap,
+				data.ImportMap,
 			)
 			if written {
 				atLeastOne = true
 			}
 			if err != nil {
-				return fmt.Errorf("generating UndValidate for type %s in file %q: %w", node.Ts.Name.Name, data.filename, err)
+				return fmt.Errorf("generating UndValidate for type %s in file %q: %w", node.Ts.Name.Name, data.Filename, err)
 			}
 			buf.WriteString("\n\n")
 		}
 
 		if atLeastOne {
-			err = sourcePrinter.Write(context.Background(), data.filename, buf.Bytes())
+			err = sourcePrinter.Write(context.Background(), data.Filename, buf.Bytes())
 			if err != nil {
 				return err
 			}
@@ -112,10 +112,10 @@ func GenerateValidator(
 func generateUndValidate(
 	w io.Writer,
 	ts *dst.TypeSpec,
-	node *typegraph.TypeNode,
+	node *typegraph.Node,
 	imports imports.ImportMap,
 ) (written bool, err error) {
-	typeName := ts.Name.Name + printTypeParamVars(ts)
+	typeName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
 	undtagImportIdent, _ := imports.Ident(UndPathUndTag)
 	validateImportIdent, _ := imports.Ident(UndPathValidate)
 
@@ -131,7 +131,7 @@ func generateUndValidate(
 		_, err = w.Write(buf.Bytes())
 	}()
 
-	printf, flush := bufPrintf(buf)
+	printf, flush := codegen.BufPrintf(buf)
 	defer func() {
 		fErr := flush()
 		if err != nil {
@@ -147,9 +147,9 @@ func generateUndValidate(
 `)
 
 	// unwrappers to reach final destination type(implementor or und types.)
-	validatorUnwrappers := func(pointer []typegraph.TypeDependencyEdgePointer) []func(exp string) string {
+	validatorUnwrappers := func(pointer []typegraph.EdgeRouteNode) []func(exp string) string {
 		var wrappers []func(exp string) string
-		if len(pointer) > 0 && pointer[len(pointer)-1].Kind == typegraph.TypeDependencyEdgeKindPointer {
+		if len(pointer) > 0 && pointer[len(pointer)-1].Kind == typegraph.EdgeKindPointer {
 			pointer = pointer[:len(pointer)-1]
 		}
 		for range pointer {
@@ -178,8 +178,8 @@ func generateUndValidate(
 	case *types.Map, *types.Array, *types.Slice:
 		// should be only one since we prohibit struct literals.
 		ident, edge, _ := edgeMap.First()
-		isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
-			return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
+		isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.EdgeRouteNode) bool {
+			return tdep.Kind == typegraph.EdgeKindPointer
 		})
 		// An implementor or implementor wrapped in und types
 		exp := fmt.Sprintf(
@@ -299,8 +299,8 @@ func generateUndValidate(
 					}
 				} else {
 					nodeValidator = func(ident string) string {
-						isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.TypeDependencyEdgePointer) bool {
-							return tdep.Kind == typegraph.TypeDependencyEdgeKindPointer
+						isPointer := edge.LastPointer().IsSomeAnd(func(tdep typegraph.EdgeRouteNode) bool {
+							return tdep.Kind == typegraph.EdgeKindPointer
 						})
 						// An implementor or implementor wrapped in und types
 						return fmt.Sprintf(

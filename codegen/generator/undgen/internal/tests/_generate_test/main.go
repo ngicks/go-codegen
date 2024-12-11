@@ -20,13 +20,11 @@ func main() {
 		panic(err)
 	}
 
-	var names []string
 	for _, dirent := range dirents {
 		name := dirent.Name()
 		if !dirent.IsDir() || slices.Contains(strings.Split(*excludes, ","), name) {
 			continue
 		}
-		names = append(names, name)
 		f, err := os.Create(name + "_generate_test.go")
 		if err != nil {
 			panic(err)

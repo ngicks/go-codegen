@@ -26,7 +26,7 @@ var (
 )
 
 var (
-	excludes    = []string{"_generate_test", "implementor"}
+	excludes    = []string{"implementor"}
 	testTargets map[string][]*packages.Package
 )
 

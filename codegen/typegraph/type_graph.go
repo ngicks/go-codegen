@@ -3,6 +3,7 @@ package typegraph
 
 import (
 	"cmp"
+	"fmt"
 	"go/ast"
 	"go/token"
 	"go/types"
@@ -20,7 +21,7 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-// TypeGraph enumerates type decls in given []*packages.Package and forms a type-dependency graph.
+// Graph enumerates type decls in given []*packages.Package and forms a type-dependency graph.
 // It lists types which matches input matcher.
 // Callers can traverse graph from a node upwards and downwards.
 //
@@ -33,33 +34,34 @@ import (
 // .         ...                               +──────+
 //
 // Nodes are connected by [typeDependencyEdge].
-type TypeGraph struct {
-	types    map[TypeIdent]*TypeNode
-	matched  map[TypeIdent]*TypeNode
-	external map[TypeIdent]*TypeNode
+type Graph struct {
+	types      map[Ident]*Node
+	matched    map[Ident]*Node
+	external   map[Ident]*Node
+	privParser PrivParser
 }
 
-type TypeIdent struct {
+type Ident struct {
 	PkgPath  string
 	TypeName string
 }
 
-func (t TypeIdent) TargetType() imports.TargetType {
+func (t Ident) TargetType() imports.TargetType {
 	return imports.TargetType{ImportPath: t.PkgPath, Name: t.TypeName}
 }
 
-func IdentFromTypesObject(obj types.Object) TypeIdent {
-	return TypeIdent{
+func IdentFromTypesObject(obj types.Object) Ident {
+	return Ident{
 		obj.Pkg().Path(),
 		obj.Name(),
 	}
 }
 
-type TypeNode struct {
-	Parent   map[TypeIdent][]TypeDependencyEdge
-	Children map[TypeIdent][]TypeDependencyEdge
+type Node struct {
+	Parent   map[Ident][]Edge
+	Children map[Ident][]Edge
 
-	Matched TypeNodeMatchKind
+	Matched MatchKind
 
 	Pkg  *packages.Package
 	File *ast.File
@@ -67,50 +69,52 @@ type TypeNode struct {
 	Pos  int
 	Ts   *ast.TypeSpec
 	Type *types.Named
+
+	Priv any
 }
 
-type TypeNodeMatchKind uint64
+type MatchKind uint64
 
 const (
-	TypeNodeMatchKindMatched = TypeNodeMatchKind(1 << iota)
-	TypeNodeMatchKindDependant
-	TypeNodeMatchKindExternal
+	MatchKindMatched = MatchKind(1 << iota)
+	MatchKindDependant
+	MatchKindExternal
 )
 
-func (k TypeNodeMatchKind) IsMatched() bool {
-	return k&TypeNodeMatchKindMatched > 0
+func (k MatchKind) IsMatched() bool {
+	return k&MatchKindMatched > 0
 }
 
-func (k TypeNodeMatchKind) IsDependant() bool {
-	return k&TypeNodeMatchKindDependant > 0
+func (k MatchKind) IsDependant() bool {
+	return k&MatchKindDependant > 0
 }
 
-func (k TypeNodeMatchKind) IsExternal() bool {
-	return k&TypeNodeMatchKindExternal > 0
+func (k MatchKind) IsExternal() bool {
+	return k&MatchKindExternal > 0
 }
 
-type TypeDependencyEdge struct {
-	Stack    []TypeDependencyEdgePointer
+type Edge struct {
+	Stack    []EdgeRouteNode
 	TypeArgs []TypeArg
 	// non-instantiated parent
-	ParentNode *TypeNode
+	ParentNode *Node
 	// instantiated child
 	ChildType *types.Named
 	// non-instantiated child node.
-	ChildNode *TypeNode
+	ChildNode *Node
 }
 
-func (e TypeDependencyEdge) IsChildMatched() bool {
-	return e.ChildNode.Matched&^TypeNodeMatchKindExternal > 0
+func (e Edge) IsChildMatched() bool {
+	return e.ChildNode.Matched&^MatchKindExternal > 0
 }
 
-func (e TypeDependencyEdge) HasSingleNamedTypeArg(additionalCond func(named *types.Named) bool) (ok bool, pointer bool) {
+func (e Edge) HasSingleNamedTypeArg(additionalCond func(named *types.Named) bool) (ok bool, pointer bool) {
 	if len(e.TypeArgs) != 1 {
 		return false, false
 	}
 	arg := e.TypeArgs[0]
-	isPointer := (len(arg.Stack) == 1 && arg.Stack[0].Kind == TypeDependencyEdgeKindPointer)
-	if arg.Ty == nil || len(arg.Stack) > 1 || (len(arg.Stack) != 0 && !isPointer) {
+	isPointer := (len(arg.Route) == 1 && arg.Route[0].Kind == EdgeKindPointer)
+	if arg.Ty == nil || len(arg.Route) > 1 || (len(arg.Route) != 0 && !isPointer) {
 		return false, isPointer
 	}
 	if additionalCond != nil {
@@ -119,7 +123,7 @@ func (e TypeDependencyEdge) HasSingleNamedTypeArg(additionalCond func(named *typ
 	return true, isPointer
 }
 
-func (e TypeDependencyEdge) IsTypeArgMatched() bool {
+func (e Edge) IsTypeArgMatched() bool {
 	if len(e.TypeArgs) == 0 {
 		return false
 	}
@@ -127,14 +131,14 @@ func (e TypeDependencyEdge) IsTypeArgMatched() bool {
 	if node == nil {
 		return false
 	}
-	return node.Matched&^TypeNodeMatchKindExternal > 0
+	return node.Matched&^MatchKindExternal > 0
 }
 
-func (e TypeDependencyEdge) LastPointer() option.Option[TypeDependencyEdgePointer] {
+func (e Edge) LastPointer() option.Option[EdgeRouteNode] {
 	return option.GetSlice(e.Stack, len(e.Stack)-1)
 }
 
-func (e TypeDependencyEdge) PrintChildType(importMap imports.ImportMap) string {
+func (e Edge) PrintChildType(importMap imports.ImportMap) string {
 	return codegen.PrintAstExprPanicking(
 		codegen.TypeToAst(
 			e.ChildType,
@@ -144,7 +148,7 @@ func (e TypeDependencyEdge) PrintChildType(importMap imports.ImportMap) string {
 	)
 }
 
-func (e TypeDependencyEdge) PrintChildArg(i int, importMap imports.ImportMap) string {
+func (e Edge) PrintChildArg(i int, importMap imports.ImportMap) string {
 	return codegen.PrintAstExprPanicking(
 		codegen.TypeToAst(
 			e.TypeArgs[i].Org,
@@ -154,11 +158,11 @@ func (e TypeDependencyEdge) PrintChildArg(i int, importMap imports.ImportMap) st
 	)
 }
 
-func (e TypeDependencyEdge) PrintChildArgConverted(converter func(ty *types.Named, isMatched bool) (*types.Named, bool), importMap imports.ImportMap) string {
+func (e Edge) PrintChildArgConverted(converter func(ty *types.Named, isMatched bool) (*types.Named, bool), importMap imports.ImportMap) string {
 	isMatched := false
 	isConverter := func(named *types.Named) bool {
 		if node := e.TypeArgs[0].Node; node != nil {
-			isMatched = (node.Matched &^ TypeNodeMatchKindExternal) > 0
+			isMatched = (node.Matched &^ MatchKindExternal) > 0
 		}
 		_, ok := converter(named, isMatched)
 		return ok
@@ -182,67 +186,80 @@ func (e TypeDependencyEdge) PrintChildArgConverted(converter func(ty *types.Name
 	))
 }
 
-type TypeDependencyEdgePointer struct {
-	Kind TypeDependencyEdgeKind
+type EdgeRouteNode struct {
+	Kind EdgeKind
 	Pos  option.Option[int]
 }
 
 type TypeArg struct {
-	Stack []TypeDependencyEdgePointer
-	Node  *TypeNode
+	Route []EdgeRouteNode
+	Node  *Node
 	Ty    *types.Named
 	Org   types.Type
 }
 
-type TypeDependencyEdgeKind uint64
+type EdgeKind uint64
 
 const (
-	TypeDependencyEdgeKindAlias = TypeDependencyEdgeKind(1 << iota)
-	TypeDependencyEdgeKindArray
-	TypeDependencyEdgeKindChan
-	TypeDependencyEdgeKindInterface
-	TypeDependencyEdgeKindMap
-	TypeDependencyEdgeKindNamed
-	TypeDependencyEdgeKindPointer
-	TypeDependencyEdgeKindSlice
-	TypeDependencyEdgeKindStruct
+	EdgeKindAlias = EdgeKind(1 << iota)
+	EdgeKindArray
+	EdgeKindChan
+	EdgeKindInterface
+	EdgeKindMap
+	EdgeKindNamed
+	EdgeKindPointer
+	EdgeKindSlice
+	EdgeKindStruct
 )
 
-func FirstTypeIdent(m map[TypeIdent][]TypeDependencyEdge) (TypeIdent, TypeDependencyEdge) {
+func FirstTypeIdent(m map[Ident][]Edge) (Ident, Edge) {
 	for k, e := range m {
 		return k, e[0]
 	}
-	return TypeIdent{}, TypeDependencyEdge{}
+	return Ident{}, Edge{}
 }
 
-func NewTypeGraph(
+func New(
 	pkgs []*packages.Package,
-	matcher func(typeInfo *types.Named, external bool) (bool, error),
+	matcher func(node *Node, external bool) (bool, error),
 	genDeclFilter func(*ast.GenDecl) (bool, error),
 	typeSpecFilter func(*ast.TypeSpec, types.Object) (bool, error),
-) (*TypeGraph, error) {
-	graph := &TypeGraph{
-		types:    make(map[TypeIdent]*TypeNode),
-		matched:  make(map[TypeIdent]*TypeNode),
-		external: make(map[TypeIdent]*TypeNode),
+	opts ...Option,
+) (*Graph, error) {
+	graph := &Graph{
+		types:    make(map[Ident]*Node),
+		matched:  make(map[Ident]*Node),
+		external: make(map[Ident]*Node),
 	}
+
+	for _, opt := range opts {
+		opt.apply(graph)
+	}
+
 	err := graph.listTypes(pkgs, matcher, genDeclFilter, typeSpecFilter)
 	if err != nil {
 		return graph, err
 	}
+
 	err = graph.buildEdge(matcher)
 	if err != nil {
 		return graph, err
 	}
+
 	return graph, nil
 }
 
-func (g *TypeGraph) listTypes(
+func (g *Graph) listTypes(
 	pkgs []*packages.Package,
-	matcher func(named *types.Named, external bool) (bool, error),
+	matcher func(node *Node, external bool) (bool, error),
 	genDeclFilter func(*ast.GenDecl) (bool, error),
 	typeSpecFilter func(*ast.TypeSpec, types.Object) (bool, error),
 ) error {
+	parser := g.privParser
+	if parser == nil {
+		parser = func(n *Node) (any, error) { return nil, nil }
+	}
+
 	for pkg, fileSeq := range pkgsutil.EnumerateGenDecls(pkgs) {
 		if err := pkgsutil.LoadError(pkg); err != nil {
 			return err
@@ -283,12 +300,17 @@ func (g *TypeGraph) listTypes(
 					}
 
 					node := addType(g.types, pkg, file, currentPos, ts, named)
-					ok, err := matcher(named, false)
+					var err error
+					node.Priv, err = parser(node)
 					if err != nil {
-						return err
+						return fmt.Errorf("parsing priv: %w", err)
+					}
+					ok, err = matcher(node, false)
+					if err != nil {
+						return fmt.Errorf("matching type: %w", err)
 					}
 					if ok {
-						node.Matched |= TypeNodeMatchKindMatched
+						node.Matched |= MatchKindMatched
 						g.matched[IdentFromTypesObject(node.Type.Obj())] = node
 					}
 				}
@@ -299,19 +321,19 @@ func (g *TypeGraph) listTypes(
 }
 
 func addType(
-	to map[TypeIdent]*TypeNode,
+	to map[Ident]*Node,
 	pkg *packages.Package,
 	file *ast.File,
 	pos int,
 	ts *ast.TypeSpec,
 	typeInfo *types.Named,
-) *TypeNode {
+) *Node {
 	ident := IdentFromTypesObject(typeInfo.Obj())
 	n, ok := to[ident]
 	if ok {
 		return n
 	}
-	n = &TypeNode{
+	n = &Node{
 		Pkg:  pkg,
 		File: file,
 		Pos:  pos,
@@ -322,14 +344,15 @@ func addType(
 	return n
 }
 
-func (g *TypeGraph) buildEdge(matcher func(named *types.Named, external bool) (bool, error)) error {
+func (g *Graph) buildEdge(
+	matcher func(node *Node, external bool) (bool, error),
+) error {
 	for _, node := range g.types {
 		// Underlying matches what of go spec.
 		// It means what follows type idents like below:
 		//
 		// type Foo struct {Foo string; Bar int}
 		//          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this part is underlying
-		//
 		err := visitTypes(
 			node,
 			node.Type.Underlying(),
@@ -347,28 +370,54 @@ func (g *TypeGraph) buildEdge(matcher func(named *types.Named, external bool) (b
 
 // visitTypes visits
 func visitTypes(
-	parentNode *TypeNode,
+	parentNode *Node,
 	ty types.Type,
-	matcher func(named *types.Named, external bool) (bool, error),
-	allType map[TypeIdent]*TypeNode,
-	externalType map[TypeIdent]*TypeNode,
-	stack []TypeDependencyEdgePointer,
+	matcher func(node *Node, external bool) (bool, error),
+	allType map[Ident]*Node,
+	externalType map[Ident]*Node,
+	stack []EdgeRouteNode,
 ) error {
-	return VisitToNamed(
+	return TraverseToNamed(
 		ty,
-		func(named *types.Named, stack []TypeDependencyEdgePointer) error {
+		func(named *types.Named, stack []EdgeRouteNode) error {
 			node, ok := allType[IdentFromTypesObject(named.Obj())]
 			if ok {
-				parentNode.drawEdge(stack, visitOnTypeArgs(named.TypeArgs(), matcher, allType, externalType), named, node)
+				parentNode.drawEdge(
+					stack,
+					visitOnTypeArgs(
+						named.TypeArgs(),
+						matcher,
+						allType,
+						externalType,
+					),
+					named,
+					node,
+				)
 				return nil
 			}
-			ok, err := matcher(named, true)
+			ok, err := matcher(
+				&Node{
+					Pos:  -1,
+					Type: named,
+				},
+				true,
+			)
 			if !ok || err != nil {
 				return err
 			}
 			externalNode := addType(externalType, nil, nil, -1, nil, named)
-			externalNode.Matched |= TypeNodeMatchKindExternal
-			parentNode.drawEdge(stack, visitOnTypeArgs(named.TypeArgs(), matcher, allType, externalType), named, externalNode)
+			externalNode.Matched |= MatchKindExternal
+			parentNode.drawEdge(
+				stack,
+				visitOnTypeArgs(
+					named.TypeArgs(),
+					matcher,
+					allType,
+					externalType,
+				),
+				named,
+				externalNode,
+			)
 			return nil
 		},
 		stack,
@@ -377,29 +426,29 @@ func visitTypes(
 
 func visitOnTypeArgs(
 	typeList *types.TypeList,
-	matcher func(named *types.Named, external bool) (bool, error),
-	allType map[TypeIdent]*TypeNode,
-	externalType map[TypeIdent]*TypeNode,
+	matcher func(node *Node, external bool) (bool, error),
+	allType map[Ident]*Node,
+	externalType map[Ident]*Node,
 ) []TypeArg {
 	var typeArgs []TypeArg
 	for _, arg := range hiter.AtterAll(typeList) {
 		var found bool
-		_ = VisitToNamed(
+		_ = TraverseToNamed(
 			arg,
-			func(named *types.Named, stack []TypeDependencyEdgePointer) error {
+			func(named *types.Named, stack []EdgeRouteNode) error {
 				found = true
 				// TODO: split this `check if internal types, if not, then add as external type` sequence as a function or a method.
 				node, ok := allType[IdentFromTypesObject(named.Obj())]
 				if !ok {
-					ok, err := matcher(named, true)
+					ok, err := matcher(&Node{Pos: -1, Type: named}, true)
 					if ok && err == nil {
 						externalNode := addType(externalType, nil, nil, -1, nil, named)
-						externalNode.Matched |= TypeNodeMatchKindExternal
+						externalNode.Matched |= MatchKindExternal
 						node = externalNode
 					}
 				}
 				typeArgs = append(typeArgs, TypeArg{
-					Stack: slices.Clone(stack),
+					Route: slices.Clone(stack),
 					Node:  node, // might still be nil.
 					Ty:    named,
 					Org:   arg,
@@ -417,65 +466,95 @@ func visitOnTypeArgs(
 	return typeArgs
 }
 
-func VisitToNamed(
+func TraverseToNamed(
 	ty types.Type,
-	cb func(named *types.Named, stack []TypeDependencyEdgePointer) error,
-	stack []TypeDependencyEdgePointer,
+	cb func(named *types.Named, stack []EdgeRouteNode) error,
+	stack []EdgeRouteNode,
 ) error {
+	return TraverseTypes(
+		ty,
+		nil,
+		func(ty types.Type, named *types.Named, stack []EdgeRouteNode) error {
+			if named == nil {
+				return nil
+			}
+			return cb(named, stack)
+		},
+		stack,
+	)
+}
+
+func TraverseTypes(
+	ty types.Type,
+	stopper func(ty types.Type) bool,
+	cb func(ty types.Type, named *types.Named, stack []EdgeRouteNode) error,
+	stack []EdgeRouteNode,
+) error {
+	if stopper != nil && stopper(ty) {
+		named, _ := ty.(*types.Named)
+		return cb(ty, named, stack)
+	}
 	// types may recurse.
 	// but should be impossible without naming type,
 	// which breaks visitToNamed from infinite loop.
 	switch x := ty.(type) {
 	default:
-		return nil
-	case *types.Named:
-		return cb(x, stack)
+		return cb(x, nil, stack)
 	case *types.Alias:
 		// TODO: check for type param after go1.24
 		// see https://github.com/golang/go/issues/46477
-		return VisitToNamed(x.Rhs(), cb, append(stack, TypeDependencyEdgePointer{Kind: TypeDependencyEdgeKindAlias}))
+		return TraverseTypes(x.Rhs(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindAlias}))
 	case *types.Array:
-		return VisitToNamed(x.Elem(), cb, append(stack, TypeDependencyEdgePointer{Kind: TypeDependencyEdgeKindArray}))
+		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindArray}))
 	case *types.Basic:
-		return nil
+		return cb(x, nil, stack)
 	case *types.Chan:
-		return VisitToNamed(x.Elem(), cb, append(stack, TypeDependencyEdgePointer{Kind: TypeDependencyEdgeKindChan}))
+		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindChan}))
 	case *types.Interface:
-		return nil
+		return cb(x, nil, stack)
 	case *types.Map:
-		return VisitToNamed(x.Elem(), cb, append(stack, TypeDependencyEdgePointer{Kind: TypeDependencyEdgeKindMap}))
+		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindMap}))
+	case *types.Named:
+		return cb(x, x, stack)
 	case *types.Pointer:
-		return VisitToNamed(x.Elem(), cb, append(stack, TypeDependencyEdgePointer{Kind: TypeDependencyEdgeKindPointer}))
+		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindPointer}))
 	case *types.Slice:
-		return VisitToNamed(x.Elem(), cb, append(stack, TypeDependencyEdgePointer{Kind: TypeDependencyEdgeKindSlice}))
+		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindSlice}))
 	case *types.Struct:
 		// We don't support type-parametrized struct fields.
 		// Thus not checking type args.
 		for i := range x.NumFields() {
 			f := x.Field(i)
-			err := VisitToNamed(f.Type(), cb, append(stack, TypeDependencyEdgePointer{Kind: TypeDependencyEdgeKindStruct, Pos: option.Some(i)}))
+			err := TraverseTypes(
+				f.Type(),
+				stopper,
+				cb,
+				append(stack, EdgeRouteNode{Kind: EdgeKindStruct, Pos: option.Some(i)}),
+			)
 			if err != nil {
 				return err
 			}
 		}
 		return nil
+	case *types.TypeParam:
+		return cb(x, nil, stack)
 	}
 }
 
-func (parent *TypeNode) drawEdge(
-	stack []TypeDependencyEdgePointer,
+func (parent *Node) drawEdge(
+	stack []EdgeRouteNode,
 	typeArgs []TypeArg,
 	childTy *types.Named,
-	child *TypeNode,
+	child *Node,
 ) {
 	if parent.Children == nil {
-		parent.Children = make(map[TypeIdent][]TypeDependencyEdge)
+		parent.Children = make(map[Ident][]Edge)
 	}
 	if child.Parent == nil {
-		child.Parent = make(map[TypeIdent][]TypeDependencyEdge)
+		child.Parent = make(map[Ident][]Edge)
 	}
 
-	edge := TypeDependencyEdge{
+	edge := Edge{
 		Stack:      slices.Clone(stack),
 		TypeArgs:   typeArgs,
 		ParentNode: parent,
@@ -490,22 +569,22 @@ func (parent *TypeNode) drawEdge(
 	parent.Children[childIdent] = append(parent.Children[childIdent], edge)
 }
 
-func (g *TypeGraph) MarkDependant(edgeFilter func(edge TypeDependencyEdge) bool) {
+func (g *Graph) MarkDependant(edgeFilter func(edge Edge) bool) {
 	for _, node := range g.types {
-		node.Matched = node.Matched &^ TypeNodeMatchKindDependant
+		node.Matched = node.Matched &^ MatchKindDependant
 	}
 	for _, node := range g.IterUpward(false, edgeFilter) {
 		if node.Matched.IsExternal() || node.Matched.IsMatched() {
 			continue
 		}
-		node.Matched |= TypeNodeMatchKindDependant
+		node.Matched |= MatchKindDependant
 	}
 }
 
-func (g *TypeGraph) IterUpward(includeMatched bool, edgeFilter func(edge TypeDependencyEdge) bool) iter.Seq2[TypeIdent, *TypeNode] {
-	return func(yield func(TypeIdent, *TypeNode) bool) {
+func (g *Graph) IterUpward(includeMatched bool, edgeFilter func(edge Edge) bool) iter.Seq2[Ident, *Node] {
+	return func(yield func(Ident, *Node) bool) {
 		// record visited nodes to break cyclic link.
-		visited := make(map[*TypeNode]bool)
+		visited := make(map[*Node]bool)
 		for _, n := range g.external {
 			for ii, nn := range visitUpward(n, edgeFilter, visited) {
 				if !yield(ii, nn) {
@@ -535,11 +614,11 @@ func (g *TypeGraph) IterUpward(includeMatched bool, edgeFilter func(edge TypeDep
 }
 
 func visitUpward(
-	n *TypeNode,
-	edgeFilter func(edge TypeDependencyEdge) bool,
-	visited map[*TypeNode]bool,
-) iter.Seq2[TypeIdent, *TypeNode] {
-	return func(yield func(TypeIdent, *TypeNode) bool) {
+	n *Node,
+	edgeFilter func(edge Edge) bool,
+	visited map[*Node]bool,
+) iter.Seq2[Ident, *Node] {
+	return func(yield func(Ident, *Node) bool) {
 		for i, v := range n.Parent {
 			for _, edge := range v {
 				node := edge.ParentNode
@@ -568,9 +647,9 @@ func visitUpward(
 
 // Fields enumerates its children edges as iter.Seq2[int, typeDependencyEdge] assuming n's underlying type is struct.
 // The key of the iterator is position of field in source code order.
-func (n *TypeNode) Fields() iter.Seq2[int, TypeDependencyEdge] {
+func (n *Node) Fields() iter.Seq2[int, Edge] {
 	_ = n.Type.Underlying().(*types.Struct)
-	return func(yield func(int, TypeDependencyEdge) bool) {
+	return func(yield func(int, Edge) bool) {
 		for _, edges := range n.Children {
 			for _, e := range edges {
 				if !yield(e.Stack[0].Pos.Value(), e) {
@@ -581,9 +660,9 @@ func (n *TypeNode) Fields() iter.Seq2[int, TypeDependencyEdge] {
 	}
 }
 
-func (n *TypeNode) FieldsName() iter.Seq2[string, TypeDependencyEdge] {
+func (n *Node) FieldsName() iter.Seq2[string, Edge] {
 	structTy := n.Type.Underlying().(*types.Struct)
-	return func(yield func(string, TypeDependencyEdge) bool) {
+	return func(yield func(string, Edge) bool) {
 		for _, edges := range n.Children {
 			for _, e := range edges {
 				if !yield(structTy.Field(e.Stack[0].Pos.Value()).Name(), e) {
@@ -594,12 +673,12 @@ func (n *TypeNode) FieldsName() iter.Seq2[string, TypeDependencyEdge] {
 	}
 }
 
-func (n *TypeNode) ByFieldName(name string) (TypeDependencyEdge, *types.Var, reflect.StructTag, bool) {
+func (n *Node) ByFieldName(name string) (Edge, *types.Var, reflect.StructTag, bool) {
 	structObj := n.Type.Underlying().(*types.Struct)
 	for _, edges := range n.Children {
 		for _, e := range edges {
 			if e.Stack[0].Pos.IsNone() {
-				return TypeDependencyEdge{}, nil, "", false
+				return Edge{}, nil, "", false
 			}
 			pos := e.Stack[0].Pos.Value()
 			v := structObj.Field(pos)
@@ -608,11 +687,11 @@ func (n *TypeNode) ByFieldName(name string) (TypeDependencyEdge, *types.Var, ref
 			}
 		}
 	}
-	return TypeDependencyEdge{}, nil, "", false
+	return Edge{}, nil, "", false
 }
 
-func (g *TypeGraph) EnumerateTypes() iter.Seq2[TypeIdent, *TypeNode] {
-	keys := slices.SortedFunc(maps.Keys(g.types), func(i, j TypeIdent) int {
+func (g *Graph) EnumerateTypes() iter.Seq2[Ident, *Node] {
+	keys := slices.SortedFunc(maps.Keys(g.types), func(i, j Ident) int {
 		if c := cmp.Compare(i.PkgPath, j.PkgPath); c != 0 {
 			return c
 		}
@@ -621,38 +700,55 @@ func (g *TypeGraph) EnumerateTypes() iter.Seq2[TypeIdent, *TypeNode] {
 	return hiter.MapKeys(g.types, slices.Values(keys))
 }
 
-func (g *TypeGraph) EnumerateTypesKeys(keys iter.Seq[TypeIdent]) iter.Seq2[TypeIdent, *TypeNode] {
+func (g *Graph) Get(i Ident) (*Node, bool) {
+	n, ok := g.types[i]
+	return n, ok
+}
+
+func (g *Graph) GetByType(ty types.Type) (*Node, bool) {
+	named, ok := ty.(*types.Named)
+	if !ok {
+		return nil, false
+	}
+	if named.Obj().Pkg() == nil {
+		// error built-in interface
+		return nil, false
+	}
+	return g.Get(IdentFromTypesObject(named.Obj()))
+}
+
+func (g *Graph) EnumerateTypesKeys(keys iter.Seq[Ident]) iter.Seq2[Ident, *Node] {
 	return hiter.MapKeys(g.types, keys)
 }
 
-type TypeDependencyEdgeMap struct {
-	node    *TypeNode
-	edgeMap map[TypeIdent][]TypeDependencyEdge
-	posMap  map[int]TypeDependencyEdge
-	nameMap map[string]TypeDependencyEdge
+type EdgeMap struct {
+	node    *Node
+	edgeMap map[Ident][]Edge
+	posMap  map[int]Edge
+	nameMap map[string]Edge
 }
 
-func (n *TypeNode) ChildEdgeMap(edgeFilter func(edge TypeDependencyEdge) bool) TypeDependencyEdgeMap {
+func (n *Node) ChildEdgeMap(edgeFilter func(edge Edge) bool) EdgeMap {
 	if edgeFilter == nil {
-		edgeFilter = func(edge TypeDependencyEdge) bool { return true }
+		edgeFilter = func(edge Edge) bool { return true }
 	}
 
 	st, isStruct := n.Type.Underlying().(*types.Struct)
 	var (
-		posMap  map[int]TypeDependencyEdge
-		nameMap map[string]TypeDependencyEdge
+		posMap  map[int]Edge
+		nameMap map[string]Edge
 	)
 	if isStruct {
-		posMap = make(map[int]TypeDependencyEdge)
-		nameMap = make(map[string]TypeDependencyEdge)
+		posMap = make(map[int]Edge)
+		nameMap = make(map[string]Edge)
 	}
 
 	edgeMap := maps.Collect(
 		xiter.Filter2(
-			func(_ TypeIdent, edges []TypeDependencyEdge) bool {
+			func(_ Ident, edges []Edge) bool {
 				if isStruct {
 					for pos, edge := range xiter.Map2(
-						func(_ int, edge TypeDependencyEdge) (int, TypeDependencyEdge) {
+						func(_ int, edge Edge) (int, Edge) {
 							return edge.Stack[0].Pos.Value(), edge
 						},
 						slices.All(edges),
@@ -664,7 +760,7 @@ func (n *TypeNode) ChildEdgeMap(edgeFilter func(edge TypeDependencyEdge) bool) T
 				return len(edges) > 0
 			},
 			xiter.Map2(
-				func(i TypeIdent, edges []TypeDependencyEdge) (TypeIdent, []TypeDependencyEdge) {
+				func(i Ident, edges []Edge) (Ident, []Edge) {
 					return i, slices.Collect(xiter.Filter(edgeFilter, slices.Values(edges)))
 				},
 				maps.All(n.Children),
@@ -672,7 +768,7 @@ func (n *TypeNode) ChildEdgeMap(edgeFilter func(edge TypeDependencyEdge) bool) T
 		),
 	)
 
-	return TypeDependencyEdgeMap{
+	return EdgeMap{
 		node:    n,
 		edgeMap: edgeMap,
 		posMap:  posMap,
@@ -680,18 +776,18 @@ func (n *TypeNode) ChildEdgeMap(edgeFilter func(edge TypeDependencyEdge) bool) T
 	}
 }
 
-func (em TypeDependencyEdgeMap) First() (TypeIdent, TypeDependencyEdge, bool) {
+func (em EdgeMap) First() (Ident, Edge, bool) {
 	for k, v := range em.edgeMap {
 		return k, v[0], true
 	}
-	return TypeIdent{}, TypeDependencyEdge{}, false
+	return Ident{}, Edge{}, false
 }
 
 // Fields enumerates its children edges as iter.Seq2[int, typeDependencyEdge] assuming node's underlying type is struct.
 // The key of the iterator is position of field in source code order.
-func (em TypeDependencyEdgeMap) Fields() iter.Seq2[int, TypeDependencyEdge] {
+func (em EdgeMap) Fields() iter.Seq2[int, Edge] {
 	_ = em.node.Type.Underlying().(*types.Struct) // panic if not a struct.
-	return func(yield func(int, TypeDependencyEdge) bool) {
+	return func(yield func(int, Edge) bool) {
 		for _, edges := range em.edgeMap {
 			for _, e := range edges {
 				if !yield(e.Stack[0].Pos.Value(), e) {
@@ -702,11 +798,11 @@ func (em TypeDependencyEdgeMap) Fields() iter.Seq2[int, TypeDependencyEdge] {
 	}
 }
 
-// FieldsName is like [TypeDependencyEdgeMap.Fields] but the key of the pair is field name.
-func (em TypeDependencyEdgeMap) FieldsName() iter.Seq2[string, TypeDependencyEdge] {
+// FieldsName is like [EdgeMap.Fields] but the key of the pair is field name.
+func (em EdgeMap) FieldsName() iter.Seq2[string, Edge] {
 	structTy := em.node.Type.Underlying().(*types.Struct) // panic if not
 	return xiter.Map2(
-		func(i int, edge TypeDependencyEdge) (string, TypeDependencyEdge) {
+		func(i int, edge Edge) (string, Edge) {
 			return structTy.Field(i).Name(), edge
 		},
 		em.Fields(),
@@ -715,21 +811,21 @@ func (em TypeDependencyEdgeMap) FieldsName() iter.Seq2[string, TypeDependencyEdg
 
 // ByFieldPos returns the edge, the field var and the struct tag for the field positioned at pos in source code order,
 // It assumes node's underlying is struct type, otherwise panics.
-func (em TypeDependencyEdgeMap) ByFieldPos(pos int) (TypeDependencyEdge, *types.Var, reflect.StructTag, bool) {
+func (em EdgeMap) ByFieldPos(pos int) (Edge, *types.Var, reflect.StructTag, bool) {
 	st := em.node.Type.Underlying().(*types.Struct) // panic if not
 	edge, ok := em.posMap[pos]
 	if !ok {
-		return TypeDependencyEdge{}, nil, "", false
+		return Edge{}, nil, "", false
 	}
 	return edge, st.Field(pos), reflect.StructTag(st.Tag(pos)), true
 }
 
-// ByFieldName is like [TypeDependencyEdgeMap.ByFieldPos] but queries for fieldName.
-func (em TypeDependencyEdgeMap) ByFieldName(fieldName string) (TypeDependencyEdge, *types.Var, reflect.StructTag, bool) {
+// ByFieldName is like [EdgeMap.ByFieldPos] but queries for fieldName.
+func (em EdgeMap) ByFieldName(fieldName string) (Edge, *types.Var, reflect.StructTag, bool) {
 	st := em.node.Type.Underlying().(*types.Struct) // panic if not
 	edge, ok := em.nameMap[fieldName]
 	if !ok {
-		return TypeDependencyEdge{}, nil, "", false
+		return Edge{}, nil, "", false
 	}
 	pos := edge.Stack[0].Pos.Value()
 	return edge, st.Field(pos), reflect.StructTag(st.Tag(pos)), true

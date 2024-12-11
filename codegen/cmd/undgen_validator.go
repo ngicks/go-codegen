@@ -4,62 +4,35 @@ Copyright © 2024 ngicks <yknt.bsl@gmail.com>
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/ngicks/go-codegen/codegen/generator/undgen"
-	"github.com/ngicks/go-codegen/codegen/pkgsutil"
-	"github.com/ngicks/go-iterator-helper/hiter"
+	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/spf13/cobra"
+	"golang.org/x/tools/go/packages"
 )
+
+func init() {
+	fset := undgenValidatorCmd.Flags()
+	commonFlags(fset, true)
+	undgenCmd.AddCommand(undgenValidatorCmd)
+}
 
 // undgenPatchCmd represents the patch command
 var undgenValidatorCmd = &cobra.Command{
 	Use:   "validator [flags]",
 	Short: "undgen-validator generates validator method on target types.",
 	Long:  `undgen-validator generates validator method on target types.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		fset := cmd.Flags()
-
-		dir, pkg, verbose, ignoreGenerated, dry, err := undCommonOpts(fset, true)
-		if err != nil {
-			return err
-		}
-		if verbose {
-			fmt.Printf("running: validator plain\n\n\n")
-		}
-		ctx := cmd.Context()
-
-		targetPkgs, err := loadPkgs(ctx, dir, pkg, true, verbose, ignoreGenerated)
-		if err != nil {
-			return err
-		}
-
-		const suffix = ".und_validator"
-		writer, deferred := createWriter(dir, suffix, "validate", verbose, dry)
-		defer deferred()
-
-		err = hiter.TryForEach(
-			func(s string) {
-				if verbose || dry {
-					if dry {
-						fmt.Printf("\t[DRY]: removed %q\n", s)
-					} else {
-						fmt.Printf("\tremoved %q\n", s)
-					}
-				}
-			},
-			pkgsutil.RemoveSuffixedFiles(targetPkgs, dir, suffix, dry),
-		)
-		if err != nil {
-			return err
-		}
-
-		return undgen.GenerateValidator(writer, verbose, targetPkgs, undgen.ConstUnd.Imports)
-	},
-}
-
-func init() {
-	fset := undgenValidatorCmd.Flags()
-	undCommonFlags(fset, true)
-	undgenCmd.AddCommand(undgenValidatorCmd)
+	RunE: runCommand(
+		"undgen validator",
+		".und_validator",
+		true,
+		func(
+			cmd *cobra.Command,
+			writer *suffixwriter.Writer,
+			verbose bool,
+			pkgs []*packages.Package,
+			args []string,
+		) error {
+			return undgen.GenerateValidator(writer, verbose, pkgs, undgen.ConstUnd.Imports)
+		},
+	),
 }
