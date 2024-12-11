@@ -499,7 +499,7 @@ func TraverseTypes(
 	// which breaks visitToNamed from infinite loop.
 	switch x := ty.(type) {
 	default:
-		return nil
+		return cb(x, nil, stack)
 	case *types.Alias:
 		// TODO: check for type param after go1.24
 		// see https://github.com/golang/go/issues/46477

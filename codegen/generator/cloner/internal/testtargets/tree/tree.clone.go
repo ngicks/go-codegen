@@ -21,6 +21,7 @@ func (v Tree[T]) CloneFunc(cloneT func(T) T) Tree[T] {
 
 			return out
 		}(v.node),
+		comparer: v.comparer,
 	}
 }
 

@@ -37,9 +37,11 @@ func (d direction) override(c MatcherConfig) MatcherConfig {
 	case d.Ignore:
 		c.ChannelHandle = NoCopyHandleIgnore
 		c.NoCopyHandle = NoCopyHandleIgnore
+		c.FuncHandle = NoCopyHandleIgnore
 	case d.CopyPtr:
 		c.ChannelHandle = NoCopyHandleCopyPointer
 		c.NoCopyHandle = NoCopyHandleCopyPointer
+		c.FuncHandle = NoCopyHandleCopyPointer
 	}
 	return c
 }

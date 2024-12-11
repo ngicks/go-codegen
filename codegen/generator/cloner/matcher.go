@@ -31,6 +31,7 @@ const (
 type MatcherConfig struct {
 	NoCopyHandle  NoCopyHandle
 	ChannelHandle NoCopyHandle
+	FuncHandle    NoCopyHandle
 
 	CustomHandlers CustomHandlers
 
@@ -252,7 +253,12 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 					k = handleKindCallClone
 				case matcher.IsCloneByAssign(unwrapped_):
 					k = handleKindAssign
+				case asSignature(unwrapped_) != nil:
+					k = handleSig(c, logger).Or(option.Some(k)).Value()
+					// TODO: getting larger, split this function into smaller pieces.
 				}
+			case *types.Signature:
+				k = handleSig(c, logger).Or(option.Some(k)).Value()
 			}
 
 			if k != handleKindIgnore && k != handleKindCallCloneFunc {
@@ -283,6 +289,43 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 		nil,
 	)
 	return
+}
+
+func handleSig(c *MatcherConfig, logger *slog.Logger) option.Option[handleKind] {
+	switch c.FuncHandle {
+	case NoCopyHandleIgnore:
+		logger.Debug("ignoring field since it contains function: if it should be copied place " +
+			"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+			" as field doc comment",
+		)
+		return option.Some(handleKindIgnore)
+	case NoCopyHandleDisallow:
+		logger.Debug(
+			"ignoring type since it contains function: if this is mistake change MatchConfig or place " +
+				"//" + DirectivePrefix + DirectiveCommentIgnore +
+				" or " +
+				"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+				" as field doc comment",
+		)
+		return option.None[handleKind]()
+	case NoCopyHandleCopyPointer:
+		// func itself is a pointer type.
+		return option.Some(handleKindAssign)
+	}
+	logger.Debug("unknown kind", slog.Int("kind", int(c.FuncHandle)))
+	return option.Some(handleKindIgnore)
+}
+
+func asSignature(ty types.Type) *types.Signature {
+	if sig, ok := ty.(*types.Signature); ok {
+		return sig
+	}
+	if named, ok := ty.(*types.Named); ok {
+		if sig, ok := named.Underlying().(*types.Signature); ok {
+			return sig
+		}
+	}
+	return nil
 }
 
 func (c *MatcherConfig) handleField(
