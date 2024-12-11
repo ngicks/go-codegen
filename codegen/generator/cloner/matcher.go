@@ -8,6 +8,7 @@ import (
 	"github.com/ngicks/go-codegen/codegen/matcher"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
+	"github.com/ngicks/und/option"
 )
 
 var (
@@ -45,6 +46,9 @@ func (c *MatcherConfig) MatchEdge(e typegraph.Edge) bool {
 	if len(s) > 0 && s[0].Kind == typegraph.EdgeKindStruct {
 		s = s[1:]
 	}
+	if option.Assert[clonerPriv](e.ParentNode.Priv).IsSomeAnd(func(cp clonerPriv) bool { return cp.disallowed }) {
+		return false
+	}
 	return !slices.ContainsFunc(
 		s,
 		func(p typegraph.EdgeRouteNode) bool {
@@ -64,6 +68,16 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 	attr = append(attr, slog.String("name", named.Obj().Name()))
 	logger.Debug("matching", attr...)
 
+	priv := option.Assert[clonerPriv](node.Priv).Or(option.Some(clonerPriv{}))
+	defer func() {
+		// below priv might be changed
+		v := priv.Value()
+		if v.disallowed {
+			logger.Debug("disallowed")
+		}
+		node.Priv = v
+	}()
+
 	switch x := named.Underlying().(type) {
 	default:
 		logger.Debug(
@@ -74,17 +88,15 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 	case *types.Struct:
 		for i, f := range pkgsutil.EnumerateFields(x) {
 			conf := *c
-			if priv, ok := node.Priv.(clonerPriv); ok {
-				direction, ok := priv.lines[i]
-				if ok {
-					logger.Debug("match conf overridden", slog.Any("directive", direction))
-					conf = direction.override(conf)
-				}
+			if priv.IsSomeAnd(func(cp clonerPriv) bool { _, ok := cp.lines[i]; return ok }) {
+				direction := priv.Value().lines[i]
+				logger.Debug("match conf overridden", slog.Any("directive", direction))
+				conf = direction.override(conf)
 			}
-
 			logger := logger.With(slog.Int("at", i), slog.String("fieldName", f.Name()))
 			unwrapped, _, kind, _, fieldOk := conf.matchTy(f.Type(), logger)
 			if !fieldOk {
+				priv = priv.Map(func(v clonerPriv) clonerPriv { v.disallowed = true; return v })
 				logger.Debug("not matched")
 				return false, nil
 			}
@@ -116,6 +128,8 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 		}
 		if fieldOk {
 			logger.Debug("matched: type ok")
+		} else {
+			priv = priv.Map(func(v clonerPriv) clonerPriv { v.disallowed = true; return v })
 		}
 		return fieldOk, nil
 	}

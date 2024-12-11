@@ -22,7 +22,8 @@ var (
 )
 
 type clonerPriv struct {
-	lines map[int]direction
+	disallowed bool
+	lines      map[int]direction
 }
 
 type direction struct {
@@ -97,5 +98,5 @@ func parseNode(n *typegraph.Node) (any, error) {
 		}
 	}
 
-	return clonerPriv{lines}, nil
+	return clonerPriv{lines: lines}, nil
 }

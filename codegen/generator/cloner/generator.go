@@ -72,7 +72,7 @@ func (c *Config) Generate(
 	replacerData, err := graph.GatherReplaceData(
 		parser,
 		func(g *typegraph.Graph) iter.Seq2[typegraph.Ident, *typegraph.Node] {
-			return g.EnumerateTypes()
+			return g.IterUpward(true, c.matcherConfig().MatchEdge)
 		},
 	)
 	if err != nil {
