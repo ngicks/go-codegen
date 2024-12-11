@@ -14,12 +14,13 @@ func (v A) Clone() A {
 		A: v.A,
 		B: v.B,
 		C: func(v *int) *int {
-			out := new(int)
+			out := (*int)(nil)
 
 			inner := out
 			if v != nil {
 				v := *v
-				*inner = v
+				vv := v
+				inner = &vv
 			}
 			out = inner
 
@@ -37,10 +38,11 @@ func (v B) Clone() B {
 			inner := out
 			for k, v := range v {
 				outer := &inner
-				inner := new([]string)
+				inner := (*[]string)(nil)
 				if v != nil {
 					v := *v
-					*inner = slices.Clone(v)
+					vv := slices.Clone(v)
+					inner = &vv
 				}
 				(*outer)[k] = inner
 			}
@@ -55,7 +57,7 @@ func (v B) Clone() B {
 			inner := out
 			for k, v := range v {
 				outer := &inner
-				inner := new(map[int][3]string)
+				inner := (*map[int][3]string)(nil)
 				if v != nil {
 					v := *v
 					outer := &inner

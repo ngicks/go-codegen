@@ -363,7 +363,7 @@ func unwrapFieldAlongPath(
 	initializer := func(expr ast.Expr, kind typegraph.EdgeKind) string {
 		switch kind {
 		case typegraph.EdgeKindPointer:
-			return fmt.Sprintf("new(%s)", codegen.PrintAstExprPanicking(expr.(*ast.StarExpr).X))
+			return fmt.Sprintf("(%s)(nil)", codegen.PrintAstExprPanicking(expr))
 		case typegraph.EdgeKindArray:
 			return fmt.Sprintf("%s{}", codegen.PrintAstExprPanicking(expr))
 		default:
@@ -412,7 +412,8 @@ func unwrapFieldAlongPath(
 			return fmt.Sprintf(
 				`if v != nil {
 						v := *v
-						*inner = %s
+						vv := %s
+						inner = &vv
 					}`,
 				s,
 			)

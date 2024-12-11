@@ -19,7 +19,7 @@ func (v A) Clone() A {
 				inner := make(map[string]*[][]string, len(v))
 				for k, v := range v {
 					outer := &inner
-					inner := new([][]string)
+					inner := (*[][]string)(nil)
 					if v != nil {
 						v := *v
 						outer := &inner

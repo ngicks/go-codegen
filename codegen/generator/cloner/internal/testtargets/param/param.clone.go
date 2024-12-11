@@ -20,10 +20,11 @@ func (v Param2[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) Param2[T, U]
 			inner := out
 			for k, v := range v {
 				outer := &inner
-				inner := new(U)
+				inner := (*U)(nil)
 				if v != nil {
 					v := *v
-					*inner = cloneU(v)
+					vv := cloneU(v)
+					inner = &vv
 				}
 				(*outer)[k] = inner
 			}
@@ -32,12 +33,13 @@ func (v Param2[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) Param2[T, U]
 			return out
 		}(v.U),
 		T: func(v *T) *T {
-			out := new(T)
+			out := (*T)(nil)
 
 			inner := out
 			if v != nil {
 				v := *v
-				*inner = cloneT(v)
+				vv := cloneT(v)
+				inner = &vv
 			}
 			out = inner
 
