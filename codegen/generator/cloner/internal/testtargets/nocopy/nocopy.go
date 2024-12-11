@@ -14,4 +14,9 @@ type ContainsNoCopy struct {
 	CC map[string]chan int
 	//cloner:make
 	CS []chan int
+
+	//cloner:copyptr
+	NamedFunc namedFunc
 }
+
+type namedFunc func()

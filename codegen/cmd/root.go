@@ -76,9 +76,16 @@ func runCommand(
 }
 
 func commonFlags(fset *pflag.FlagSet, multiplePkg bool) {
-	fset.StringP("dir", "d", "", "directory under which target package is located. If empty cwd will be used.")
+	fset.StringP(
+		"dir",
+		"d",
+		"",
+		`specifies the current working directory for the source code loader and other tools.
+The path specified by --pkg flag is evaluated under this directory.
+If empty cwd will be used.`,
+	)
 	if multiplePkg {
-		fset.StringArrayP("pkg", "p", nil, "target package name. relative to dir. must start with ./")
+		fset.StringArrayP("pkg", "p", nil, "target package pattern. relative to dir. must start with `./`. can be `./...`")
 	} else {
 		fset.StringP("pkg", "p", "", "target package name. relative to dir. specifying 2 or more packages is not allowed")
 	}
@@ -86,10 +93,11 @@ func commonFlags(fset *pflag.FlagSet, multiplePkg bool) {
 	fset.Bool(
 		"ignore-generated",
 		false,
-		"if set, the type checker ignores ast nodes with comment //codegen:generated. "+
-			"Useful for internal debugging. "+
-			"You do not need this option.")
-	fset.Bool("dry", false, "enables dry run mode. any files will be remove nor generated.")
+		`You do not need this option. 
+If set, the type checker ignores ast nodes with comment //codegen:generated attached. 
+Useful for internal debugging. `,
+	)
+	fset.Bool("dry", false, "enables dry run mode. any files will be removed nor generated.")
 	_ = undgenPatchCmd.MarkFlagRequired("pkg")
 }
 

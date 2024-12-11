@@ -45,5 +45,6 @@ func (v ContainsNoCopy) Clone() ContainsNoCopy {
 
 			return out
 		}(v.CS),
+		NamedFunc: v.NamedFunc,
 	}
 }
