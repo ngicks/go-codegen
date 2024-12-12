@@ -3,29 +3,46 @@
 // go run github.com/ngicks/go-codegen/codegen cloner --help
 package simpleasm
 
-import "slices"
-
 //codegen:generated
 func (v A) Clone() A {
 	return func(v [5][]map[string]*[][]string) [5][]map[string]*[][]string {
-		out := [5][]map[string]*[][]string{}
+		var out [5][]map[string]*[][]string
 
 		inner := out
 		for k, v := range v {
 			outer := &inner
-			inner := make([]map[string]*[][]string, len(v))
+			var inner []map[string]*[][]string
+			if v != nil {
+				inner = make([]map[string]*[][]string, len(v), cap(v))
+			}
 			for k, v := range v {
 				outer := &inner
-				inner := make(map[string]*[][]string, len(v))
+				var inner map[string]*[][]string
+				if v != nil {
+					inner = make(map[string]*[][]string, len(v))
+				}
 				for k, v := range v {
 					outer := &inner
-					inner := (*[][]string)(nil)
+					var inner *[][]string
+					if v != nil {
+						inner = new([][]string)
+					}
 					if v != nil {
 						v := *v
 						outer := &inner
-						inner := make([][]string, len(v))
+						var inner [][]string
+						if v != nil {
+							inner = make([][]string, len(v), cap(v))
+						}
 						for k, v := range v {
-							inner[k] = slices.Clone(v)
+							inner[k] = func(src []string) []string {
+								if src == nil {
+									return nil
+								}
+								dst := make([]string, len(src), cap(src))
+								copy(dst, src)
+								return dst
+							}(v)
 						}
 						(*outer) = &inner
 					}

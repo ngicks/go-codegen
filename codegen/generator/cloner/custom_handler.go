@@ -2,9 +2,11 @@ package cloner
 
 import (
 	"fmt"
+	"go/ast"
 	"go/types"
 	"slices"
 
+	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
@@ -37,7 +39,13 @@ func (h CustomHandlers) Imports() []imports.TargetImport {
 type CustomHandler struct {
 	Matcher func(types.Type) bool
 	Imports []imports.TargetImport
-	Expr    func(imports.ImportMap) func(s string) string
+	Expr    func(CustomHandlerExprData) (expr func(s string) (expr string), isFunc bool)
+}
+
+type CustomHandlerExprData struct {
+	ImportMap imports.ImportMap
+	AstExpr   ast.Expr
+	Ty        types.Type
 }
 
 var builtinCustomHandlers = [...]CustomHandler{
@@ -62,11 +70,18 @@ var builtinCustomHandlers = [...]CustomHandler{
 				Import: imports.Import{Path: "slices", Name: "slices"},
 			},
 		},
-		Expr: func(im imports.ImportMap) func(s string) string {
+		Expr: func(data CustomHandlerExprData) (expr func(s string) (expr string), isFunc bool) {
 			return func(s string) string {
-				ident, _ := im.Ident("slices")
-				return ident + ".Clone(" + s + ")"
-			}
+				return fmt.Sprintf(
+					`func(src %[1]s) %[1]s {
+						if src == nil {
+							return nil
+						}
+						dst := make(%[1]s, len(src), cap(src))
+						copy(dst, src)
+						return dst
+					}`, codegen.PrintAstExprPanicking(data.AstExpr))
+			}, true
 		},
 	},
 	{
@@ -85,11 +100,11 @@ var builtinCustomHandlers = [...]CustomHandler{
 				Import: imports.Import{Path: "maps", Name: "maps"},
 			},
 		},
-		Expr: func(im imports.ImportMap) func(s string) string {
+		Expr: func(data CustomHandlerExprData) (expr func(s string) (expr string), isFunc bool) {
 			return func(s string) string {
-				ident, _ := im.Ident("maps")
-				return ident + ".Clone(" + s + ")"
-			}
+				ident, _ := data.ImportMap.Ident("maps")
+				return ident + ".Clone"
+			}, true
 		},
 	},
 	{
@@ -106,9 +121,9 @@ var builtinCustomHandlers = [...]CustomHandler{
 				},
 			},
 		},
-		Expr: func(im imports.ImportMap) func(s string) string {
+		Expr: func(data CustomHandlerExprData) (expr func(s string) (expr string), isFunc bool) {
 			return func(s string) string {
-				ident, _ := im.Ident("time")
+				ident, _ := data.ImportMap.Ident("time")
 				tok := "t"
 				if tok == ident {
 					tok = "tt"
@@ -125,8 +140,8 @@ var builtinCustomHandlers = [...]CustomHandler{
 							%[1]s.Nanosecond(),
 							%[1]s.Location(),
 						)
-					}(%[3]s)`, tok, ident, s)
-			}
+					}`, tok, ident)
+			}, true
 		},
 	},
 	{
@@ -137,10 +152,10 @@ var builtinCustomHandlers = [...]CustomHandler{
 			}
 			return isBasicOrKnownCloneByAssign(t)
 		},
-		Expr: func(im imports.ImportMap) func(s string) string {
+		Expr: func(data CustomHandlerExprData) (expr func(s string) (expr string), isFunc bool) {
 			return func(s string) string {
 				return s
-			}
+			}, false
 		},
 	},
 }

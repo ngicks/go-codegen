@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"maps"
-	"slices"
 
 	"github.com/ngicks/und"
 )
@@ -28,7 +27,11 @@ func (v Custom) Clone() Custom {
 			)
 		}(v.T),
 		TM: func(v map[string]time.Time) map[string]time.Time {
-			out := make(map[string]time.Time, len(v))
+			var out map[string]time.Time
+
+			if v != nil {
+				out = make(map[string]time.Time, len(v))
+			}
 
 			inner := out
 			for k, v := range v {
@@ -50,14 +53,28 @@ func (v Custom) Clone() Custom {
 			return out
 		}(v.TM),
 		M: maps.Clone(v.M),
-		B: slices.Clone(v.B),
+		B: func(src []byte) []byte {
+			if src == nil {
+				return nil
+			}
+			dst := make([]byte, len(src), cap(src))
+			copy(dst, src)
+			return dst
+		}(v.B),
 		Implementor: func(v [][]und.Und[string]) [][]und.Und[string] {
-			out := make([][]und.Und[string], len(v))
+			var out [][]und.Und[string]
+
+			if v != nil {
+				out = make([][]und.Und[string], len(v), cap(v))
+			}
 
 			inner := out
 			for k, v := range v {
 				outer := &inner
-				inner := make([]und.Und[string], len(v))
+				var inner []und.Und[string]
+				if v != nil {
+					inner = make([]und.Und[string], len(v), cap(v))
+				}
 				for k, v := range v {
 					inner[k] = v.CloneFunc(
 						func(v string) string {
@@ -72,8 +89,13 @@ func (v Custom) Clone() Custom {
 			return out
 		}(v.Implementor),
 		TypeParam: v.TypeParam.CloneFunc(
-			func(v []string) []string {
-				return slices.Clone(v)
+			func(src []string) []string {
+				if src == nil {
+					return nil
+				}
+				dst := make([]string, len(src), cap(src))
+				copy(dst, src)
+				return dst
 			},
 		),
 		H: v.H,

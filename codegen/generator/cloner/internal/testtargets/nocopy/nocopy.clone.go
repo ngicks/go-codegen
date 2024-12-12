@@ -12,7 +12,11 @@ func (v ContainsNoCopy) Clone() ContainsNoCopy {
 	return ContainsNoCopy{
 		NoCopy: v.NoCopy,
 		NoCopyMap: func(v map[int]*sync.Mutex) map[int]*sync.Mutex {
-			out := make(map[int]*sync.Mutex, len(v))
+			var out map[int]*sync.Mutex
+
+			if v != nil {
+				out = make(map[int]*sync.Mutex, len(v))
+			}
 
 			inner := out
 			for k, v := range v {
@@ -24,7 +28,11 @@ func (v ContainsNoCopy) Clone() ContainsNoCopy {
 		}(v.NoCopyMap),
 		C: v.C,
 		CC: func(v map[string]chan int) map[string]chan int {
-			out := make(map[string]chan int, len(v))
+			var out map[string]chan int
+
+			if v != nil {
+				out = make(map[string]chan int, len(v))
+			}
 
 			inner := out
 			for k, v := range v {
@@ -35,7 +43,11 @@ func (v ContainsNoCopy) Clone() ContainsNoCopy {
 			return out
 		}(v.CC),
 		CS: func(v []chan int) []chan int {
-			out := make([]chan int, len(v))
+			var out []chan int
+
+			if v != nil {
+				out = make([]chan int, len(v), cap(v))
+			}
 
 			inner := out
 			for k, v := range v {

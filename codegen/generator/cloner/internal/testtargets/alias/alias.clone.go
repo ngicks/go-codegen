@@ -12,7 +12,11 @@ func (v A) Clone() A {
 			},
 		),
 		UM: func(v map[string]U) map[string]U {
-			out := make(map[string]U, len(v))
+			var out map[string]U
+
+			if v != nil {
+				out = make(map[string]U, len(v))
+			}
 
 			inner := out
 			for k, v := range v {
