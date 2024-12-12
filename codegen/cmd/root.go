@@ -58,12 +58,12 @@ func runCommand(
 		slog.Default().DebugContext(ctx, fmt.Sprintf("executing %s", name))
 
 		fset := cmd.Flags()
-		dir, pkg, verbose, ignoreGenerated, dry, err := commonOpts(fset, multiplePkg)
+		dir, buildFlags, pkg, verbose, ignoreGenerated, dry, err := commonOpts(fset, multiplePkg)
 		if err != nil {
 			return err
 		}
 
-		pkgs, err := loadPkgs(ctx, dir, pkg, multiplePkg, verbose, ignoreGenerated)
+		pkgs, err := loadPkgs(ctx, dir, buildFlags, pkg, multiplePkg, verbose, ignoreGenerated)
 		if err != nil {
 			return err
 		}
@@ -84,6 +84,7 @@ func commonFlags(fset *pflag.FlagSet, multiplePkg bool) {
 The path specified by --pkg flag is evaluated under this directory.
 If empty cwd will be used.`,
 	)
+	fset.StringSlice("build-flags", nil, " a comma separated list of command-line flags to be passed through to the build system's query tool.")
 	if multiplePkg {
 		fset.StringArrayP("pkg", "p", nil, "target package pattern. relative to dir. must start with `./`. can be `./...`")
 	} else {
@@ -101,7 +102,7 @@ Useful for internal debugging. `,
 	_ = undgenPatchCmd.MarkFlagRequired("pkg")
 }
 
-func commonOpts(fset *pflag.FlagSet, multiplePkg bool) (dir string, pkg []string, verbose bool, ignoreGenerated bool, dry bool, err error) {
+func commonOpts(fset *pflag.FlagSet, multiplePkg bool) (dir string, buildFlags []string, pkg []string, verbose bool, ignoreGenerated bool, dry bool, err error) {
 	dir, err = fset.GetString("dir")
 	if err != nil {
 		return
@@ -114,6 +115,11 @@ func commonOpts(fset *pflag.FlagSet, multiplePkg bool) (dir string, pkg []string
 		}
 	}
 	dir, err = filepath.Abs(dir)
+	if err != nil {
+		return
+	}
+
+	buildFlags, err = fset.GetStringArray("build-flags")
 	if err != nil {
 		return
 	}
@@ -165,6 +171,7 @@ func commonOpts(fset *pflag.FlagSet, multiplePkg bool) (dir string, pkg []string
 func loadPkgs(
 	ctx context.Context,
 	dir string,
+	buildFlags []string,
 	pkg []string,
 	multiplePkg bool,
 	verbose bool,
@@ -178,8 +185,9 @@ func loadPkgs(
 			packages.NeedSyntax |
 			packages.NeedTypesInfo |
 			packages.NeedTypesSizes,
-		Context: ctx,
-		Dir:     dir,
+		Context:    ctx,
+		Dir:        dir,
+		BuildFlags: buildFlags,
 	}
 	if verbose {
 		cfg.Logf = func(format string, args ...interface{}) {
@@ -225,7 +233,7 @@ func createWriter(dir string, suffix string, subcommand string, verbose bool, dr
 		suffixwriter.WithPrefix([]byte(
 			generationNotice +
 				"// to regenerate the code, refer to help by invoking\n" +
-				"// go run github.com/ngicks/go-codegen/codegen " + subcommand + " --help\n",
+				"// go run github.com/ngicks/go-codegen/codegen " + subcommand + " --help\n\n",
 		)),
 	}
 	if verbose {

@@ -2,9 +2,27 @@ package codegen
 
 import (
 	"go/ast"
+	"go/build/constraint"
 	"go/types"
 	"iter"
+	"slices"
+
+	"github.com/dave/dst"
+	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
+
+func TrimPackageComment(f *dst.File) {
+	// we only support Go 1.21+ since the package "maps" is first introduced in that version.
+	// The "// +build" is no longer supported after Go 1.18
+	// but we still leave comments as long as it is easy to implement.
+	f.Decs.Start = slices.AppendSeq(
+		dst.Decorations{},
+		xiter.Filter(
+			func(s string) bool { return constraint.IsGoBuild(s) || constraint.IsPlusBuild(s) },
+			slices.Values(f.Decs.Start),
+		),
+	)
+}
 
 func EnumerateCommentGroup(comments *ast.CommentGroup) iter.Seq[string] {
 	return func(yield func(string) bool) {

@@ -2,11 +2,13 @@
 // to regenerate the code, refer to help by invoking
 // go run github.com/ngicks/go-codegen/codegen cloner --help
 
-package disalloweddependant
+//go:build linux || darwin
+
+package constraint
 
 //codegen:generated
-func (v B) Clone() B {
-	return B{
-		B: v.B,
+func (v A) Clone() A {
+	return A{
+		A: v.A,
 	}
 }
