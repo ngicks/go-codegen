@@ -232,8 +232,15 @@ func cloneTy(
 	if len(stack) > 0 && stack[0].Kind == typegraph.EdgeKindStruct {
 		stack = stack[1:]
 	}
-	if len(stack) > 0 && stack[len(stack)-1].Kind == typegraph.EdgeKindAlias {
-		stack = stack[:len(stack)-1]
+	if idx := slices.IndexFunc(
+		stack,
+		func(node typegraph.EdgeRouteNode) bool {
+			// There can be 2 or more aliases
+			// But after that, there should not be other than that
+			// since aliasing only points to named type.
+			return node.Kind == typegraph.EdgeKindAlias
+		}); idx >= 0 {
+		stack = stack[:idx]
 	}
 
 	unwrappedExpr, unwrapper := unwrapFieldAlongPath(
