@@ -121,12 +121,6 @@ func (p *Writer) openFile(name string) (w io.WriteCloser, filename string, err e
 	return
 }
 
-func suffixFilename(f, suffix string) string {
-	ext := filepath.Ext(filepath.Base(f))
-	f, _ = strings.CutSuffix(f, ext)
-	return f + suffix + ext
-}
-
 // Write write b into name but suffixed.
 func (p *Writer) Write(ctx context.Context, name string, b []byte) error {
 	err := p.preProcess(name)
