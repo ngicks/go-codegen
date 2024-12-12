@@ -324,13 +324,25 @@ func cloneTy(
 			return s + builder.String()
 		}
 	case handleKindUseCustomHandler:
-		cloneExpr = c.matcherConfig().CustomHandlers[idx].Expr(importMap)
+		cloneExpr, callable = c.matcherConfig().
+			CustomHandlers[idx].
+			Expr(CustomHandlerExprData{
+				ImportMap: importMap,
+				AstExpr:   unwrappedExpr,
+				Ty:        unwrapped,
+			})
 	}
 
 	if unwrapper != nil {
+		if callable {
+			inner := cloneExpr
+			cloneExpr = func(s string) string {
+				return inner("") + "(" + s + ")"
+			}
+		}
 		return func(s string) string { return unwrapper(cloneExpr) }, true, nil
 	} else {
-		return cloneExpr, false, nil
+		return cloneExpr, callable, nil
 	}
 }
 
@@ -433,7 +445,8 @@ func unwrapFieldAlongPath(
 		})
 	}
 
-	return unwrapExprOne(unwrapped, s[len(s)-1].Kind), func(wrappee func(string) string) string {
+	unwrapped = unwrapExprOne(unwrapped, s[len(s)-1].Kind)
+	return unwrapped, func(wrappee func(string) string) string {
 		wrappers = slices.Insert(wrappers, 0, func(expr string) string {
 			return fmt.Sprintf(
 				`func (v %s) %s {

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"maps"
-	"slices"
 
 	"github.com/ngicks/und"
 )
@@ -50,7 +49,14 @@ func (v Custom) Clone() Custom {
 			return out
 		}(v.TM),
 		M: maps.Clone(v.M),
-		B: slices.Clone(v.B),
+		B: func(src []byte) []byte {
+			if src == nil {
+				return nil
+			}
+			dst := make([]byte, len(src), cap(src))
+			copy(dst, src)
+			return dst
+		}(v.B),
 		Implementor: func(v [][]und.Und[string]) [][]und.Und[string] {
 			out := make([][]und.Und[string], len(v))
 
@@ -72,8 +78,13 @@ func (v Custom) Clone() Custom {
 			return out
 		}(v.Implementor),
 		TypeParam: v.TypeParam.CloneFunc(
-			func(v []string) []string {
-				return slices.Clone(v)
+			func(src []string) []string {
+				if src == nil {
+					return nil
+				}
+				dst := make([]string, len(src), cap(src))
+				copy(dst, src)
+				return dst
 			},
 		),
 		H: v.H,

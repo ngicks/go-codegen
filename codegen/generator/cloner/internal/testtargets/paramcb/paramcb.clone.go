@@ -3,8 +3,6 @@
 // go run github.com/ngicks/go-codegen/codegen cloner --help
 package paramcb
 
-import "slices"
-
 //codegen:generated
 func (v A[T]) CloneFunc(cloneT func(T) T) A[T] {
 	return A[T]{
@@ -15,8 +13,13 @@ func (v A[T]) CloneFunc(cloneT func(T) T) A[T] {
 			cloneT,
 		),
 		B: v.B.CloneFunc(
-			func(v []string) []string {
-				return slices.Clone(v)
+			func(src []string) []string {
+				if src == nil {
+					return nil
+				}
+				dst := make([]string, len(src), cap(src))
+				copy(dst, src)
+				return dst
 			},
 		),
 		C: v.C.CloneFunc(
