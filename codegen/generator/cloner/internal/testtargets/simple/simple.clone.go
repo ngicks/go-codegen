@@ -11,7 +11,11 @@ func (v A) Clone() A {
 		A: v.A,
 		B: v.B,
 		C: func(v *int) *int {
-			out := (*int)(nil)
+			var out *int
+
+			if v != nil {
+				out = new(int)
+			}
 
 			inner := out
 			if v != nil {
@@ -30,12 +34,19 @@ func (v A) Clone() A {
 func (v B) Clone() B {
 	return B{
 		A: func(v []*[]string) []*[]string {
-			out := make([]*[]string, len(v))
+			var out []*[]string
+
+			if v != nil {
+				out = make([]*[]string, len(v), cap(v))
+			}
 
 			inner := out
 			for k, v := range v {
 				outer := &inner
-				inner := (*[]string)(nil)
+				var inner *[]string
+				if v != nil {
+					inner = new([]string)
+				}
 				if v != nil {
 					v := *v
 					vv := func(src []string) []string {
@@ -56,16 +67,26 @@ func (v B) Clone() B {
 		}(v.A),
 		B: maps.Clone(v.B),
 		C: func(v []*map[int][3]string) []*map[int][3]string {
-			out := make([]*map[int][3]string, len(v))
+			var out []*map[int][3]string
+
+			if v != nil {
+				out = make([]*map[int][3]string, len(v), cap(v))
+			}
 
 			inner := out
 			for k, v := range v {
 				outer := &inner
-				inner := (*map[int][3]string)(nil)
+				var inner *map[int][3]string
+				if v != nil {
+					inner = new(map[int][3]string)
+				}
 				if v != nil {
 					v := *v
 					outer := &inner
-					inner := make(map[int][3]string, len(v))
+					var inner map[int][3]string
+					if v != nil {
+						inner = make(map[int][3]string, len(v))
+					}
 					for k, v := range v {
 						inner[k] = v
 					}

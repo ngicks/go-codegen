@@ -383,13 +383,21 @@ func unwrapFieldAlongPath(
 		return toExpr, nil
 	}
 
-	initializer := func(expr ast.Expr, kind typegraph.EdgeKind) string {
+	initializer := func(expr ast.Expr, kind typegraph.EdgeKind, variable string) (s string) {
+		defer func() {
+			if s == "" {
+				return
+			}
+			s = "if v != nil {\n" + variable + "=" + s + "\n}"
+		}()
 		switch kind {
 		case typegraph.EdgeKindPointer:
-			return fmt.Sprintf("(%s)(nil)", codegen.PrintAstExprPanicking(expr))
-		case typegraph.EdgeKindArray:
-			return fmt.Sprintf("%s{}", codegen.PrintAstExprPanicking(expr))
-		default:
+			return fmt.Sprintf("new(%s)", codegen.PrintAstExprPanicking(expr.(*ast.StarExpr).X))
+		default: // case typegraph.EdgeKindArray:
+			return ""
+		case typegraph.EdgeKindSlice:
+			return fmt.Sprintf("make(%s, len(v), cap(v))", codegen.PrintAstExprPanicking(expr))
+		case typegraph.EdgeKindMap:
 			return fmt.Sprintf("make(%s, len(v))", codegen.PrintAstExprPanicking(expr))
 		}
 	}
@@ -398,7 +406,8 @@ func unwrapFieldAlongPath(
 	unwrapped = toExpr
 	for p := range hiter.Window(s, 2) {
 		unwrapped = unwrapExprOne(unwrapped, p[0].Kind)
-		initializerExpr := initializer(unwrapped, p[1].Kind)
+		tyExpr := codegen.PrintAstExprPanicking(unwrapped)
+		initializerExpr := initializer(unwrapped, p[1].Kind, "inner")
 		switch p[0].Kind {
 		case typegraph.EdgeKindPointer:
 			wrappers = append(wrappers, func(s string) string {
@@ -406,11 +415,12 @@ func unwrapFieldAlongPath(
 					`if v != nil {
 						v := *v
 						outer := &inner
-						inner := %s
+						var inner %s
+						%s
 						%s
 						(*outer) = &inner
 					}`,
-					initializerExpr, s,
+					tyExpr, initializerExpr, s,
 				)
 			})
 		case typegraph.EdgeKindArray, typegraph.EdgeKindMap, typegraph.EdgeKindSlice:
@@ -418,11 +428,12 @@ func unwrapFieldAlongPath(
 				return fmt.Sprintf(
 					`for k, v := range v {
 						outer := &inner
-						inner := %s
+						var inner %s
+						%s
 						%s
 						(*outer)[k] = inner
 					}`,
-					initializerExpr, s,
+					tyExpr, initializerExpr, s,
 				)
 			})
 		}
@@ -456,8 +467,10 @@ func unwrapFieldAlongPath(
 	return unwrapped, func(wrappee func(string) string) string {
 		wrappers = slices.Insert(wrappers, 0, func(expr string) string {
 			return fmt.Sprintf(
-				`func (v %s) %s {
-					out := %s
+				`func (v %[1]s) %[2]s {
+					var out %[1]s
+
+					%[3]s
 
 					inner := out
 					%s
@@ -465,7 +478,7 @@ func unwrapFieldAlongPath(
 
 					return out
 				}`,
-				input, output, initializer(toExpr, s[0].Kind), expr)
+				input, output, initializer(toExpr, s[0].Kind, "out"), expr)
 		})
 		expr := wrappee("v")
 		for _, wrapper := range slices.Backward(wrappers) {

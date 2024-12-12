@@ -15,12 +15,19 @@ func (v Param[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) Param[T, U] {
 func (v Param2[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) Param2[T, U] {
 	return Param2[T, U]{
 		U: func(v map[string]*U) map[string]*U {
-			out := make(map[string]*U, len(v))
+			var out map[string]*U
+
+			if v != nil {
+				out = make(map[string]*U, len(v))
+			}
 
 			inner := out
 			for k, v := range v {
 				outer := &inner
-				inner := (*U)(nil)
+				var inner *U
+				if v != nil {
+					inner = new(U)
+				}
 				if v != nil {
 					v := *v
 					vv := cloneU(v)
@@ -33,7 +40,11 @@ func (v Param2[T, U]) CloneFunc(cloneT func(T) T, cloneU func(U) U) Param2[T, U]
 			return out
 		}(v.U),
 		T: func(v *T) *T {
-			out := (*T)(nil)
+			var out *T
+
+			if v != nil {
+				out = new(T)
+			}
 
 			inner := out
 			if v != nil {
