@@ -225,7 +225,7 @@ COMMENTS:
 			if err != nil {
 				return err
 			}
-			if strings.HasPrefix(c.Text, "/") {
+			if strings.HasPrefix(c.Text, "//") {
 				_, err := w.Write([]byte("\n"))
 				if err != nil {
 					return err
