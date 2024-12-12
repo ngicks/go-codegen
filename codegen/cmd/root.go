@@ -225,7 +225,7 @@ func createWriter(dir string, suffix string, subcommand string, verbose bool, dr
 		suffixwriter.WithPrefix([]byte(
 			generationNotice +
 				"// to regenerate the code, refer to help by invoking\n" +
-				"// go run github.com/ngicks/go-codegen/codegen " + subcommand + " --help\n",
+				"// go run github.com/ngicks/go-codegen/codegen " + subcommand + " --help\n\n",
 		)),
 	}
 	if verbose {

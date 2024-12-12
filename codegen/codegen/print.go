@@ -215,10 +215,34 @@ func PrintFileHeader(w io.Writer, af *ast.File, fset *token.FileSet) error {
 }
 
 func printPackage(w io.Writer, af *ast.File) error {
-	_, err := fmt.Fprintf(w, "%s %s\n\n",
+COMMENTS:
+	for _, cg := range af.Comments {
+		for _, c := range cg.List {
+			if c.End() > af.Package {
+				break COMMENTS
+			}
+			_, err := w.Write([]byte(c.Text))
+			if err != nil {
+				return err
+			}
+			if strings.HasPrefix(c.Text, "/") {
+				_, err := w.Write([]byte("\n"))
+				if err != nil {
+					return err
+				}
+			}
+		}
+		_, err := w.Write([]byte("\n"))
+		if err != nil {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintf(w, "%s %s\n\n",
 		token.PACKAGE.String(), af.Name.Name,
-	)
-	return err
+	); err != nil {
+		return err
+	}
+	return nil
 }
 
 func printImport(w io.Writer, af *ast.File, fset *token.FileSet) error {
