@@ -10,10 +10,6 @@ func (v Tree[T]) CloneFunc(cloneT func(T) T) Tree[T] {
 		node: func(v *node[T]) *node[T] {
 			var out *node[T]
 
-			if v != nil {
-				out = new(node[T])
-			}
-
 			inner := out
 			if v != nil {
 				v := *v
@@ -36,10 +32,6 @@ func (v node[T]) CloneFunc(cloneT func(T) T) node[T] {
 		l: func(v *node[T]) *node[T] {
 			var out *node[T]
 
-			if v != nil {
-				out = new(node[T])
-			}
-
 			inner := out
 			if v != nil {
 				v := *v
@@ -54,10 +46,6 @@ func (v node[T]) CloneFunc(cloneT func(T) T) node[T] {
 		}(v.l),
 		r: func(v *node[T]) *node[T] {
 			var out *node[T]
-
-			if v != nil {
-				out = new(node[T])
-			}
 
 			inner := out
 			if v != nil {

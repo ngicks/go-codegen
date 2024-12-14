@@ -25,9 +25,7 @@ func (v A) Clone() A {
 				for k, v := range v {
 					outer := &inner
 					var inner *[][]string
-					if v != nil {
-						inner = new([][]string)
-					}
+
 					if v != nil {
 						v := *v
 						outer := &inner

@@ -391,9 +391,7 @@ func unwrapFieldAlongPath(
 			s = "if v != nil {\n" + variable + "=" + s + "\n}"
 		}()
 		switch kind {
-		case typegraph.EdgeKindPointer:
-			return fmt.Sprintf("new(%s)", codegen.PrintAstExprPanicking(expr.(*ast.StarExpr).X))
-		default: // case typegraph.EdgeKindArray:
+		default: // case typegraph.EdgeKindArray, typegraph.EdgeKindPointer:
 			return ""
 		case typegraph.EdgeKindSlice:
 			return fmt.Sprintf("make(%s, len(v), cap(v))", codegen.PrintAstExprPanicking(expr))

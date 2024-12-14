@@ -14,10 +14,6 @@ func (v A) Clone() A {
 		C: func(v *int) *int {
 			var out *int
 
-			if v != nil {
-				out = new(int)
-			}
-
 			inner := out
 			if v != nil {
 				v := *v
@@ -45,9 +41,7 @@ func (v B) Clone() B {
 			for k, v := range v {
 				outer := &inner
 				var inner *[]string
-				if v != nil {
-					inner = new([]string)
-				}
+
 				if v != nil {
 					v := *v
 					vv := func(src []string) []string {
@@ -78,9 +72,7 @@ func (v B) Clone() B {
 			for k, v := range v {
 				outer := &inner
 				var inner *map[int][3]string
-				if v != nil {
-					inner = new(map[int][3]string)
-				}
+
 				if v != nil {
 					v := *v
 					outer := &inner
