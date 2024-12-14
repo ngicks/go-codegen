@@ -119,7 +119,7 @@ func commonOpts(fset *pflag.FlagSet, multiplePkg bool) (dir string, buildFlags [
 		return
 	}
 
-	buildFlags, err = fset.GetStringArray("build-flags")
+	buildFlags, err = fset.GetStringSlice("build-flags")
 	if err != nil {
 		return
 	}
