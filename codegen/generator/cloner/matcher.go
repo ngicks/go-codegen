@@ -44,7 +44,6 @@ type MatcherConfig struct {
 
 var disallowedEdge = [...]typegraph.EdgeKind{
 	typegraph.EdgeKindChan,
-	typegraph.EdgeKindStruct,
 	typegraph.EdgeKindInterface,
 }
 
@@ -152,6 +151,7 @@ const (
 	handleKindCallClone
 	handleKindCallCloneFunc
 	handleKindUseCustomHandler
+	handleKindStructLiteral
 )
 
 func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, customHandlerIndex int, ok bool) {
@@ -160,9 +160,16 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 	customHandlerIndex = -1
 	_ = typegraph.TraverseTypes(
 		ty,
-		func(ty types.Type) bool {
+		func(ty types.Type, currentStack []typegraph.EdgeRouteNode) bool {
 			customHandlerIndex = c.CustomHandlers.Match(ty)
-			return customHandlerIndex >= 0
+			if customHandlerIndex >= 0 {
+				return true
+			}
+			if _, isStruct := ty.(*types.Struct); isStruct {
+				// not checking len(stack).
+				return true
+			}
+			return false
 		},
 		func(unwrapped_ types.Type, _ *types.Named, stack_ []typegraph.EdgeRouteNode) error {
 			unwrapped = unwrapped_
@@ -218,7 +225,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 				return nil
 			}
 
-			switch unwrapped_.(type) {
+			switch x := unwrapped_.(type) {
 			case *types.Basic:
 				k = handleKindAssign
 				return nil
@@ -227,7 +234,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 				return nil
 			case *types.Named:
 				switch {
-				case matcher.IsNoCopy(unwrapped_):
+				case matcher.IsNoCopy(x):
 					switch c.NoCopyHandle {
 					case CopyHandleIgnore:
 						logger.Debug("ignoring field since it contains no copy object: if it should be copied place " +
@@ -245,10 +252,12 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 								" as field doc comment",
 						)
 					case CopyHandleCopyPointer:
-						_, isInterface := unwrapped_.(*types.Interface)
+						_, isInterface := x.Underlying().(*types.Interface)
 						if isInterface || (len(stack) > 0 && stack[len(stack)-1].Kind == typegraph.EdgeKindPointer) {
 							k = handleKindAssign
-							stack = stack[:len(stack)-1] // ignore last pointer.
+							if !isInterface {
+								stack = stack[:len(stack)-1] // ignore last pointer.
+							}
 							return nil
 						}
 						logger.Debug("ignoring type: configured to copy pointer of no copy objects but field does not contain it as a pointer or an interface")
@@ -259,7 +268,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 					k = handleKindCallCloneFunc
 				case clonerMatcher.IsImplementor(unwrapped_):
 					k = handleKindCallClone
-				case matcher.IsCloneByAssign(unwrapped_):
+				case matcher.IsCloneByAssign(unwrapped_, true):
 					k = handleKindAssign
 				case asSignature(unwrapped_) != nil:
 					k = handleSig(c, logger).Or(option.Some(k)).Value()
@@ -267,12 +276,43 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 				}
 			case *types.Signature:
 				k = handleSig(c, logger).Or(option.Some(k)).Value()
+			case *types.Struct: // struct literal.
+				if matcher.IsCloneByAssign(x, false) {
+					k = handleKindAssign
+				} else {
+					atLeastOne := false
+					for i, f := range pkgsutil.EnumerateFields(x) {
+						_, _, k2, _, ok2 := c.matchTy(
+							f.Type(),
+							logger.With(
+								slog.String("for", "structLiteral"),
+								slog.Int("fieldIndex", i),
+								slog.String("fieldName", f.Name()), // TODO: use WithGroup
+							),
+						)
+						if !ok2 {
+							ok = false
+							return nil
+						}
+						if k2 != handleKindIgnore {
+							atLeastOne = true
+						}
+					}
+					if atLeastOne {
+						k = handleKindStructLiteral
+					}
+				}
 			}
 
-			if k != handleKindIgnore && k != handleKindCallCloneFunc {
+			// below, we'll check whether we can handle type params.
+			if !slices.Contains([]handleKind{
+				handleKindIgnore,
+				handleKindCallCloneFunc,
+			}, k) {
 				return nil
 			}
 
+			// Only *types.Named or *types.Alias. Check implementors of HasTypeParam interface.
 			param, assertOk := unwrapped_.(matcher.HasTypeParam)
 			if assertOk && param.TypeArgs().Len() > 0 {
 				for i, arg := range hiter.AtterAll(param.TypeArgs()) {
@@ -363,7 +403,7 @@ func (c *MatcherConfig) handleField(
 		return
 	}
 
-	if child != nil && child.Matched&^typegraph.MatchKindExternal > 0 {
+	if asStruct(unwrapped) == nil && child != nil && child.Matched&^typegraph.MatchKindExternal > 0 {
 		if child.Type.TypeParams().Len() == 0 {
 			k = handleKindCallClone
 		} else {
@@ -372,4 +412,9 @@ func (c *MatcherConfig) handleField(
 	}
 
 	return
+}
+
+func asStruct(ty types.Type) *types.Struct {
+	st, _ := ty.(*types.Struct)
+	return st
 }

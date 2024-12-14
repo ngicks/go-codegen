@@ -486,11 +486,11 @@ func TraverseToNamed(
 
 func TraverseTypes(
 	ty types.Type,
-	stopper func(ty types.Type) bool,
+	stopper func(ty types.Type, currentStack []EdgeRouteNode) bool,
 	cb func(ty types.Type, named *types.Named, stack []EdgeRouteNode) error,
 	stack []EdgeRouteNode,
 ) error {
-	if stopper != nil && stopper(ty) {
+	if stopper != nil && stopper(ty, stack) {
 		named, _ := ty.(*types.Named)
 		return cb(ty, named, stack)
 	}
@@ -506,12 +506,8 @@ func TraverseTypes(
 		return TraverseTypes(x.Rhs(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindAlias}))
 	case *types.Array:
 		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindArray}))
-	case *types.Basic:
-		return cb(x, nil, stack)
 	case *types.Chan:
 		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindChan}))
-	case *types.Interface:
-		return cb(x, nil, stack)
 	case *types.Map:
 		return TraverseTypes(x.Elem(), stopper, cb, append(stack, EdgeRouteNode{Kind: EdgeKindMap}))
 	case *types.Named:

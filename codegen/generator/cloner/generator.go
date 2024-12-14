@@ -9,6 +9,7 @@ import (
 	"io"
 	"iter"
 	"log/slog"
+	"slices"
 
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/codegen"
@@ -29,7 +30,7 @@ type Config struct {
 func (c *Config) matcherConfig() *MatcherConfig {
 	if c.MatcherConfig != nil {
 		conf := *c.MatcherConfig
-		conf.CustomHandlers = append(builtinCustomHandlers[:], conf.CustomHandlers...)
+		conf.CustomHandlers = append(slices.Clip(conf.CustomHandlers), builtinCustomHandlers[:]...)
 		conf.logger = c.logger()
 		return &conf
 	}

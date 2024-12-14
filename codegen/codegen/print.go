@@ -15,6 +15,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
@@ -137,14 +138,10 @@ func TypeToDst(ty types.Type, pkgPath string, importMap imports.ImportMap) dst.E
 func TypeToAst(ty types.Type, pkgPath string, importMap imports.ImportMap) ast.Expr {
 	var exp ast.Expr
 	switch x := ty.(type) {
-	case *types.Pointer:
-		exp = &ast.StarExpr{
-			X: TypeToAst(x.Elem(), pkgPath, importMap),
-		}
-	case hasName:
-		exp = &ast.Ident{
-			Name: x.Name(),
-		}
+	default:
+		panic(fmt.Errorf("unknown type: %T", ty))
+	// This branch does not return value.
+	// This might be parametrized. Later parameters are examined.
 	case hasObj:
 		if x.Obj() != nil &&
 			x.Obj().Pkg() != nil &&
@@ -154,9 +151,20 @@ func TypeToAst(ty types.Type, pkgPath string, importMap imports.ImportMap) ast.E
 				Name:       x.Obj().Name(),
 			})
 		} else {
+			// Built-in named interfaces like error.
 			exp = &ast.Ident{
 				Name: x.Obj().Name(),
 			}
+		}
+		// returns immediately.
+	case hasName:
+		// basic, const, var, func, label, etc.
+		return &ast.Ident{
+			Name: x.Name(),
+		}
+	case *types.Pointer:
+		return &ast.StarExpr{
+			X: TypeToAst(x.Elem(), pkgPath, importMap),
 		}
 	case *types.Array:
 		return &ast.ArrayType{
@@ -174,6 +182,40 @@ func TypeToAst(ty types.Type, pkgPath string, importMap imports.ImportMap) ast.E
 		return &ast.MapType{
 			Key:   TypeToAst(x.Key(), pkgPath, importMap),
 			Value: TypeToAst(x.Elem(), pkgPath, importMap),
+		}
+	case *types.Struct:
+		fields := slices.Collect(
+			hiter.Unify(
+				func(i int, v *types.Var) *ast.Field {
+					var tag *ast.BasicLit
+					if tagLit := x.Tag(i); len(tagLit) > 0 {
+						tag = &ast.BasicLit{
+							Kind:  token.STRING,
+							Value: strconv.Quote(tagLit),
+						}
+					}
+					return &ast.Field{
+						Names: []*ast.Ident{ast.NewIdent(v.Name())},
+						Type:  TypeToAst(v.Type(), pkgPath, importMap),
+						Tag:   tag,
+					}
+				},
+				pkgsutil.EnumerateFields(x),
+			),
+		)
+		var opening, closing token.Pos
+		if len(fields) == 0 {
+			opening = 1
+			closing = 2
+			// this will make printed tok looks like struct{}.
+			// Prettier when struct{} is used as size 0 data.
+		}
+		return &ast.StructType{
+			Fields: &ast.FieldList{
+				Opening: opening,
+				List:    fields,
+				Closing: closing,
+			},
 		}
 	}
 
@@ -225,7 +267,7 @@ COMMENTS:
 			if err != nil {
 				return err
 			}
-			if strings.HasPrefix(c.Text, "/") {
+			if strings.HasPrefix(c.Text, "//") {
 				_, err := w.Write([]byte("\n"))
 				if err != nil {
 					return err

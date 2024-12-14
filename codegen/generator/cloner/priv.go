@@ -9,6 +9,7 @@ import (
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
+	"github.com/ngicks/go-iterator-helper/hiter"
 )
 
 const (
@@ -70,10 +71,10 @@ func parseNode(n *typegraph.Node) (any, error) {
 		return nil, nil
 	}
 	lines := make(map[int]direction)
-	for i, f := range st.Fields.List {
+	for i, f := range hiter.Enumerate(codegen.FieldDst(st)) {
 		lineDirective, ok, err := codegen.ParseFieldDirectiveCommentDst(
 			DirectivePrefix,
-			f.Decs,
+			f.Field.Decs,
 			func(lines []string) (direction, error) {
 				var parsed direction
 				for _, line := range lines {

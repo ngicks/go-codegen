@@ -50,12 +50,13 @@ type CustomHandlerExprData struct {
 
 var builtinCustomHandlers = [...]CustomHandler{
 	{
-		// slices.Clone on basic slice types.
+		// copy on basic slice types.
 		Matcher: func(t types.Type) bool {
 			s, ok := t.(*types.Slice)
 			if !ok {
 				return false
 			}
+
 			// Only for basic types (or known clone-by-assign safe types)
 			// Technically we can safely invoke slices.Clone on slice of any clone-by-assign types
 			// but this Matcher signature can't determine whether they are a hand-written Clone implementor or just a generation target thus an implementor.
@@ -72,7 +73,7 @@ var builtinCustomHandlers = [...]CustomHandler{
 		},
 		Expr: func(data CustomHandlerExprData) (expr func(s string) (expr string), isFunc bool) {
 			return func(s string) string {
-				return fmt.Sprintf(
+				return fmt.Sprintf( // You can't use slices.Clone here since it does not copy cap.
 					`func(src %[1]s) %[1]s {
 						if src == nil {
 							return nil
