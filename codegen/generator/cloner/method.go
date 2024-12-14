@@ -14,6 +14,7 @@ import (
 
 	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/hiter/stringsiter"
@@ -22,6 +23,7 @@ import (
 
 var (
 	// errIgnored    = errors.New("ignored")
+	errFieldNotOk = errors.New("field not ok") // TODO: will this really happen?
 	errParamNotOk = errors.New("param not ok")
 	errNotHandled = errors.New("not handled")
 )
@@ -338,6 +340,69 @@ func cloneTy(
 				AstExpr:   unwrappedExpr,
 				Ty:        unwrapped,
 			})
+	case handleKindStructLiteral:
+		callable = true
+		builder := strings.Builder{}
+		printf, flush := codegen.BufPrintf(&builder)
+		printf(
+			`func (v %[1]s) %[1]s {
+	return %[1]s{
+`,
+			codegen.PrintAstExprPanicking(unwrappedExpr),
+		)
+		for i, f := range pkgsutil.EnumerateFields(unwrapped.(*types.Struct)) {
+			var childTy types.Type
+			_ = typegraph.TraverseTypes(
+				f.Type(),
+				func(ty types.Type, currentStack []typegraph.EdgeRouteNode) bool {
+					_, isStructLit := ty.(*types.Struct)
+					return isStructLit
+				},
+				func(ty types.Type, named *types.Named, stack []typegraph.EdgeRouteNode) error {
+					childTy = ty
+					return nil
+				},
+				nil,
+			)
+			child, _ := g.GetByType(childTy)
+
+			expr, callable, err := cloneTy(
+				c,
+				pkgPath,
+				importMap,
+				g,
+				nil,
+				child,
+				-1,
+				codegen.TypeToAst(f.Type(), pkgPath, importMap),
+				f.Type(),
+				nil,
+			)
+
+			if err != nil {
+				return nil, false, fmt.Errorf("%w: field of struct literal at index %d: %w", errFieldNotOk, i, err)
+			}
+
+			printf(
+				"%s:",
+				f.Name(),
+			)
+			if callable {
+				printf(strings.ReplaceAll(expr("v."+f.Name())+"("+"v."+f.Name()+")", "%", "%%"))
+			} else {
+				printf(strings.ReplaceAll(expr("v."+f.Name()), "%", "%%"))
+			}
+			printf(",\n")
+		}
+		printf("}\n}")
+
+		if err := flush(); err != nil {
+			panic(err)
+		}
+
+		cloneExpr = func(s string) string {
+			return builder.String()
+		}
 	}
 
 	if unwrapper != nil {
