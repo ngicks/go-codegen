@@ -289,7 +289,6 @@ func patcherEdgeFilter(edge typegraph.Edge) bool {
 
 func concatFieldNames(field *dst.Field) string {
 	return stringsiter.Join(
-		0,
 		", ",
 		xiter.Map(
 			func(i *dst.Ident) string { return strconv.Quote(i.Name) },

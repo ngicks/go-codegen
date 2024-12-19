@@ -78,7 +78,6 @@ func generateCloner(
 			"func (v %[1]s) CloneFunc(%[2]s) %[1]s {\n",
 			typeName,
 			stringsiter.Join(
-				1024,
 				", ",
 				xiter.Map(
 					func(s [2]string) string {
