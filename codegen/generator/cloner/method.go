@@ -1,7 +1,6 @@
 package cloner
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -37,7 +37,9 @@ func generateMethod(
 ) (err error) {
 	ats := node.Ts
 
-	buf := new(bytes.Buffer)
+	buf := bufpool.GetBuf()
+	defer bufpool.PutBuf(buf)
+
 	printf, flush := codegen.BufPrintf(buf)
 
 	err = generateCloner(c, printf, g, replacer.ImportMap, node, ats)

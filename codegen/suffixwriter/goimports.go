@@ -23,7 +23,7 @@ func CheckGoimports() error {
 func ApplyGoimports(ctx context.Context, buf []byte) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "goimports")
 	cmd.Stdin = bytes.NewBuffer(buf)
-	formatted := new(bytes.Buffer) // pool buf?
+	formatted := new(bytes.Buffer) // You won't pool this. Allocated buffer is returned as []byte.
 	stderr := new(bytes.Buffer)
 	cmd.Stdout = formatted
 	cmd.Stderr = stderr

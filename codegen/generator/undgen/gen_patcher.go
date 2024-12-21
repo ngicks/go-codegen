@@ -1,7 +1,6 @@
 package undgen
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"go/ast"
@@ -21,6 +20,7 @@ import (
 	"github.com/dave/dst/dstutil"
 	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/structtag"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
@@ -72,10 +72,15 @@ func GeneratePatcher(
 		return err
 	}
 
+	buf := bufpool.GetBuf()
+	defer bufpool.PutBuf(buf)
+
 	for _, data := range xiter.Filter2(
 		func(f *ast.File, data *typegraph.ReplaceData) bool { return f != nil && data != nil },
 		hiter.MapKeys(replacerData, slices.Values(pkg.Syntax)),
 	) {
+		buf.Reset()
+
 		wrapNonUndFields(data)
 
 		if verbose {
@@ -98,8 +103,6 @@ func GeneratePatcher(
 		if err != nil {
 			return fmt.Errorf("converting dst to ast for %q: %w", data.Filename, err)
 		}
-
-		buf := new(bytes.Buffer) // pool buf?
 
 		if err := codegen.PrintFileHeader(buf, af, res.Fset); err != nil {
 			return fmt.Errorf("%q: %w", data.Filename, err)
