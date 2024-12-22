@@ -68,11 +68,6 @@ func (v exampleStruct) Clone() exampleStruct {
 				Format:     v.Format,
 			}
 		}(v.f1),
-		f2: func(v Example2) Example2 {
-			return Example2{
-				A: maps.Clone(v.A),
-			}
-		}(v.f2),
 		f3: func(v ExampleNested) ExampleNested {
 			return ExampleNested{
 				A: func(v tar.Header) tar.Header {
