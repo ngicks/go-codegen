@@ -305,7 +305,8 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 							}
 							return nil
 						}
-						logger.Debug("ignoring type: configured to copy pointer of no copy objects but field does not contain it as a pointer or an interface")
+						k = handleKindIgnore
+						return nil
 					}
 					ok = false
 					return nil
