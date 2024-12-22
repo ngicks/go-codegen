@@ -29,12 +29,12 @@ type Config struct {
 
 func (c *Config) matcherConfig() *MatcherConfig {
 	if c.MatcherConfig != nil {
-		conf := *c.MatcherConfig
+		conf := c.MatcherConfig.fallback()
 		conf.CustomHandlers = append(slices.Clip(conf.CustomHandlers), builtinCustomHandlers[:]...)
-		conf.logger = c.logger()
-		return &conf
+		return conf.SetLogger(c.logger())
 	}
-	return &MatcherConfig{CustomHandlers: builtinCustomHandlers[:], logger: c.logger()}
+
+	return NewMatcherConfig().SetLogger(c.logger())
 }
 
 var (

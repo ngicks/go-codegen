@@ -25,6 +25,9 @@ var (
 	funcIgnore   bool
 	funcDisallow bool
 	funcCopy     bool
+
+	interfaceIgnore bool
+	interfaceCopy   bool
 )
 
 func init() {
@@ -32,18 +35,21 @@ func init() {
 
 	commonFlags(clonerCmd, fset, true)
 
-	fset.BoolVar(&noCopyIgnore, "no-copy-ignore", false, "ignores no-copy object. Clone methods just simply leave fields zero value.")
-	fset.BoolVar(&noCopyDisallow, "no-copy-disallow", false, "disallow no-copy object. Types that contain no-copy type fields are not generation target.")
-	fset.BoolVar(&noCopyCopy, "no-copy-copy", false, "copy pointer of no-copy object. Clone methods copy no-copy object if and only if field is pointer type.")
+	fset.BoolVar(&noCopyIgnore, "no-copy-ignore", false, "sets global option that ignores no-copy object. Clone methods just simply leave fields zero value.")
+	fset.BoolVar(&noCopyDisallow, "no-copy-disallow", false, "sets global option that disallow no-copy object. Types that contain no-copy type fields are not generation target.")
+	fset.BoolVar(&noCopyCopy, "no-copy-copy", false, "sets global option that copy pointer of no-copy object. Clone methods copy no-copy object if and only if field is pointer type.")
 
-	fset.BoolVar(&chanIgnore, "chan-ignore", false, "ignores channel fields.")
-	fset.BoolVar(&chanDisallow, "chan-disallow", false, "disallows channel fields")
-	fset.BoolVar(&chanCopy, "chan-copy", false, "copies channel fields")
-	fset.BoolVar(&chanMake, "chan-make", false, "makes new channel. Clone methods also copy the capacity of input channels.")
+	fset.BoolVar(&chanIgnore, "chan-ignore", false, "sets global option that ignores channel fields.")
+	fset.BoolVar(&chanDisallow, "chan-disallow", false, "sets global option that disallows channel fields")
+	fset.BoolVar(&chanCopy, "chan-copy", false, "sets global option that copies channel fields")
+	fset.BoolVar(&chanMake, "chan-make", false, "sets global option that makes new channel. Clone methods also copy the capacity of input channels.")
 
-	fset.BoolVar(&funcIgnore, "func-ignore", false, "ignores func fields. func literal or named function type.")
-	fset.BoolVar(&funcDisallow, "func-disallow", false, "disallow func fields.")
-	fset.BoolVar(&funcCopy, "func-copy", false, "copies func fields")
+	fset.BoolVar(&funcIgnore, "func-ignore", false, "sets global option that ignores func fields. func literal or named function type.")
+	fset.BoolVar(&funcDisallow, "func-disallow", false, "sets global option that disallow func fields.")
+	fset.BoolVar(&funcCopy, "func-copy", false, "sets global option that copies func fields")
+
+	fset.BoolVar(&interfaceIgnore, "interface-ignore", false, "sets global option that ignores interface fields. func literal or named function type.")
+	fset.BoolVar(&interfaceCopy, "interface-copy", false, "sets global option that copies interface fields")
 
 	rootCmd.AddCommand(clonerCmd)
 }
@@ -152,6 +158,13 @@ Without the comment, the cloner command ignores the type Foo since it has no clo
 				cfg.MatcherConfig.FuncHandle = cloner.CopyHandleDisallow
 			case funcCopy:
 				cfg.MatcherConfig.FuncHandle = cloner.CopyHandleCopyPointer
+			}
+
+			switch {
+			case interfaceIgnore:
+				cfg.MatcherConfig.InterfaceHandle = cloner.CopyHandleIgnore
+			case interfaceCopy:
+				cfg.MatcherConfig.InterfaceHandle = cloner.CopyHandleCopyPointer
 			}
 
 			return cfg.Generate(cmd.Context(), writer, pkgs)

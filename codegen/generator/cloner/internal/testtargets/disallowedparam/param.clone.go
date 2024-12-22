@@ -4,11 +4,20 @@
 
 package disallowedparam
 
+import (
+	"sync"
+)
+
 //codegen:generated
 func (v A) Clone() A {
 	return A{
 		U: v.U.CloneFunc(
 			func(v string) string {
+				return v
+			},
+		),
+		Ignored: v.Ignored.CloneFunc(
+			func(v *sync.Mutex) *sync.Mutex {
 				return v
 			},
 		),

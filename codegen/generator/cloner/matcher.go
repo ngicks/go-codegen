@@ -19,13 +19,14 @@ var (
 	}
 )
 
-type CopyHandle int
+type CopyHandle uint64
 
 const (
+	copyHandleInvalid CopyHandle = 0
 	// ignore nocopy object
-	CopyHandleIgnore CopyHandle = 0
+	CopyHandleIgnore CopyHandle = 1 << iota
 	// disallow nocopy object
-	CopyHandleDisallow CopyHandle = 1 << iota
+	CopyHandleDisallow
 	CopyHandleCopyPointer
 	_
 	// Only for channel. make a new channel.
@@ -33,13 +34,45 @@ const (
 )
 
 type MatcherConfig struct {
-	NoCopyHandle  CopyHandle
-	ChannelHandle CopyHandle
-	FuncHandle    CopyHandle
+	NoCopyHandle    CopyHandle
+	ChannelHandle   CopyHandle
+	FuncHandle      CopyHandle
+	InterfaceHandle CopyHandle
 
 	CustomHandlers CustomHandlers
 
 	logger *slog.Logger
+}
+
+func NewMatcherConfig() *MatcherConfig {
+	c := new(MatcherConfig)
+	return c.fallback()
+}
+
+func (c *MatcherConfig) fallback() *MatcherConfig {
+	cc := *c
+
+	setIfZero := func(l *CopyHandle, v CopyHandle) {
+		if *l == copyHandleInvalid {
+			*l = v
+		}
+	}
+
+	setIfZero(&cc.NoCopyHandle, CopyHandleCopyPointer)
+	setIfZero(&cc.ChannelHandle, CopyHandleMake)
+	setIfZero(&cc.FuncHandle, CopyHandleCopyPointer)
+	setIfZero(&cc.InterfaceHandle, CopyHandleCopyPointer)
+
+	if cc.CustomHandlers == nil {
+		cc.CustomHandlers = builtinCustomHandlers[:]
+	}
+
+	return &cc
+}
+
+func (c *MatcherConfig) SetLogger(l *slog.Logger) *MatcherConfig {
+	c.logger = l
+	return c
 }
 
 var disallowedEdge = [...]typegraph.EdgeKind{
@@ -278,9 +311,10 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 					return nil
 				case matcher.IsCloneByAssign(unwrapped_, cloneByAssignNamedTypeMatcher(graph)):
 					k = handleKindAssign
-				case asSignature(unwrapped_) != nil:
+				case asUnderlying[*types.Signature](unwrapped_) != nil:
 					k = handleSig(c, logger).Or(option.Some(k)).Value()
-					// TODO: getting larger, split this function into smaller pieces.
+				case asUnderlying[*types.Interface](unwrapped_) != nil:
+					k = handleInterface(c, logger).Value()
 				default:
 					// Watch out for type recursion. A name type can have itself in its struct field as pointer type of it.
 					if visited[typegraph.IdentFromTypesObject(x.Obj())] {
@@ -361,6 +395,8 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 						k = handleKindStructLiteral
 					}
 				}
+			case *types.Interface:
+				k = handleInterface(c, logger).Value()
 			}
 
 			// below, we'll check whether we can handle type params.
@@ -459,6 +495,22 @@ func asSignature(ty types.Type) *types.Signature {
 	return nil
 }
 
+func handleInterface(c *MatcherConfig, logger *slog.Logger) option.Option[handleKind] {
+	switch c.InterfaceHandle {
+	case CopyHandleIgnore:
+		logger.Debug("ignoring field since it contains function: if it should be copied place " +
+			"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+			" as field doc comment",
+		)
+		return option.Some(handleKindIgnore)
+	case CopyHandleCopyPointer:
+		// func itself is a pointer type.
+		return option.Some(handleKindAssign)
+	}
+	logger.Debug("unknown kind", slog.Int("kind", int(c.FuncHandle)))
+	return option.Some(handleKindIgnore)
+}
+
 func (c *MatcherConfig) handleField(
 	pos int,
 	parent *typegraph.Node,
@@ -505,6 +557,22 @@ func (c *MatcherConfig) handleField(
 
 func as[T types.Type](ty types.Type) T {
 	t, _ := ty.(T)
+	return t
+}
+
+func asUnderlying[T types.Type](ty types.Type) T {
+	ty = types.Unalias(ty)
+	t, ok := ty.(T)
+	if ok {
+		return t
+	}
+	named, ok := ty.(*types.Named)
+	if !ok {
+		// should be nil
+		return *new(T)
+	}
+	ty = types.Unalias(named.Underlying())
+	t, _ = ty.(T)
 	return t
 }
 

@@ -5,7 +5,10 @@
 package mathbig
 
 import (
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"math/big"
+	"time"
 )
 
 //codegen:generated
@@ -26,5 +29,229 @@ func (v Big) Clone() Big {
 			new.Set(v)
 			return new
 		}(v.Rat),
+	}
+}
+
+//codegen:generated
+func (v Pkix) Clone() Pkix {
+	return Pkix{
+		A: func(v pkix.TBSCertificateList) pkix.TBSCertificateList {
+			return pkix.TBSCertificateList{
+				Raw: func(src []byte) []byte {
+					if src == nil {
+						return nil
+					}
+					dst := make([]byte, len(src), cap(src))
+					copy(dst, src)
+					return dst
+				}(v.Raw),
+				Version: v.Version,
+				Signature: func(v pkix.AlgorithmIdentifier) pkix.AlgorithmIdentifier {
+					return pkix.AlgorithmIdentifier{
+						Algorithm: func(src []int) []int {
+							if src == nil {
+								return nil
+							}
+							dst := make([]int, len(src), cap(src))
+							copy(dst, src)
+							return dst
+						}(v.Algorithm),
+						Parameters: func(v asn1.RawValue) asn1.RawValue {
+							return asn1.RawValue{
+								Class:      v.Class,
+								Tag:        v.Tag,
+								IsCompound: v.IsCompound,
+								Bytes: func(src []byte) []byte {
+									if src == nil {
+										return nil
+									}
+									dst := make([]byte, len(src), cap(src))
+									copy(dst, src)
+									return dst
+								}(v.Bytes),
+								FullBytes: func(src []byte) []byte {
+									if src == nil {
+										return nil
+									}
+									dst := make([]byte, len(src), cap(src))
+									copy(dst, src)
+									return dst
+								}(v.FullBytes),
+							}
+						}(v.Parameters),
+					}
+				}(v.Signature),
+				Issuer: func(v []pkix.RelativeDistinguishedNameSET) []pkix.RelativeDistinguishedNameSET {
+					var out []pkix.RelativeDistinguishedNameSET
+
+					if v != nil {
+						out = make([]pkix.RelativeDistinguishedNameSET, len(v), cap(v))
+					}
+
+					inner := out
+					for k, v := range v {
+						inner[k] = func(v []pkix.AttributeTypeAndValue) []pkix.AttributeTypeAndValue {
+							var out []pkix.AttributeTypeAndValue
+
+							if v != nil {
+								out = make([]pkix.AttributeTypeAndValue, len(v), cap(v))
+							}
+
+							inner := out
+							for k, v := range v {
+								inner[k] = func(v pkix.AttributeTypeAndValue) pkix.AttributeTypeAndValue {
+									return pkix.AttributeTypeAndValue{
+										Type: func(src []int) []int {
+											if src == nil {
+												return nil
+											}
+											dst := make([]int, len(src), cap(src))
+											copy(dst, src)
+											return dst
+										}(v.Type),
+										Value: v.Value,
+									}
+								}(v)
+							}
+							out = inner
+
+							return out
+						}(v)
+					}
+					out = inner
+
+					return out
+				}(v.Issuer),
+				ThisUpdate: func(t time.Time) time.Time {
+					return time.Date(
+						t.Year(),
+						t.Month(),
+						t.Day(),
+						t.Hour(),
+						t.Minute(),
+						t.Second(),
+						t.Nanosecond(),
+						t.Location(),
+					)
+				}(v.ThisUpdate),
+				NextUpdate: func(t time.Time) time.Time {
+					return time.Date(
+						t.Year(),
+						t.Month(),
+						t.Day(),
+						t.Hour(),
+						t.Minute(),
+						t.Second(),
+						t.Nanosecond(),
+						t.Location(),
+					)
+				}(v.NextUpdate),
+				RevokedCertificates: func(v []pkix.RevokedCertificate) []pkix.RevokedCertificate {
+					var out []pkix.RevokedCertificate
+
+					if v != nil {
+						out = make([]pkix.RevokedCertificate, len(v), cap(v))
+					}
+
+					inner := out
+					for k, v := range v {
+						inner[k] = func(v pkix.RevokedCertificate) pkix.RevokedCertificate {
+							return pkix.RevokedCertificate{
+								SerialNumber: func(v *big.Int) *big.Int {
+									new := big.NewInt(0)
+									new.Set(v)
+									return new
+								}(v.SerialNumber),
+								RevocationTime: func(t time.Time) time.Time {
+									return time.Date(
+										t.Year(),
+										t.Month(),
+										t.Day(),
+										t.Hour(),
+										t.Minute(),
+										t.Second(),
+										t.Nanosecond(),
+										t.Location(),
+									)
+								}(v.RevocationTime),
+								Extensions: func(v []pkix.Extension) []pkix.Extension {
+									var out []pkix.Extension
+
+									if v != nil {
+										out = make([]pkix.Extension, len(v), cap(v))
+									}
+
+									inner := out
+									for k, v := range v {
+										inner[k] = func(v pkix.Extension) pkix.Extension {
+											return pkix.Extension{
+												Id: func(src []int) []int {
+													if src == nil {
+														return nil
+													}
+													dst := make([]int, len(src), cap(src))
+													copy(dst, src)
+													return dst
+												}(v.Id),
+												Critical: v.Critical,
+												Value: func(src []byte) []byte {
+													if src == nil {
+														return nil
+													}
+													dst := make([]byte, len(src), cap(src))
+													copy(dst, src)
+													return dst
+												}(v.Value),
+											}
+										}(v)
+									}
+									out = inner
+
+									return out
+								}(v.Extensions),
+							}
+						}(v)
+					}
+					out = inner
+
+					return out
+				}(v.RevokedCertificates),
+				Extensions: func(v []pkix.Extension) []pkix.Extension {
+					var out []pkix.Extension
+
+					if v != nil {
+						out = make([]pkix.Extension, len(v), cap(v))
+					}
+
+					inner := out
+					for k, v := range v {
+						inner[k] = func(v pkix.Extension) pkix.Extension {
+							return pkix.Extension{
+								Id: func(src []int) []int {
+									if src == nil {
+										return nil
+									}
+									dst := make([]int, len(src), cap(src))
+									copy(dst, src)
+									return dst
+								}(v.Id),
+								Critical: v.Critical,
+								Value: func(src []byte) []byte {
+									if src == nil {
+										return nil
+									}
+									dst := make([]byte, len(src), cap(src))
+									copy(dst, src)
+									return dst
+								}(v.Value),
+							}
+						}(v)
+					}
+					out = inner
+
+					return out
+				}(v.Extensions),
+			}
+		}(v.A),
 	}
 }
