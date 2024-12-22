@@ -111,6 +111,7 @@ func generateCloner(
 				i,
 				node,
 				edge.ChildNode,
+				g,
 				node.Type.Underlying().(*types.Struct).Field(i).Type(),
 			)
 
@@ -158,6 +159,7 @@ func generateCloner(
 			-1,
 			node,
 			edge.ChildNode,
+			g,
 			ty,
 		)
 
@@ -225,6 +227,7 @@ func cloneTy(
 		pos,
 		parent,
 		child,
+		g,
 		ty,
 	)
 

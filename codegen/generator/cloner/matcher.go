@@ -99,7 +99,7 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 				conf = direction.override(conf)
 			}
 			logger := logger.With(slog.Int("at", i), slog.String("fieldName", f.Name()))
-			unwrapped, _, kind, _, fieldOk := conf.matchTy(f.Type(), logger)
+			unwrapped, _, kind, _, fieldOk := conf.matchTy(f.Type(), nil, logger)
 			if !fieldOk {
 				priv = priv.Map(func(v clonerPriv) clonerPriv { v.disallowed = true; return v })
 				logger.Debug("not matched")
@@ -126,7 +126,7 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 		}
 	case *types.Array, *types.Slice, *types.Map:
 		ty := x.(interface{ Elem() types.Type }).Elem()
-		_, _, kind, _, fieldOk := c.matchTy(ty, logger)
+		_, _, kind, _, fieldOk := c.matchTy(ty, nil, logger)
 		if kind == handleKindIgnore {
 			logger.Debug("not matched: type ignored")
 			return false, nil
@@ -154,7 +154,7 @@ const (
 	handleKindStructLiteral
 )
 
-func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, customHandlerIndex int, ok bool) {
+func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, logger *slog.Logger) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, customHandlerIndex int, ok bool) {
 	k = handleKindIgnore
 	ok = true
 	customHandlerIndex = -1
@@ -268,7 +268,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 					k = handleKindCallCloneFunc
 				case clonerMatcher.IsImplementor(unwrapped_):
 					k = handleKindCallClone
-				case matcher.IsCloneByAssign(unwrapped_, true):
+				case matcher.IsCloneByAssign(unwrapped_, cloneByAssignNamedTypeMatcher(graph)):
 					k = handleKindAssign
 				case asSignature(unwrapped_) != nil:
 					k = handleSig(c, logger).Or(option.Some(k)).Value()
@@ -277,13 +277,14 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 			case *types.Signature:
 				k = handleSig(c, logger).Or(option.Some(k)).Value()
 			case *types.Struct: // struct literal.
-				if matcher.IsCloneByAssign(x, false) {
+				if matcher.IsCloneByAssign(x, cloneByAssignNamedTypeMatcher(graph)) {
 					k = handleKindAssign
 				} else {
 					atLeastOne := false
 					for i, f := range pkgsutil.EnumerateFields(x) {
 						_, _, k2, _, ok2 := c.matchTy(
 							f.Type(),
+							graph,
 							logger.With(
 								slog.String("for", "structLiteral"),
 								slog.Int("fieldIndex", i),
@@ -320,7 +321,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 					if pkgPath != "" {
 						pkgPath = strconv.Quote(pkgPath) + "."
 					}
-					_, _, kind, _, argOk := c.matchTy(arg, logger.With("typeArgFor", pkgPath+name))
+					_, _, kind, _, argOk := c.matchTy(arg, graph, logger.With("typeArgFor", pkgPath+name))
 					if !argOk {
 						logger.Debug("ignoring type: type arg at " + strconv.FormatInt(int64(i), 10) + " is disallowed")
 						ok = false
@@ -337,6 +338,25 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 		nil,
 	)
 	return
+}
+
+func cloneByAssignNamedTypeMatcher(g *typegraph.Graph) func(ty *types.Named) bool {
+	if g == nil {
+		return func(ty *types.Named) bool {
+			return true
+		}
+	}
+	return func(ty *types.Named) bool {
+		// We must call for implementors.
+		// can't assign value.
+		if clonerMatcher.IsImplementor(ty) || clonerMatcher.IsFuncImplementor(ty) {
+			return false
+		}
+		if n, ok := g.Get(typegraph.IdentFromTypesObject(ty.Obj())); ok && n.Matched > 0 {
+			return false
+		}
+		return true
+	}
 }
 
 func handleSig(c *MatcherConfig, logger *slog.Logger) option.Option[handleKind] {
@@ -380,6 +400,7 @@ func (c *MatcherConfig) handleField(
 	pos int,
 	parent *typegraph.Node,
 	child *typegraph.Node,
+	graph *typegraph.Graph,
 	ty types.Type,
 ) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, customHandlerIndex int) {
 	conf := *c
@@ -393,7 +414,7 @@ func (c *MatcherConfig) handleField(
 		}
 	}
 
-	unwrapped, stack, k, customHandlerIndex, ok := conf.matchTy(ty, noopLogger)
+	unwrapped, stack, k, customHandlerIndex, ok := conf.matchTy(ty, graph, noopLogger)
 	if !ok {
 		k = handleKindIgnore
 		return
