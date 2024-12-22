@@ -339,8 +339,11 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 						return nil
 					case *types.Struct:
 						k = handleKindIgnore
+						disabled := false
 						for i, f := range pkgsutil.EnumerateFields(x2) {
 							if !f.Exported() {
+								k = handleKindIgnore
+								disabled = true
 								continue
 							}
 							t, _, k2, _, ok2 := c.matchTy(
@@ -359,7 +362,9 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 							}
 							if named := as[*types.Named](t); named != nil && !named.Obj().Exported() {
 								k = handleKindIgnore
-							} else if k2 != handleKindIgnore {
+								disabled = true
+							}
+							if !disabled && k2 != handleKindIgnore {
 								k = handleKindCopyPublicField
 							}
 						}
