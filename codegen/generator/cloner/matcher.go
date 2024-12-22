@@ -291,12 +291,14 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 					visited[typegraph.IdentFromTypesObject(x.Obj())] = true
 					switch x2 := x.Underlying().(type) {
 					default:
-						_, _, k2, _, ok2 := c.matchTy(x.Underlying(), graph, visited, logger.WithGroup(qualifiedName(x)))
+						t, _, k2, _, ok2 := c.matchTy(x.Underlying(), graph, visited, logger.WithGroup(qualifiedName(x)))
 						if !ok2 {
 							ok = false
 							return nil
 						}
-						if k2 != handleKindIgnore {
+						if named := as[*types.Named](t); named != nil && !named.Obj().Exported() {
+							k = handleKindIgnore
+						} else if k2 != handleKindIgnore {
 							k = handleKindCopyPublicField
 						}
 						return nil
@@ -306,7 +308,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 							if !f.Exported() {
 								continue
 							}
-							_, _, k2, _, ok2 := c.matchTy(
+							t, _, k2, _, ok2 := c.matchTy(
 								f.Type(),
 								graph,
 								visited,
@@ -320,7 +322,9 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 								ok = false
 								return nil
 							}
-							if k2 != handleKindIgnore {
+							if named := as[*types.Named](t); named != nil && !named.Obj().Exported() {
+								k = handleKindIgnore
+							} else if k2 != handleKindIgnore {
 								k = handleKindCopyPublicField
 							}
 						}
@@ -499,7 +503,11 @@ func (c *MatcherConfig) handleField(
 	return
 }
 
+func as[T types.Type](ty types.Type) T {
+	t, _ := ty.(T)
+	return t
+}
+
 func asStruct(ty types.Type) *types.Struct {
-	st, _ := ty.(*types.Struct)
-	return st
+	return as[*types.Struct](ty)
 }

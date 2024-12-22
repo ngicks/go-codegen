@@ -4,9 +4,209 @@
 
 package clonepublicfieldonly
 
+import (
+	"archive/tar"
+
+	"maps"
+	"time"
+)
+
 //codegen:generated
-func (v example) Clone() example {
-	return example{
-		f: v.f,
+func (v exampleStruct) Clone() exampleStruct {
+	return exampleStruct{
+		f1: func(v tar.Header) tar.Header {
+			return tar.Header{
+				Typeflag: v.Typeflag,
+				Name:     v.Name,
+				Linkname: v.Linkname,
+				Size:     v.Size,
+				Mode:     v.Mode,
+				Uid:      v.Uid,
+				Gid:      v.Gid,
+				Uname:    v.Uname,
+				Gname:    v.Gname,
+				ModTime: func(t time.Time) time.Time {
+					return time.Date(
+						t.Year(),
+						t.Month(),
+						t.Day(),
+						t.Hour(),
+						t.Minute(),
+						t.Second(),
+						t.Nanosecond(),
+						t.Location(),
+					)
+				}(v.ModTime),
+				AccessTime: func(t time.Time) time.Time {
+					return time.Date(
+						t.Year(),
+						t.Month(),
+						t.Day(),
+						t.Hour(),
+						t.Minute(),
+						t.Second(),
+						t.Nanosecond(),
+						t.Location(),
+					)
+				}(v.AccessTime),
+				ChangeTime: func(t time.Time) time.Time {
+					return time.Date(
+						t.Year(),
+						t.Month(),
+						t.Day(),
+						t.Hour(),
+						t.Minute(),
+						t.Second(),
+						t.Nanosecond(),
+						t.Location(),
+					)
+				}(v.ChangeTime),
+				Devmajor:   v.Devmajor,
+				Devminor:   v.Devminor,
+				Xattrs:     maps.Clone(v.Xattrs),
+				PAXRecords: maps.Clone(v.PAXRecords),
+				Format:     v.Format,
+			}
+		}(v.f1),
+		f2: func(v Example2) Example2 {
+			return Example2{
+				A: maps.Clone(v.A),
+			}
+		}(v.f2),
+		f3: func(v ExampleNested) ExampleNested {
+			return ExampleNested{
+				A: func(v tar.Header) tar.Header {
+					return tar.Header{
+						Typeflag: v.Typeflag,
+						Name:     v.Name,
+						Linkname: v.Linkname,
+						Size:     v.Size,
+						Mode:     v.Mode,
+						Uid:      v.Uid,
+						Gid:      v.Gid,
+						Uname:    v.Uname,
+						Gname:    v.Gname,
+						ModTime: func(t time.Time) time.Time {
+							return time.Date(
+								t.Year(),
+								t.Month(),
+								t.Day(),
+								t.Hour(),
+								t.Minute(),
+								t.Second(),
+								t.Nanosecond(),
+								t.Location(),
+							)
+						}(v.ModTime),
+						AccessTime: func(t time.Time) time.Time {
+							return time.Date(
+								t.Year(),
+								t.Month(),
+								t.Day(),
+								t.Hour(),
+								t.Minute(),
+								t.Second(),
+								t.Nanosecond(),
+								t.Location(),
+							)
+						}(v.AccessTime),
+						ChangeTime: func(t time.Time) time.Time {
+							return time.Date(
+								t.Year(),
+								t.Month(),
+								t.Day(),
+								t.Hour(),
+								t.Minute(),
+								t.Second(),
+								t.Nanosecond(),
+								t.Location(),
+							)
+						}(v.ChangeTime),
+						Devmajor:   v.Devmajor,
+						Devminor:   v.Devminor,
+						Xattrs:     maps.Clone(v.Xattrs),
+						PAXRecords: maps.Clone(v.PAXRecords),
+						Format:     v.Format,
+					}
+				}(v.A),
+			}
+		}(v.f3),
+		f5: func(v ExampleCloner) ExampleCloner {
+			return ExampleCloner{
+				A: v.A.Clone(),
+			}
+		}(v.f5),
 	}
+}
+
+//codegen:generated
+func (v exampleMap) Clone() exampleMap {
+	return func(v map[string]tar.Header) map[string]tar.Header {
+		var out map[string]tar.Header
+
+		if v != nil {
+			out = make(map[string]tar.Header, len(v))
+		}
+
+		inner := out
+		for k, v := range v {
+			inner[k] = func(v tar.Header) tar.Header {
+				return tar.Header{
+					Typeflag: v.Typeflag,
+					Name:     v.Name,
+					Linkname: v.Linkname,
+					Size:     v.Size,
+					Mode:     v.Mode,
+					Uid:      v.Uid,
+					Gid:      v.Gid,
+					Uname:    v.Uname,
+					Gname:    v.Gname,
+					ModTime: func(t time.Time) time.Time {
+						return time.Date(
+							t.Year(),
+							t.Month(),
+							t.Day(),
+							t.Hour(),
+							t.Minute(),
+							t.Second(),
+							t.Nanosecond(),
+							t.Location(),
+						)
+					}(v.ModTime),
+					AccessTime: func(t time.Time) time.Time {
+						return time.Date(
+							t.Year(),
+							t.Month(),
+							t.Day(),
+							t.Hour(),
+							t.Minute(),
+							t.Second(),
+							t.Nanosecond(),
+							t.Location(),
+						)
+					}(v.AccessTime),
+					ChangeTime: func(t time.Time) time.Time {
+						return time.Date(
+							t.Year(),
+							t.Month(),
+							t.Day(),
+							t.Hour(),
+							t.Minute(),
+							t.Second(),
+							t.Nanosecond(),
+							t.Location(),
+						)
+					}(v.ChangeTime),
+					Devmajor:   v.Devmajor,
+					Devminor:   v.Devminor,
+					Xattrs:     maps.Clone(v.Xattrs),
+					PAXRecords: maps.Clone(v.PAXRecords),
+					Format:     v.Format,
+				}
+			}(v)
+		}
+		out = inner
+
+		return out
+	}(v)
 }

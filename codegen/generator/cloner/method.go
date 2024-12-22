@@ -351,9 +351,27 @@ func cloneTy(
 			return
 		}
 	case handleKindCopyPublicField:
-		// For now, just check no change other than intended one is appeared after invoking go generate ./...
-		// TODO: fix this
-		cloneExpr = func(s string) string { return s }
+		callable = true
+		switch x := unwrapped.(*types.Named).Underlying().(type) {
+		case *types.Struct:
+			cloneExpr, err = handleStruct(c, pkgPath, importMap, g, cloneCallbacks, true, unwrappedExpr, unwrapped)
+		default:
+			cloneExpr, callable, err = cloneTy(
+				c,
+				pkgPath,
+				importMap,
+				g,
+				nil,
+				nil,
+				-1,
+				codegen.TypeToAst(x, pkgPath, importMap),
+				x,
+				cloneCallbacks,
+			)
+		}
+		if err != nil {
+			return
+		}
 	}
 
 	if unwrapper != nil {
@@ -387,7 +405,7 @@ func handleStruct(
 `,
 		codegen.PrintAstExprPanicking(unwrappedExpr),
 	)
-	for i, f := range pkgsutil.EnumerateFields(unwrapped.(*types.Struct)) {
+	for i, f := range pkgsutil.EnumerateFields(structOrUnderlyingStruct(unwrapped)) {
 		if onlyPublic && !f.Exported() {
 			continue
 		}
@@ -404,6 +422,12 @@ func handleStruct(
 			},
 			nil,
 		)
+
+		if named := as[*types.Named](childTy); onlyPublic && named != nil {
+			if !named.Obj().Exported() {
+				continue
+			}
+		}
 		child, _ := g.GetByType(childTy)
 
 		expr, callable, err2 := cloneTy(
@@ -444,6 +468,13 @@ func handleStruct(
 	return func(s string) string {
 		return builder.String()
 	}, nil
+}
+
+func structOrUnderlyingStruct(ty types.Type) *types.Struct {
+	if st := asStruct(ty); st != nil {
+		return st
+	}
+	return asStruct(ty.Underlying())
 }
 
 func unwrapExprOne(expr ast.Expr, kind typegraph.EdgeKind) ast.Expr {
