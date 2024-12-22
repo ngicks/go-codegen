@@ -245,13 +245,13 @@ func (im *ImportMap) getIdent(pkgPath, name string) (string, TargetImport, bool)
 				if name != "" && !slices.Contains(v.Types, name) {
 					return "", TargetImport{}, false
 				}
-				ident := firstNonEmpty(v.Ident, v.Import.Name, importPathToIdent(v.Import.Path))
+				ident := cmp.Or(v.Ident, v.Import.Name, importPathToIdent(v.Import.Path))
 				ti := addFallingBack(
 					im.ident,
 					ident,
 					v,
 				)
-				ident = firstNonEmpty(ti.Ident, ident)
+				ident = cmp.Or(ti.Ident, ident)
 				im.recordMissing(ident, ti)
 				return ident, ti, true
 			}
@@ -268,16 +268,6 @@ func (im *ImportMap) recordMissing(ident string, ti TargetImport) {
 		ti.Ident = ident
 	}
 	im.missing[ident] = ti
-}
-
-func firstNonEmpty[T comparable](ts ...T) T {
-	var zero T
-	for _, t := range ts {
-		if t != zero {
-			return t
-		}
-	}
-	return zero
 }
 
 func (im ImportMap) AstExpr(ty TargetType) *ast.SelectorExpr {
