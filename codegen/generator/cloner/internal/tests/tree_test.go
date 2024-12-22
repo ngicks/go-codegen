@@ -15,9 +15,7 @@ func TestTree(t *testing.T) {
 
 	dataSet := []int{5, 7, 7, 2, 34, 4, 6, 7, 8, 89, 12, 3, 68, 3, 12, 2}
 
-	for _, d := range dataSet {
-		org.Push(d)
-	}
+	org.Push(dataSet...)
 
 	sorted := slices.Sorted(slices.Values(dataSet))
 	assert.DeepEqual(t, sorted, slices.Collect(org.All()))
