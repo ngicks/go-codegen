@@ -2,10 +2,13 @@ package imports
 
 import (
 	"go/token"
+	"maps"
+	"strings"
 	"testing"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
+	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 	"gotest.tools/v3/assert"
 )
@@ -306,6 +309,18 @@ func TestImports_fallback(t *testing.T) {
 				Name: "foo",
 			},
 		},
+		TargetImport{
+			Import: Import{
+				Path: "foo4",
+				Name: "foo",
+			},
+		},
+		TargetImport{
+			Import: Import{
+				Path: "foo5",
+				Name: "foo",
+			},
+		},
 	)
 	im, err := p.Parse(pkg1.Syntax[0].Imports)
 	assert.NilError(t, err)
@@ -313,35 +328,19 @@ func TestImports_fallback(t *testing.T) {
 	assert.DeepEqual(
 		t,
 		map[string]TargetImport{
-			"conversion": {
-				Import: Import{Path: "github.com/ngicks/und/conversion", Name: "conversion"},
-				Types:  []string{"Empty"},
-			},
-			"elastic": {
-				Import: Import{Path: "github.com/ngicks/und/elastic", Name: "elastic"},
-				Types:  []string{"Elastic"},
-			},
 			"foo":   {Import: Import{Path: "foo1", Name: "foo"}},
 			"foo_1": {Import: Import{Path: "foo2", Name: "foo"}, Ident: "foo_1"},
 			"foo_2": {Import: Import{Path: "foo3", Name: "foo"}, Ident: "foo_2"},
-			"option": {
-				Import: Import{Path: "github.com/ngicks/und/option", Name: "option"},
-				Types:  []string{"Option"},
-			},
-			"sliceelastic": {
-				Import: Import{Path: "github.com/ngicks/und/sliceund/elastic", Name: "elastic"},
-				Ident:  "sliceelastic",
-				Types:  []string{"Elastic"},
-			},
-			"sliceund": {
-				Import: Import{Path: "github.com/ngicks/und/sliceund", Name: "sliceund"},
-				Types:  []string{"Und"},
-			},
-			"und": {
-				Import: Import{Path: "github.com/ngicks/und", Name: "und"},
-				Types:  []string{"Und"},
-			},
+			"foo_3": {Import: Import{Path: "foo4", Name: "foo"}, Ident: "foo_3"},
+			"foo_4": {Import: Import{Path: "foo5", Name: "foo"}, Ident: "foo_4"},
 		},
-		im.ident,
+		maps.Collect(
+			xiter.Filter2(
+				func(k string, _ TargetImport) bool {
+					return strings.HasPrefix(k, "foo")
+				},
+				maps.All(im.ident),
+			),
+		),
 	)
 }
