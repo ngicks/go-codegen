@@ -289,15 +289,43 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 						return nil
 					}
 					visited[typegraph.IdentFromTypesObject(x.Obj())] = true
-					_, _, k2, _, ok2 := c.matchTy(x.Underlying(), graph, visited, logger.WithGroup(qualifiedName(x)))
-					if !ok2 {
-						ok = false
+					switch x2 := x.Underlying().(type) {
+					default:
+						_, _, k2, _, ok2 := c.matchTy(x.Underlying(), graph, visited, logger.WithGroup(qualifiedName(x)))
+						if !ok2 {
+							ok = false
+							return nil
+						}
+						if k2 != handleKindIgnore {
+							k = handleKindCopyPublicField
+						}
+						return nil
+					case *types.Struct:
+						k = handleKindIgnore
+						for i, f := range pkgsutil.EnumerateFields(x2) {
+							if !f.Exported() {
+								continue
+							}
+							_, _, k2, _, ok2 := c.matchTy(
+								f.Type(),
+								graph,
+								visited,
+								logger.WithGroup(qualifiedName(x)).With(
+									slog.String("for", "structLiteral"),
+									slog.Int("fieldIndex", i),
+									slog.String("fieldName", f.Name()),
+								),
+							)
+							if !ok2 {
+								ok = false
+								return nil
+							}
+							if k2 != handleKindIgnore {
+								k = handleKindCopyPublicField
+							}
+						}
 						return nil
 					}
-					if k2 != handleKindIgnore {
-						k = handleKindCopyPublicField
-					}
-					return nil
 				}
 			case *types.Signature:
 				k = handleSig(c, logger).Or(option.Some(k)).Value()

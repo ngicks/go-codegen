@@ -346,66 +346,9 @@ func cloneTy(
 			})
 	case handleKindStructLiteral:
 		callable = true
-		builder := strings.Builder{}
-		printf, flush := codegen.BufPrintf(&builder)
-		printf(
-			`func (v %[1]s) %[1]s {
-	return %[1]s{
-`,
-			codegen.PrintAstExprPanicking(unwrappedExpr),
-		)
-		for i, f := range pkgsutil.EnumerateFields(unwrapped.(*types.Struct)) {
-			var childTy types.Type
-			_ = typegraph.TraverseTypes(
-				f.Type(),
-				func(ty types.Type, currentStack []typegraph.EdgeRouteNode) bool {
-					_, isStructLit := ty.(*types.Struct)
-					return isStructLit
-				},
-				func(ty types.Type, named *types.Named, stack []typegraph.EdgeRouteNode) error {
-					childTy = ty
-					return nil
-				},
-				nil,
-			)
-			child, _ := g.GetByType(childTy)
-
-			expr, callable, err := cloneTy(
-				c,
-				pkgPath,
-				importMap,
-				g,
-				nil,
-				child,
-				-1,
-				codegen.TypeToAst(f.Type(), pkgPath, importMap),
-				f.Type(),
-				nil,
-			)
-
-			if err != nil {
-				return nil, false, fmt.Errorf("%w: field of struct literal at index %d: %w", errFieldNotOk, i, err)
-			}
-
-			printf(
-				"%s:",
-				f.Name(),
-			)
-			if callable {
-				printf(strings.ReplaceAll(expr("v."+f.Name())+"("+"v."+f.Name()+")", "%", "%%"))
-			} else {
-				printf(strings.ReplaceAll(expr("v."+f.Name()), "%", "%%"))
-			}
-			printf(",\n")
-		}
-		printf("}\n}")
-
-		if err := flush(); err != nil {
-			panic(err)
-		}
-
-		cloneExpr = func(s string) string {
-			return builder.String()
+		cloneExpr, err = handleStruct(c, pkgPath, importMap, g, cloneCallbacks, false, unwrappedExpr, unwrapped)
+		if err != nil {
+			return
 		}
 	case handleKindCopyPublicField:
 		// For now, just check no change other than intended one is appeared after invoking go generate ./...
@@ -424,6 +367,83 @@ func cloneTy(
 	} else {
 		return cloneExpr, callable, nil
 	}
+}
+
+func handleStruct(
+	c *Config,
+	pkgPath string,
+	importMap imports.ImportMap,
+	g *typegraph.Graph,
+	cloneCallbacks [][2]string,
+	onlyPublic bool,
+	unwrappedExpr ast.Expr,
+	unwrapped types.Type,
+) (cloneExpr func(s string) string, err error) {
+	builder := strings.Builder{}
+	printf, flush := codegen.BufPrintf(&builder)
+	printf(
+		`func (v %[1]s) %[1]s {
+	return %[1]s{
+`,
+		codegen.PrintAstExprPanicking(unwrappedExpr),
+	)
+	for i, f := range pkgsutil.EnumerateFields(unwrapped.(*types.Struct)) {
+		if onlyPublic && !f.Exported() {
+			continue
+		}
+		var childTy types.Type
+		_ = typegraph.TraverseTypes(
+			f.Type(),
+			func(ty types.Type, currentStack []typegraph.EdgeRouteNode) bool {
+				_, isStructLit := ty.(*types.Struct)
+				return isStructLit
+			},
+			func(ty types.Type, named *types.Named, stack []typegraph.EdgeRouteNode) error {
+				childTy = ty
+				return nil
+			},
+			nil,
+		)
+		child, _ := g.GetByType(childTy)
+
+		expr, callable, err2 := cloneTy(
+			c,
+			pkgPath,
+			importMap,
+			g,
+			nil,
+			child,
+			-1,
+			codegen.TypeToAst(f.Type(), pkgPath, importMap),
+			f.Type(),
+			cloneCallbacks,
+		)
+
+		if err2 != nil {
+			err = fmt.Errorf("%w: field of struct literal or named struct type at index %d: %w", errFieldNotOk, i, err2)
+			return
+		}
+
+		printf(
+			"%s:",
+			f.Name(),
+		)
+		if callable {
+			printf(strings.ReplaceAll(expr("v."+f.Name())+"("+"v."+f.Name()+")", "%", "%%"))
+		} else {
+			printf(strings.ReplaceAll(expr("v."+f.Name()), "%", "%%"))
+		}
+		printf(",\n")
+	}
+	printf("}\n}")
+
+	if err := flush(); err != nil {
+		panic(err)
+	}
+
+	return func(s string) string {
+		return builder.String()
+	}, nil
 }
 
 func unwrapExprOne(expr ast.Expr, kind typegraph.EdgeKind) ast.Expr {
