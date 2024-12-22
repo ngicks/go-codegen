@@ -277,3 +277,71 @@ func TestImports(t *testing.T) {
 	im.AddMissingImports(df)
 	assertAddMissingImports()
 }
+
+func TestImports_fallback(t *testing.T) {
+	var pkg1 *packages.Package
+	for _, pkg := range testdataPkgs {
+		if pkg.Name == "pkg1" {
+			pkg1 = pkg
+		}
+	}
+	p := NewParserPackages(testdataPkgs)
+	p.AppendExtra(undExtra...)
+	p.AppendExtra(
+		TargetImport{
+			Import: Import{
+				Path: "foo1",
+				Name: "foo",
+			},
+		},
+		TargetImport{
+			Import: Import{
+				Path: "foo2",
+				Name: "foo",
+			},
+		},
+		TargetImport{
+			Import: Import{
+				Path: "foo3",
+				Name: "foo",
+			},
+		},
+	)
+	im, err := p.Parse(pkg1.Syntax[0].Imports)
+	assert.NilError(t, err)
+
+	assert.DeepEqual(
+		t,
+		map[string]TargetImport{
+			"conversion": {
+				Import: Import{Path: "github.com/ngicks/und/conversion", Name: "conversion"},
+				Types:  []string{"Empty"},
+			},
+			"elastic": {
+				Import: Import{Path: "github.com/ngicks/und/elastic", Name: "elastic"},
+				Types:  []string{"Elastic"},
+			},
+			"foo":   {Import: Import{Path: "foo1", Name: "foo"}},
+			"foo_1": {Import: Import{Path: "foo2", Name: "foo"}, Ident: "foo_1"},
+			"foo_2": {Import: Import{Path: "foo3", Name: "foo"}, Ident: "foo_2"},
+			"option": {
+				Import: Import{Path: "github.com/ngicks/und/option", Name: "option"},
+				Types:  []string{"Option"},
+			},
+			"sliceelastic": {
+				Import: Import{Path: "github.com/ngicks/und/sliceund/elastic", Name: "elastic"},
+				Ident:  "sliceelastic",
+				Types:  []string{"Elastic"},
+			},
+			"sliceund": {
+				Import: Import{Path: "github.com/ngicks/und/sliceund", Name: "sliceund"},
+				Types:  []string{"Und"},
+			},
+			"und": {
+				Import: Import{Path: "github.com/ngicks/und", Name: "und"},
+				Types:  []string{"Und"},
+			},
+		},
+		im.ident,
+	)
+}

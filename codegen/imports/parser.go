@@ -215,14 +215,15 @@ func addFallingBack(m map[string]TargetImport, ident string, ti TargetImport) Ta
 		m[ident] = ti
 		return ti
 	}
+
+	orgIdent := ident
 	for i := 1; ; i++ {
+		ident = orgIdent + "_" + strconv.FormatInt(int64(i), 10)
 		_, ok := m[ident]
 		if !ok {
+			ti.Ident = ident
 			break
 		}
-		ident = ident + "_" + strconv.FormatInt(int64(i), 10)
-		ti.Ident = ident
-		continue
 	}
 	m[ident] = ti
 	return ti
