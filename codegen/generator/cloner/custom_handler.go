@@ -182,6 +182,7 @@ func isKnownCloneByAssign(ty types.Type) bool {
 	if pkg := named.Obj().Pkg(); pkg != nil {
 		pkgPath = pkg.Path()
 	}
-	_, ok = knownCloneByAssign[imports.TargetType{ImportPath: pkgPath, Name: named.Obj().Name()}]
-	return ok
+	_, ok1 := knownCloneByAssign[imports.TargetType{ImportPath: pkgPath, Name: named.Obj().Name()}]
+	_, ok2 := stdCloneByAssign[imports.TargetType{ImportPath: pkgPath, Name: named.Obj().Name()}]
+	return ok1 || ok2
 }
