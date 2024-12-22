@@ -27,7 +27,8 @@ func (v ContainsNoCopy) Clone() ContainsNoCopy {
 
 			return out
 		}(v.NoCopyMap),
-		C: v.C,
+		Ignored: v.Ignored,
+		C:       v.C,
 		CC: func(v map[string]chan int) map[string]chan int {
 			var out map[string]chan int
 
