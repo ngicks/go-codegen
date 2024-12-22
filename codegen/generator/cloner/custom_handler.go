@@ -225,15 +225,31 @@ func isBasicOrKnownCloneByAssign(ty types.Type) bool {
 }
 
 func isKnownCloneByAssign(ty types.Type) bool {
+	if ptr, ok := ty.(*types.Pointer); ok {
+		if named, ok := ptr.Elem().(*types.Named); ok {
+			_, ok := knownCloneByAssignPointer[namedToTargetType(named)]
+			if ok {
+				return true
+			}
+		}
+	}
+
 	named, ok := ty.(*types.Named)
 	if !ok {
 		return false
 	}
+
+	tyName := namedToTargetType(named)
+
+	_, ok1 := knownCloneByAssign[tyName]
+	_, ok2 := stdCloneByAssign[tyName]
+	return ok1 || ok2
+}
+
+func namedToTargetType(named *types.Named) imports.TargetType {
 	var pkgPath string
 	if pkg := named.Obj().Pkg(); pkg != nil {
 		pkgPath = pkg.Path()
 	}
-	_, ok1 := knownCloneByAssign[imports.TargetType{ImportPath: pkgPath, Name: named.Obj().Name()}]
-	_, ok2 := stdCloneByAssign[imports.TargetType{ImportPath: pkgPath, Name: named.Obj().Name()}]
-	return ok1 || ok2
+	return imports.TargetType{ImportPath: pkgPath, Name: named.Obj().Name()}
 }
