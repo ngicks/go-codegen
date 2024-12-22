@@ -135,6 +135,8 @@ func generateCloner(
 			switch {
 			case errors.Is(err, errParamNotOk):
 				return err
+			case err != nil:
+				continue
 			}
 
 			printf(
@@ -443,7 +445,10 @@ func handleStruct(
 			cloneCallbacks,
 		)
 
-		if err2 != nil {
+		switch {
+		case errors.Is(err2, errNotHandled):
+			continue
+		case err2 != nil:
 			err = fmt.Errorf("%w: field of struct literal or named struct type at index %d: %w", errFieldNotOk, i, err2)
 			return
 		}
