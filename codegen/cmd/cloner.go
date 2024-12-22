@@ -30,7 +30,7 @@ var (
 func init() {
 	fset := clonerCmd.Flags()
 
-	commonFlags(fset, true)
+	commonFlags(clonerCmd, fset, true)
 
 	fset.BoolVar(&noCopyIgnore, "no-copy-ignore", false, "ignores no-copy object. Clone methods just simply leave fields zero value.")
 	fset.BoolVar(&noCopyDisallow, "no-copy-disallow", false, "disallow no-copy object. Types that contain no-copy type fields are not generation target.")
