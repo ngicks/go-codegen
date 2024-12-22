@@ -188,6 +188,20 @@ var builtinCustomHandlers = [...]CustomHandler{
 		},
 	},
 	{
+		Matcher: func(t types.Type) bool {
+			return imports.TargetType{ImportPath: "encoding/xml", Name: "Token"}.Is(t)
+		},
+		Imports: []imports.TargetImport{
+			{Import: imports.Import{Path: "encoding/xml", Name: "xml"}},
+		},
+		Expr: func(data CustomHandlerExprData) (expr func(s string) (expr string), isFunc bool) {
+			return func(s string) (expr string) {
+				ident, _ := data.ImportMap.Ident("encoding/xml")
+				return fmt.Sprintf("%s.CopyToken", ident)
+			}, true
+		},
+	},
+	{
 		// just do nothing for array of bare known clone-by-assign types.
 		Matcher: func(t types.Type) bool {
 			if a, ok := t.(*types.Array); ok {
