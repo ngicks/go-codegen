@@ -407,6 +407,10 @@ func cloneTy(
 		cloneExpr = func(s string) string {
 			return builder.String()
 		}
+	case handleKindCopyPublicField:
+		// For now, just check no change other than intended one is appeared after invoking go generate ./...
+		// TODO: fix this
+		cloneExpr = func(s string) string { return s }
 	}
 
 	if unwrapper != nil {

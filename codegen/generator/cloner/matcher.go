@@ -63,15 +63,19 @@ func (c *MatcherConfig) MatchEdge(e typegraph.Edge) bool {
 	)
 }
 
-func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool, err error) {
-	logger := c.logger
-
-	pkgPath, name := matcher.Name(node.Type)
+func qualifiedName(ty *types.Named) string {
+	pkgPath, name := matcher.Name(ty)
 	if pkgPath != "" {
 		pkgPath = strconv.Quote(pkgPath) + "."
 	}
 
-	logger.Debug("matching", slog.String("name", pkgPath+name))
+	return pkgPath + name
+}
+
+func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool, err error) {
+	logger := c.logger
+
+	logger.Debug("matching", slog.String("name", qualifiedName(node.Type)))
 
 	priv := option.Assert[clonerPriv](node.Priv).Or(option.Some(clonerPriv{}))
 	defer func() {
@@ -99,7 +103,7 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 				conf = direction.override(conf)
 			}
 			logger := logger.With(slog.Int("at", i), slog.String("fieldName", f.Name()))
-			unwrapped, _, kind, _, fieldOk := conf.matchTy(f.Type(), nil, logger)
+			unwrapped, _, kind, _, fieldOk := conf.matchTy(f.Type(), nil, nil, logger)
 			if !fieldOk {
 				priv = priv.Map(func(v clonerPriv) clonerPriv { v.disallowed = true; return v })
 				logger.Debug("not matched")
@@ -126,7 +130,7 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 		}
 	case *types.Array, *types.Slice, *types.Map:
 		ty := x.(interface{ Elem() types.Type }).Elem()
-		_, _, kind, _, fieldOk := c.matchTy(ty, nil, logger)
+		_, _, kind, _, fieldOk := c.matchTy(ty, nil, nil, logger)
 		if kind == handleKindIgnore {
 			logger.Debug("not matched: type ignored")
 			return false, nil
@@ -152,9 +156,13 @@ const (
 	handleKindCallCloneFunc
 	handleKindUseCustomHandler
 	handleKindStructLiteral
+	handleKindCopyPublicField
 )
 
-func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, logger *slog.Logger) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, customHandlerIndex int, ok bool) {
+func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited map[typegraph.Ident]bool, logger *slog.Logger) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, customHandlerIndex int, ok bool) {
+	if visited == nil {
+		visited = make(map[typegraph.Ident]bool)
+	}
 	k = handleKindIgnore
 	ok = true
 	customHandlerIndex = -1
@@ -273,6 +281,23 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, logger *s
 				case asSignature(unwrapped_) != nil:
 					k = handleSig(c, logger).Or(option.Some(k)).Value()
 					// TODO: getting larger, split this function into smaller pieces.
+				default:
+					// Watch out for type recursion. A name type can have itself in its struct field as pointer type of it.
+					if visited[typegraph.IdentFromTypesObject(x.Obj())] {
+						// can't generate ad-hoc unnamed function for recursive types.
+						k = handleKindIgnore
+						return nil
+					}
+					visited[typegraph.IdentFromTypesObject(x.Obj())] = true
+					_, _, k2, _, ok2 := c.matchTy(x.Underlying(), graph, visited, logger.WithGroup(qualifiedName(x)))
+					if !ok2 {
+						ok = false
+						return nil
+					}
+					if k2 != handleKindIgnore {
+						k = handleKindCopyPublicField
+					}
+					return nil
 				}
 			case *types.Signature:
 				k = handleSig(c, logger).Or(option.Some(k)).Value()
@@ -285,6 +310,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, logger *s
 						_, _, k2, _, ok2 := c.matchTy(
 							f.Type(),
 							graph,
+							visited,
 							logger.With(
 								slog.String("for", "structLiteral"),
 								slog.Int("fieldIndex", i),
@@ -321,7 +347,12 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, logger *s
 					if pkgPath != "" {
 						pkgPath = strconv.Quote(pkgPath) + "."
 					}
-					_, _, kind, _, argOk := c.matchTy(arg, graph, logger.With("typeArgFor", pkgPath+name))
+					_, _, kind, _, argOk := c.matchTy(
+						arg,
+						graph,
+						visited,
+						logger.With("typeArgFor", pkgPath+name),
+					)
 					if !argOk {
 						logger.Debug("ignoring type: type arg at " + strconv.FormatInt(int64(i), 10) + " is disallowed")
 						ok = false
@@ -414,7 +445,12 @@ func (c *MatcherConfig) handleField(
 		}
 	}
 
-	unwrapped, stack, k, customHandlerIndex, ok := conf.matchTy(ty, graph, noopLogger)
+	unwrapped, stack, k, customHandlerIndex, ok := conf.matchTy(
+		ty,
+		graph,
+		nil,
+		noopLogger,
+	)
 	if !ok {
 		k = handleKindIgnore
 		return
