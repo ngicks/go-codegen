@@ -170,6 +170,7 @@ func isBasicOrKnownCloneByAssign(ty types.Type) bool {
 
 var knownCloneByAssign = map[imports.TargetType]struct{}{
 	{ImportPath: "unique", Name: "Handle"}: {},
+	{ImportPath: "", Name: "error"}:        {},
 }
 
 func isKnownCloneByAssign(ty types.Type) bool {
