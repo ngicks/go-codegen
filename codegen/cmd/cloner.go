@@ -87,7 +87,8 @@ The clone-able is defines as
 
 A field of deeply nested type, for example, []*[5]map[int]string is still considered as clone-able,
 since bottom type, string, is a basic therefore clone-able type.
-We call parts other than that ([]*[5]map[int]) _route_. And each element of them as _route node_.
+We call parts other than that ([]*[5]map[int]) _route_. And each element of them as _route node_
+(i.e. for []*[5]map[int]string, route nodes are slice, pointer, map, in the order. The bottom type is string.)
 Only disallowed _route node_ is interface literal. They are ignored silently.
 
 The cloner sub command also allows per-field basis configuration by writing comments associated to it.
