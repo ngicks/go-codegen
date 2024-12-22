@@ -234,6 +234,10 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, logger *s
 				return nil
 			case *types.Named:
 				switch {
+				case clonerMatcher.IsFuncImplementor(unwrapped_):
+					k = handleKindCallCloneFunc
+				case clonerMatcher.IsImplementor(unwrapped_):
+					k = handleKindCallClone
 				case matcher.IsNoCopy(x):
 					switch c.NoCopyHandle {
 					case CopyHandleIgnore:
@@ -264,10 +268,6 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, logger *s
 					}
 					ok = false
 					return nil
-				case clonerMatcher.IsFuncImplementor(unwrapped_):
-					k = handleKindCallCloneFunc
-				case clonerMatcher.IsImplementor(unwrapped_):
-					k = handleKindCallClone
 				case matcher.IsCloneByAssign(unwrapped_, cloneByAssignNamedTypeMatcher(graph)):
 					k = handleKindAssign
 				case asSignature(unwrapped_) != nil:
