@@ -390,10 +390,10 @@ func (im ImportMap) AddMissingImports(df *dst.File) {
 // fully qualifies members of all packages other than currentPkgPath.
 func (im ImportMap) Qualifier(currentPkgPath string) types.Qualifier {
 	return func(p *types.Package) string {
-		qual, _ := im.Ident(p.Path())
-		if currentPkgPath == qual {
+		if currentPkgPath == p.Path() {
 			return ""
 		}
+		qual, _ := im.Ident(p.Path())
 		return qual
 	}
 }
