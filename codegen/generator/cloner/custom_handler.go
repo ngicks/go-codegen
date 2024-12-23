@@ -2,11 +2,9 @@ package cloner
 
 import (
 	"fmt"
-	"go/ast"
 	"go/types"
 	"slices"
 
-	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -45,7 +43,7 @@ type CustomHandler struct {
 
 type CustomHandlerExprData struct {
 	ImportMap imports.ImportMap
-	AstExpr   ast.Expr
+	PkgPath   string
 	Ty        types.Type
 }
 
@@ -82,7 +80,7 @@ var builtinCustomHandlers = [...]CustomHandler{
 						dst := make(%[1]s, len(src), cap(src))
 						copy(dst, src)
 						return dst
-					}`, codegen.PrintAstExprPanicking(data.AstExpr))
+					}`, types.TypeString(data.Ty, data.ImportMap.Qualifier(data.PkgPath)))
 			}, true
 		},
 	},

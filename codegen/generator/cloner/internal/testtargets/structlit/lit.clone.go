@@ -40,7 +40,6 @@ func (v A[T]) CloneFunc(cloneT func(T) T) A[T] {
 						Baz B
 						Qux string
 					}
-
 					inner := out
 					if v != nil {
 						v := *v
@@ -75,7 +74,6 @@ func (v A[T]) CloneFunc(cloneT func(T) T) A[T] {
 						(*outer) = &inner
 					}
 					out = inner
-
 					return out
 				}(v.Bar),
 			}

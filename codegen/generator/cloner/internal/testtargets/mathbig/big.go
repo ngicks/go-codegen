@@ -11,6 +11,7 @@ type Big struct {
 	Rat   *big.Rat
 }
 
+// example for external type that contains *big.Int
 type Pkix struct {
 	A pkix.TBSCertificateList
 }
