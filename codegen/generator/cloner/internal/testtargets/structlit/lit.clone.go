@@ -5,8 +5,8 @@
 package structlit
 
 //codegen:generated
-func (v A) Clone() A {
-	return A{
+func (v A[T]) CloneFunc(cloneT func(T) T) A[T] {
+	return A[T]{
 		A: v.A,
 		B: func(v struct {
 			Foo string
@@ -40,7 +40,6 @@ func (v A) Clone() A {
 						Baz B
 						Qux string
 					}
-
 					inner := out
 					if v != nil {
 						v := *v
@@ -75,11 +74,15 @@ func (v A) Clone() A {
 						(*outer) = &inner
 					}
 					out = inner
-
 					return out
 				}(v.Bar),
 			}
 		}(v.B),
+		C: func(v struct{ A T }) struct{ A T } {
+			return struct{ A T }{
+				A: cloneT(v.A),
+			}
+		}(v.C),
 	}
 }
 

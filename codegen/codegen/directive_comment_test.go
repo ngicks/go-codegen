@@ -193,8 +193,12 @@ type A struct {
 	/* 4 */ A /* 5 */ string /* 6 */ ` + "`json:\"a\"`" + ` // 7
 	/* 8 */
 	// 9
-	B               string /* 10 */
+	B                 string /* 10 */
 	// 11
+	C                 int
+	// 12
+	// 13
+	_                 int
 }
 `
 )
@@ -237,10 +241,14 @@ L:
 	st := dts.Type.(*dst.StructType)
 	a := st.Fields.List[1]
 	b := st.Fields.List[2]
+	c := st.Fields.List[3]
 
 	assert.DeepEqual(t, []string{"// 3", "/* 4 */"}, afterLastEmptyLine(a.Decs.Start))
 	assert.DeepEqual(t, []string{"// 7"}, clip1(a.Decs.End))
 
 	assert.DeepEqual(t, []string{"/* 8 */", "\n", "// 9"}, afterLastEmptyLine(b.Decs.Start))
 	assert.DeepEqual(t, []string{"/* 10 */"}, clip1(b.Decs.End))
+
+	assert.DeepEqual(t, []string{"// 11"}, afterLastEmptyLine(c.Decs.Start))
+	assert.DeepEqual(t, []string{"\n"}, clip1(c.Decs.End))
 }

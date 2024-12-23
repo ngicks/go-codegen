@@ -19,13 +19,14 @@ var (
 	}
 )
 
-type CopyHandle int
+type CopyHandle uint64
 
 const (
+	copyHandleInvalid CopyHandle = 0
 	// ignore nocopy object
-	CopyHandleIgnore CopyHandle = 0
+	CopyHandleIgnore CopyHandle = 1 << iota
 	// disallow nocopy object
-	CopyHandleDisallow CopyHandle = 1 << iota
+	CopyHandleDisallow
 	CopyHandleCopyPointer
 	_
 	// Only for channel. make a new channel.
@@ -33,13 +34,45 @@ const (
 )
 
 type MatcherConfig struct {
-	NoCopyHandle  CopyHandle
-	ChannelHandle CopyHandle
-	FuncHandle    CopyHandle
+	NoCopyHandle    CopyHandle
+	ChannelHandle   CopyHandle
+	FuncHandle      CopyHandle
+	InterfaceHandle CopyHandle
 
 	CustomHandlers CustomHandlers
 
 	logger *slog.Logger
+}
+
+func NewMatcherConfig() *MatcherConfig {
+	c := new(MatcherConfig)
+	return c.fallback()
+}
+
+func (c *MatcherConfig) fallback() *MatcherConfig {
+	cc := *c
+
+	setIfZero := func(l *CopyHandle, v CopyHandle) {
+		if *l == copyHandleInvalid {
+			*l = v
+		}
+	}
+
+	setIfZero(&cc.NoCopyHandle, CopyHandleCopyPointer)
+	setIfZero(&cc.ChannelHandle, CopyHandleMake)
+	setIfZero(&cc.FuncHandle, CopyHandleCopyPointer)
+	setIfZero(&cc.InterfaceHandle, CopyHandleCopyPointer)
+
+	if cc.CustomHandlers == nil {
+		cc.CustomHandlers = builtinCustomHandlers[:]
+	}
+
+	return &cc
+}
+
+func (c *MatcherConfig) SetLogger(l *slog.Logger) *MatcherConfig {
+	c.logger = l
+	return c
 }
 
 var disallowedEdge = [...]typegraph.EdgeKind{
@@ -63,15 +96,19 @@ func (c *MatcherConfig) MatchEdge(e typegraph.Edge) bool {
 	)
 }
 
-func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool, err error) {
-	logger := c.logger
-
-	pkgPath, name := matcher.Name(node.Type)
+func qualifiedName(ty *types.Named) string {
+	pkgPath, name := matcher.Name(ty)
 	if pkgPath != "" {
 		pkgPath = strconv.Quote(pkgPath) + "."
 	}
 
-	logger.Debug("matching", slog.String("name", pkgPath+name))
+	return pkgPath + name
+}
+
+func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool, err error) {
+	logger := c.logger
+
+	logger.Debug("matching", slog.String("name", qualifiedName(node.Type)))
 
 	priv := option.Assert[clonerPriv](node.Priv).Or(option.Some(clonerPriv{}))
 	defer func() {
@@ -99,7 +136,7 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 				conf = direction.override(conf)
 			}
 			logger := logger.With(slog.Int("at", i), slog.String("fieldName", f.Name()))
-			unwrapped, _, kind, _, fieldOk := conf.matchTy(f.Type(), logger)
+			unwrapped, _, kind, _, fieldOk := conf.matchTy(f.Type(), nil, nil, logger)
 			if !fieldOk {
 				priv = priv.Map(func(v clonerPriv) clonerPriv { v.disallowed = true; return v })
 				logger.Debug("not matched")
@@ -126,7 +163,7 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 		}
 	case *types.Array, *types.Slice, *types.Map:
 		ty := x.(interface{ Elem() types.Type }).Elem()
-		_, _, kind, _, fieldOk := c.matchTy(ty, logger)
+		_, _, kind, _, fieldOk := c.matchTy(ty, nil, nil, logger)
 		if kind == handleKindIgnore {
 			logger.Debug("not matched: type ignored")
 			return false, nil
@@ -152,9 +189,13 @@ const (
 	handleKindCallCloneFunc
 	handleKindUseCustomHandler
 	handleKindStructLiteral
+	handleKindCopyPublicField
 )
 
-func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, customHandlerIndex int, ok bool) {
+func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited map[typegraph.Ident]bool, logger *slog.Logger) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, customHandlerIndex int, ok bool) {
+	if visited == nil {
+		visited = make(map[typegraph.Ident]bool)
+	}
 	k = handleKindIgnore
 	ok = true
 	customHandlerIndex = -1
@@ -234,6 +275,10 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 				return nil
 			case *types.Named:
 				switch {
+				case clonerMatcher.IsFuncImplementor(unwrapped_):
+					k = handleKindCallCloneFunc
+				case clonerMatcher.IsImplementor(unwrapped_):
+					k = handleKindCallClone
 				case matcher.IsNoCopy(x):
 					switch c.NoCopyHandle {
 					case CopyHandleIgnore:
@@ -260,30 +305,84 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 							}
 							return nil
 						}
-						logger.Debug("ignoring type: configured to copy pointer of no copy objects but field does not contain it as a pointer or an interface")
+						k = handleKindIgnore
+						return nil
 					}
 					ok = false
 					return nil
-				case clonerMatcher.IsFuncImplementor(unwrapped_):
-					k = handleKindCallCloneFunc
-				case clonerMatcher.IsImplementor(unwrapped_):
-					k = handleKindCallClone
-				case matcher.IsCloneByAssign(unwrapped_, true):
+				case matcher.IsCloneByAssign(unwrapped_, cloneByAssignNamedTypeMatcher(graph)):
 					k = handleKindAssign
-				case asSignature(unwrapped_) != nil:
+				case asUnderlying[*types.Signature](unwrapped_) != nil:
 					k = handleSig(c, logger).Or(option.Some(k)).Value()
-					// TODO: getting larger, split this function into smaller pieces.
+				case asUnderlying[*types.Interface](unwrapped_) != nil:
+					k = handleInterface(c, logger).Value()
+				default:
+					// Watch out for type recursion. A name type can have itself in its struct field as pointer type of it.
+					if visited[typegraph.IdentFromTypesObject(x.Obj())] {
+						// can't generate ad-hoc unnamed function for recursive types.
+						k = handleKindIgnore
+						return nil
+					}
+					visited[typegraph.IdentFromTypesObject(x.Obj())] = true
+					switch x2 := x.Underlying().(type) {
+					default:
+						t, _, k2, _, ok2 := c.matchTy(x.Underlying(), graph, visited, logger.WithGroup(qualifiedName(x)))
+						if !ok2 {
+							ok = false
+							return nil
+						}
+						if named := as[*types.Named](t); named != nil && !named.Obj().Exported() {
+							k = handleKindIgnore
+						} else if k2 != handleKindIgnore {
+							k = handleKindCopyPublicField
+						}
+						return nil
+					case *types.Struct:
+						k = handleKindIgnore
+						disabled := false
+						for i, f := range pkgsutil.EnumerateFields(x2) {
+							if !f.Exported() {
+								k = handleKindIgnore
+								disabled = true
+								continue
+							}
+							t, _, k2, _, ok2 := c.matchTy(
+								f.Type(),
+								graph,
+								visited,
+								logger.WithGroup(qualifiedName(x)).With(
+									slog.String("for", "structLiteral"),
+									slog.Int("fieldIndex", i),
+									slog.String("fieldName", f.Name()),
+								),
+							)
+							if !ok2 {
+								ok = false
+								return nil
+							}
+							if named := as[*types.Named](t); named != nil && !named.Obj().Exported() {
+								k = handleKindIgnore
+								disabled = true
+							}
+							if !disabled && k2 != handleKindIgnore {
+								k = handleKindCopyPublicField
+							}
+						}
+						return nil
+					}
 				}
 			case *types.Signature:
 				k = handleSig(c, logger).Or(option.Some(k)).Value()
 			case *types.Struct: // struct literal.
-				if matcher.IsCloneByAssign(x, false) {
+				if matcher.IsCloneByAssign(x, cloneByAssignNamedTypeMatcher(graph)) {
 					k = handleKindAssign
 				} else {
 					atLeastOne := false
 					for i, f := range pkgsutil.EnumerateFields(x) {
 						_, _, k2, _, ok2 := c.matchTy(
 							f.Type(),
+							graph,
+							visited,
 							logger.With(
 								slog.String("for", "structLiteral"),
 								slog.Int("fieldIndex", i),
@@ -302,6 +401,8 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 						k = handleKindStructLiteral
 					}
 				}
+			case *types.Interface:
+				k = handleInterface(c, logger).Value()
 			}
 
 			// below, we'll check whether we can handle type params.
@@ -320,7 +421,12 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 					if pkgPath != "" {
 						pkgPath = strconv.Quote(pkgPath) + "."
 					}
-					_, _, kind, _, argOk := c.matchTy(arg, logger.With("typeArgFor", pkgPath+name))
+					_, _, kind, _, argOk := c.matchTy(
+						arg,
+						graph,
+						visited,
+						logger.With("typeArgFor", pkgPath+name),
+					)
 					if !argOk {
 						logger.Debug("ignoring type: type arg at " + strconv.FormatInt(int64(i), 10) + " is disallowed")
 						ok = false
@@ -337,6 +443,25 @@ func (c *MatcherConfig) matchTy(ty types.Type, logger *slog.Logger) (unwrapped t
 		nil,
 	)
 	return
+}
+
+func cloneByAssignNamedTypeMatcher(g *typegraph.Graph) func(ty *types.Named) bool {
+	if g == nil {
+		return func(ty *types.Named) bool {
+			return true
+		}
+	}
+	return func(ty *types.Named) bool {
+		// We must call for implementors.
+		// can't assign value.
+		if clonerMatcher.IsImplementor(ty) || clonerMatcher.IsFuncImplementor(ty) {
+			return false
+		}
+		if n, ok := g.Get(typegraph.IdentFromTypesObject(ty.Obj())); ok && n.Matched > 0 {
+			return false
+		}
+		return true
+	}
 }
 
 func handleSig(c *MatcherConfig, logger *slog.Logger) option.Option[handleKind] {
@@ -376,10 +501,27 @@ func asSignature(ty types.Type) *types.Signature {
 	return nil
 }
 
+func handleInterface(c *MatcherConfig, logger *slog.Logger) option.Option[handleKind] {
+	switch c.InterfaceHandle {
+	case CopyHandleIgnore:
+		logger.Debug("ignoring field since it contains function: if it should be copied place " +
+			"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+			" as field doc comment",
+		)
+		return option.Some(handleKindIgnore)
+	case CopyHandleCopyPointer:
+		// func itself is a pointer type.
+		return option.Some(handleKindAssign)
+	}
+	logger.Debug("unknown kind", slog.Int("kind", int(c.FuncHandle)))
+	return option.Some(handleKindIgnore)
+}
+
 func (c *MatcherConfig) handleField(
 	pos int,
 	parent *typegraph.Node,
 	child *typegraph.Node,
+	graph *typegraph.Graph,
 	ty types.Type,
 ) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, customHandlerIndex int) {
 	conf := *c
@@ -393,7 +535,12 @@ func (c *MatcherConfig) handleField(
 		}
 	}
 
-	unwrapped, stack, k, customHandlerIndex, ok := conf.matchTy(ty, noopLogger)
+	unwrapped, stack, k, customHandlerIndex, ok := conf.matchTy(
+		ty,
+		graph,
+		nil,
+		noopLogger,
+	)
 	if !ok {
 		k = handleKindIgnore
 		return
@@ -414,7 +561,27 @@ func (c *MatcherConfig) handleField(
 	return
 }
 
+func as[T types.Type](ty types.Type) T {
+	t, _ := ty.(T)
+	return t
+}
+
+func asUnderlying[T types.Type](ty types.Type) T {
+	ty = types.Unalias(ty)
+	t, ok := ty.(T)
+	if ok {
+		return t
+	}
+	named, ok := ty.(*types.Named)
+	if !ok {
+		// should be nil
+		return *new(T)
+	}
+	ty = types.Unalias(named.Underlying())
+	t, _ = ty.(T)
+	return t
+}
+
 func asStruct(ty types.Type) *types.Struct {
-	st, _ := ty.(*types.Struct)
-	return st
+	return as[*types.Struct](ty)
 }

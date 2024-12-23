@@ -2,7 +2,6 @@ package codegen
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/printer"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
@@ -62,7 +62,9 @@ func PrintTypeParamsDst(ts *dst.TypeSpec) string {
 }
 
 func PrintAstExprPanicking(expr ast.Expr) string {
-	buf := new(bytes.Buffer)
+	buf := bufpool.GetBuf()
+	defer bufpool.PutBuf(buf)
+
 	err := printer.Fprint(buf, token.NewFileSet(), expr)
 	if err != nil {
 		panic(err)

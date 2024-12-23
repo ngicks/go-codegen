@@ -1,6 +1,6 @@
 package structlit
 
-type A struct {
+type A[T any] struct {
 	A int
 	B struct {
 		Foo string
@@ -8,6 +8,9 @@ type A struct {
 			Baz B
 			Qux string
 		}
+	}
+	C struct {
+		A T
 	}
 }
 

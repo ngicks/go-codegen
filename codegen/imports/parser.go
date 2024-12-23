@@ -180,7 +180,7 @@ func (p *ImportParser) Parse(importSpecs []*ast.ImportSpec) (ImportMap, error) {
 			func(s string, _ TargetImport) bool {
 				return !pkgPaths[s]
 			},
-			maps.All(im.extra),
+			hiter.MapSorted(im.extra),
 		),
 	)
 
@@ -215,14 +215,15 @@ func addFallingBack(m map[string]TargetImport, ident string, ti TargetImport) Ta
 		m[ident] = ti
 		return ti
 	}
+
+	orgIdent := ident
 	for i := 1; ; i++ {
+		ident = orgIdent + "_" + strconv.FormatInt(int64(i), 10)
 		_, ok := m[ident]
 		if !ok {
+			ti.Ident = ident
 			break
 		}
-		ident = ident + "_" + strconv.FormatInt(int64(i), 10)
-		ti.Ident = ident
-		continue
 	}
 	m[ident] = ti
 	return ti
@@ -244,13 +245,13 @@ func (im *ImportMap) getIdent(pkgPath, name string) (string, TargetImport, bool)
 				if name != "" && !slices.Contains(v.Types, name) {
 					return "", TargetImport{}, false
 				}
-				ident := firstNonEmpty(v.Ident, v.Import.Name, importPathToIdent(v.Import.Path))
+				ident := cmp.Or(v.Ident, v.Import.Name, importPathToIdent(v.Import.Path))
 				ti := addFallingBack(
 					im.ident,
 					ident,
 					v,
 				)
-				ident = firstNonEmpty(ti.Ident, ident)
+				ident = cmp.Or(ti.Ident, ident)
 				im.recordMissing(ident, ti)
 				return ident, ti, true
 			}
@@ -267,16 +268,6 @@ func (im *ImportMap) recordMissing(ident string, ti TargetImport) {
 		ti.Ident = ident
 	}
 	im.missing[ident] = ti
-}
-
-func firstNonEmpty[T comparable](ts ...T) T {
-	var zero T
-	for _, t := range ts {
-		if t != zero {
-			return t
-		}
-	}
-	return zero
 }
 
 func (im ImportMap) AstExpr(ty TargetType) *ast.SelectorExpr {
@@ -395,8 +386,13 @@ func (im ImportMap) AddMissingImports(df *dst.File) {
 	)
 }
 
-func (im ImportMap) Qualifier() types.Qualifier {
+// Qualifier returns [types.Qualifier] that
+// fully qualifies members of all packages other than currentPkgPath.
+func (im ImportMap) Qualifier(currentPkgPath string) types.Qualifier {
 	return func(p *types.Package) string {
+		if currentPkgPath == p.Path() {
+			return ""
+		}
 		qual, _ := im.Ident(p.Path())
 		return qual
 	}

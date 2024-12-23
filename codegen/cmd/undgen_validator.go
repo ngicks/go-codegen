@@ -12,7 +12,7 @@ import (
 
 func init() {
 	fset := undgenValidatorCmd.Flags()
-	commonFlags(fset, true)
+	commonFlags(undgenValidatorCmd, fset, true)
 	undgenCmd.AddCommand(undgenValidatorCmd)
 }
 

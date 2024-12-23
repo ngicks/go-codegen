@@ -51,8 +51,12 @@ func (t Ident) TargetType() imports.TargetType {
 }
 
 func IdentFromTypesObject(obj types.Object) Ident {
+	var pkgsPath string
+	if obj.Pkg() != nil {
+		pkgsPath = obj.Pkg().Path()
+	}
 	return Ident{
-		obj.Pkg().Path(),
+		pkgsPath,
 		obj.Name(),
 	}
 }

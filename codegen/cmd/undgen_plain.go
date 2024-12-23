@@ -12,7 +12,7 @@ import (
 
 func init() {
 	fset := undgenPlainCmd.Flags()
-	commonFlags(fset, true)
+	commonFlags(undgenPlainCmd, fset, true)
 	undgenCmd.AddCommand(undgenPlainCmd)
 }
 

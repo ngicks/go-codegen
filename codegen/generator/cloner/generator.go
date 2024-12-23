@@ -1,7 +1,6 @@
 package cloner
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -14,6 +13,7 @@ import (
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
@@ -29,12 +29,12 @@ type Config struct {
 
 func (c *Config) matcherConfig() *MatcherConfig {
 	if c.MatcherConfig != nil {
-		conf := *c.MatcherConfig
+		conf := c.MatcherConfig.fallback()
 		conf.CustomHandlers = append(slices.Clip(conf.CustomHandlers), builtinCustomHandlers[:]...)
-		conf.logger = c.logger()
-		return &conf
+		return conf.SetLogger(c.logger())
 	}
-	return &MatcherConfig{CustomHandlers: builtinCustomHandlers[:], logger: c.logger()}
+
+	return NewMatcherConfig().SetLogger(c.logger())
 }
 
 var (
@@ -80,10 +80,15 @@ func (c *Config) Generate(
 		return err
 	}
 
+	buf := bufpool.GetBuf()
+	defer bufpool.PutBuf(buf)
+
 	for _, data := range xiter.Filter2(
 		func(f *ast.File, data *typegraph.ReplaceData) bool { return f != nil && data != nil },
 		hiter.MapKeys(replacerData, pkgsutil.EnumerateFile(pkgs)),
 	) {
+		buf.Reset()
+
 		if len(data.TargetNodes) == 0 {
 			continue
 		}
@@ -94,8 +99,6 @@ func (c *Config) Generate(
 		if err != nil {
 			return fmt.Errorf("converting dst to ast for %q: %w", data.Filename, err)
 		}
-
-		buf := new(bytes.Buffer) // pool buf?
 
 		if err := codegen.PrintFileHeader(buf, af, res.Fset); err != nil {
 			return fmt.Errorf("%q: %w", data.Filename, err)

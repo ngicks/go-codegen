@@ -2,7 +2,6 @@
 package codegen
 
 import (
-	"bytes"
 	"go/ast"
 	"go/parser"
 	"go/printer"
@@ -11,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/imports"
 )
@@ -143,7 +143,9 @@ func (p *Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*a
 	//
 	// To fix this situation, call golang.org/x/tools/imports.Process to remove unused imports.
 
-	buf := new(bytes.Buffer)
+	buf := bufpool.GetBuf()
+	defer bufpool.PutBuf(buf)
+
 	err = printer.Fprint(buf, fset, f)
 	if err != nil {
 		panic(err)

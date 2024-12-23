@@ -2,12 +2,11 @@ package cloner
 
 import (
 	"fmt"
-	"go/ast"
 	"go/types"
 	"slices"
 
-	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
@@ -44,7 +43,7 @@ type CustomHandler struct {
 
 type CustomHandlerExprData struct {
 	ImportMap imports.ImportMap
-	AstExpr   ast.Expr
+	PkgPath   string
 	Ty        types.Type
 }
 
@@ -81,7 +80,7 @@ var builtinCustomHandlers = [...]CustomHandler{
 						dst := make(%[1]s, len(src), cap(src))
 						copy(dst, src)
 						return dst
-					}`, codegen.PrintAstExprPanicking(data.AstExpr))
+					}`, types.TypeString(data.Ty, data.ImportMap.Qualifier(data.PkgPath)))
 			}, true
 		},
 	},
@@ -109,19 +108,11 @@ var builtinCustomHandlers = [...]CustomHandler{
 		},
 	},
 	{
-		// call cloneruntime.Time on time.Time
-		// that clones time but strips monotonic timer.
+		// clones time but strips monotonic timer.
 		Matcher: func(t types.Type) bool {
 			return imports.TargetType{ImportPath: "time", Name: "Time"}.Is(t)
 		},
-		Imports: []imports.TargetImport{
-			{
-				Import: imports.Import{
-					Path: "time",
-					Name: "time",
-				},
-			},
-		},
+		Imports: []imports.TargetImport{{Import: imports.Import{Path: "time", Name: "time"}}},
 		Expr: func(data CustomHandlerExprData) (expr func(s string) (expr string), isFunc bool) {
 			return func(s string) string {
 				ident, _ := data.ImportMap.Ident("time")
@@ -142,6 +133,69 @@ var builtinCustomHandlers = [...]CustomHandler{
 							%[1]s.Location(),
 						)
 					}`, tok, ident)
+			}, true
+		},
+	},
+	{
+		// clones *big.Int, *big.Rat, *big.Float, *big.Uint
+		Matcher: func(t types.Type) bool {
+			p, ok := t.(*types.Pointer)
+			if !ok {
+				return false
+			}
+			named, ok := p.Elem().(*types.Named)
+			if !ok {
+				return false
+			}
+
+			switch typegraph.IdentFromTypesObject(named.Obj()) {
+			case typegraph.Ident{PkgPath: "math/big", TypeName: "Float"},
+				typegraph.Ident{PkgPath: "math/big", TypeName: "Int"},
+				typegraph.Ident{PkgPath: "math/big", TypeName: "Rat"}:
+				return true
+			}
+			return false
+		},
+		Imports: []imports.TargetImport{
+			{Import: imports.Import{Path: "math/big", Name: "big"}},
+		},
+		Expr: func(data CustomHandlerExprData) (expr func(s string) (expr string), isFunc bool) {
+			return func(s string) string {
+				ident, _ := data.ImportMap.Ident("math/big")
+				tok := "v"
+				if tok == ident {
+					tok = "vv"
+				}
+				name := data.Ty.(*types.Pointer).Elem().(*types.Named).Obj().Name()
+				if name == "Rat" {
+					return fmt.Sprintf(
+						`func(%[1]s *%[2]s.%[3]s) *%[2]s.%[3]s {
+						new := %[2]s.New%[3]s(0, 1)
+						new.Set(v)
+						return new
+					}`, tok, ident, name)
+				} else {
+					return fmt.Sprintf(
+						`func(%[1]s *%[2]s.%[3]s) *%[2]s.%[3]s {
+						new := %[2]s.New%[3]s(0)
+						new.Set(v)
+						return new
+					}`, tok, ident, name)
+				}
+			}, true
+		},
+	},
+	{
+		Matcher: func(t types.Type) bool {
+			return imports.TargetType{ImportPath: "encoding/xml", Name: "Token"}.Is(t)
+		},
+		Imports: []imports.TargetImport{
+			{Import: imports.Import{Path: "encoding/xml", Name: "xml"}},
+		},
+		Expr: func(data CustomHandlerExprData) (expr func(s string) (expr string), isFunc bool) {
+			return func(s string) (expr string) {
+				ident, _ := data.ImportMap.Ident("encoding/xml")
+				return fmt.Sprintf("%s.CopyToken", ident)
 			}, true
 		},
 	},
@@ -168,19 +222,32 @@ func isBasicOrKnownCloneByAssign(ty types.Type) bool {
 	return isKnownCloneByAssign(ty)
 }
 
-var knownCloneByAssign = map[imports.TargetType]struct{}{
-	{ImportPath: "unique", Name: "Handle"}: {},
-}
-
 func isKnownCloneByAssign(ty types.Type) bool {
+	if ptr, ok := ty.(*types.Pointer); ok {
+		if named, ok := ptr.Elem().(*types.Named); ok {
+			_, ok := knownCloneByAssignPointer[namedToTargetType(named)]
+			if ok {
+				return true
+			}
+		}
+	}
+
 	named, ok := ty.(*types.Named)
 	if !ok {
 		return false
 	}
+
+	tyName := namedToTargetType(named)
+
+	_, ok1 := knownCloneByAssign[tyName]
+	_, ok2 := stdCloneByAssign[tyName]
+	return ok1 || ok2
+}
+
+func namedToTargetType(named *types.Named) imports.TargetType {
 	var pkgPath string
 	if pkg := named.Obj().Pkg(); pkg != nil {
 		pkgPath = pkg.Path()
 	}
-	_, ok = knownCloneByAssign[imports.TargetType{ImportPath: pkgPath, Name: named.Obj().Name()}]
-	return ok
+	return imports.TargetType{ImportPath: pkgPath, Name: named.Obj().Name()}
 }

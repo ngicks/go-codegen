@@ -1,7 +1,6 @@
 package cloner
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -37,7 +37,9 @@ func generateMethod(
 ) (err error) {
 	ats := node.Ts
 
-	buf := new(bytes.Buffer)
+	buf := bufpool.GetBuf()
+	defer bufpool.PutBuf(buf)
+
 	printf, flush := codegen.BufPrintf(buf)
 
 	err = generateCloner(c, printf, g, replacer.ImportMap, node, ats)
@@ -78,7 +80,6 @@ func generateCloner(
 			"func (v %[1]s) CloneFunc(%[2]s) %[1]s {\n",
 			typeName,
 			stringsiter.Join(
-				1024,
 				", ",
 				xiter.Map(
 					func(s [2]string) string {
@@ -110,6 +111,7 @@ func generateCloner(
 				i,
 				node,
 				edge.ChildNode,
+				g,
 				node.Type.Underlying().(*types.Struct).Field(i).Type(),
 			)
 
@@ -126,13 +128,14 @@ func generateCloner(
 				node,
 				edge.ChildNode,
 				i,
-				af.Field.Type,
 				node.Type.Underlying().(*types.Struct).Field(i).Type(),
 				cloneCallbacks,
 			)
 			switch {
 			case errors.Is(err, errParamNotOk):
 				return err
+			case err != nil:
+				continue
 			}
 
 			printf(
@@ -157,6 +160,7 @@ func generateCloner(
 			-1,
 			node,
 			edge.ChildNode,
+			g,
 			ty,
 		)
 
@@ -172,7 +176,6 @@ func generateCloner(
 			node,
 			edge.ChildNode,
 			-1,
-			ats.Type,
 			ty,
 			cloneCallbacks,
 		)
@@ -216,7 +219,6 @@ func cloneTy(
 	parent *typegraph.Node,
 	child *typegraph.Node,
 	pos int,
-	expr ast.Expr,
 	ty types.Type,
 	cloneCallbacks [][2]string,
 ) (clonerExpr func(s string) string, callable bool, err error) {
@@ -224,6 +226,7 @@ func cloneTy(
 		pos,
 		parent,
 		child,
+		g,
 		ty,
 	)
 
@@ -237,17 +240,26 @@ func cloneTy(
 	if idx := slices.IndexFunc(
 		stack,
 		func(node typegraph.EdgeRouteNode) bool {
-			// There can be 2 or more aliases
-			// But after that, there should not be other than that
-			// since aliasing only points to named type.
 			return node.Kind == typegraph.EdgeKindAlias
 		}); idx >= 0 {
-		stack = stack[:idx]
+		// After aliasing it may still have route nodes other than alias,
+		// e.g. type A = []B
+		// right most aliases are useless for our code generator, drop them.
+		var j int = -1
+		for i := len(stack) - 1; i >= 0; i-- {
+			if stack[i].Kind != typegraph.EdgeKindAlias {
+				j = i
+				break
+			}
+		}
+		if j >= 0 {
+			stack = stack[:j+1]
+		}
 	}
 
-	unwrappedExpr, unwrapper := unwrapFieldAlongPath(
-		// af.Field.Type, af.Field.Type,
-		expr, expr,
+	unwrappedTy, unwrapper := unwrapFieldAlongPath(
+		ty, ty,
+		importMap.Qualifier(pkgPath),
 		stack,
 		0,
 	)
@@ -260,7 +272,7 @@ func cloneTy(
 		cloneExpr = func(s string) string { return s }
 	case handleKindNewChannel:
 		cloneExpr = func(s string) string {
-			return fmt.Sprintf("make(%s, cap(%s))", codegen.PrintAstExprPanicking(unwrappedExpr), s)
+			return fmt.Sprintf("make(%s, cap(%s))", types.TypeString(unwrappedTy, importMap.Qualifier(pkgPath)), s)
 		}
 	case handleKindCallCb:
 		cloneExpr = func(s string) string {
@@ -303,7 +315,6 @@ func cloneTy(
 					nil,
 					child,
 					-1,
-					codegen.TypeToAst(x, pkgPath, importMap),
 					x,
 					cbs,
 				)
@@ -337,71 +348,35 @@ func cloneTy(
 			CustomHandlers[idx].
 			Expr(CustomHandlerExprData{
 				ImportMap: importMap,
-				AstExpr:   unwrappedExpr,
+				PkgPath:   pkgPath,
 				Ty:        unwrapped,
 			})
 	case handleKindStructLiteral:
 		callable = true
-		builder := strings.Builder{}
-		printf, flush := codegen.BufPrintf(&builder)
-		printf(
-			`func (v %[1]s) %[1]s {
-	return %[1]s{
-`,
-			codegen.PrintAstExprPanicking(unwrappedExpr),
-		)
-		for i, f := range pkgsutil.EnumerateFields(unwrapped.(*types.Struct)) {
-			var childTy types.Type
-			_ = typegraph.TraverseTypes(
-				f.Type(),
-				func(ty types.Type, currentStack []typegraph.EdgeRouteNode) bool {
-					_, isStructLit := ty.(*types.Struct)
-					return isStructLit
-				},
-				func(ty types.Type, named *types.Named, stack []typegraph.EdgeRouteNode) error {
-					childTy = ty
-					return nil
-				},
-				nil,
-			)
-			child, _ := g.GetByType(childTy)
-
-			expr, callable, err := cloneTy(
+		cloneExpr, err = handleStruct(c, pkgPath, importMap, g, cloneCallbacks, false, unwrapped)
+		if err != nil {
+			return
+		}
+	case handleKindCopyPublicField:
+		callable = true
+		switch x := unwrapped.(*types.Named).Underlying().(type) {
+		case *types.Struct:
+			cloneExpr, err = handleStruct(c, pkgPath, importMap, g, cloneCallbacks, true, unwrapped)
+		default:
+			cloneExpr, callable, err = cloneTy(
 				c,
 				pkgPath,
 				importMap,
 				g,
 				nil,
-				child,
-				-1,
-				codegen.TypeToAst(f.Type(), pkgPath, importMap),
-				f.Type(),
 				nil,
+				-1,
+				x,
+				cloneCallbacks,
 			)
-
-			if err != nil {
-				return nil, false, fmt.Errorf("%w: field of struct literal at index %d: %w", errFieldNotOk, i, err)
-			}
-
-			printf(
-				"%s:",
-				f.Name(),
-			)
-			if callable {
-				printf(strings.ReplaceAll(expr("v."+f.Name())+"("+"v."+f.Name()+")", "%", "%%"))
-			} else {
-				printf(strings.ReplaceAll(expr("v."+f.Name()), "%", "%%"))
-			}
-			printf(",\n")
 		}
-		printf("}\n}")
-
-		if err := flush(); err != nil {
-			panic(err)
-		}
-
-		cloneExpr = func(s string) string {
-			return builder.String()
+		if err != nil {
+			return
 		}
 	}
 
@@ -418,37 +393,138 @@ func cloneTy(
 	}
 }
 
-func unwrapExprOne(expr ast.Expr, kind typegraph.EdgeKind) ast.Expr {
-	switch kind {
-	case typegraph.EdgeKindArray:
-		return expr.(*ast.ArrayType).Elt
-	case typegraph.EdgeKindMap:
-		return expr.(*ast.MapType).Value
-	case typegraph.EdgeKindPointer:
-		return expr.(*ast.StarExpr).X
-	case typegraph.EdgeKindSlice:
-		return expr.(*ast.ArrayType).Elt
+func handleStruct(
+	c *Config,
+	pkgPath string,
+	importMap imports.ImportMap,
+	g *typegraph.Graph,
+	cloneCallbacks [][2]string,
+	onlyPublic bool,
+	unwrapped types.Type,
+) (cloneExpr func(s string) string, err error) {
+	builder := strings.Builder{}
+	printf, flush := codegen.BufPrintf(&builder)
+	printf(
+		`func (v %[1]s) %[1]s {
+	return %[1]s{
+`,
+		types.TypeString(unwrapped, importMap.Qualifier(pkgPath)),
+	)
+	for i, f := range pkgsutil.EnumerateFields(structOrUnderlyingStruct(unwrapped)) {
+		if onlyPublic && !f.Exported() {
+			continue
+		}
+		var childTy types.Type
+		_ = typegraph.TraverseTypes(
+			f.Type(),
+			func(ty types.Type, currentStack []typegraph.EdgeRouteNode) bool {
+				_, isStructLit := ty.(*types.Struct)
+				return isStructLit
+			},
+			func(ty types.Type, named *types.Named, stack []typegraph.EdgeRouteNode) error {
+				childTy = ty
+				return nil
+			},
+			nil,
+		)
+
+		if named := as[*types.Named](childTy); onlyPublic && named != nil {
+			if !named.Obj().Exported() {
+				continue
+			}
+		}
+		child, _ := g.GetByType(childTy)
+
+		expr, callable, err2 := cloneTy(
+			c,
+			pkgPath,
+			importMap,
+			g,
+			nil,
+			child,
+			-1,
+			f.Type(),
+			cloneCallbacks,
+		)
+
+		switch {
+		case errors.Is(err2, errNotHandled):
+			continue
+		case err2 != nil:
+			err = fmt.Errorf("%w: field of struct literal or named struct type at index %d: %w", errFieldNotOk, i, err2)
+			return
+		}
+
+		printf(
+			"%s:",
+			f.Name(),
+		)
+		if callable {
+			printf(strings.ReplaceAll(expr("v."+f.Name())+"("+"v."+f.Name()+")", "%", "%%"))
+		} else {
+			printf(strings.ReplaceAll(expr("v."+f.Name()), "%", "%%"))
+		}
+		printf(",\n")
 	}
-	return expr
+	printf("}\n}")
+
+	if err := flush(); err != nil {
+		panic(err)
+	}
+
+	return func(s string) string {
+		return builder.String()
+	}, nil
+}
+
+func structOrUnderlyingStruct(ty types.Type) *types.Struct {
+	if st := asStruct(ty); st != nil {
+		return st
+	}
+	return asStruct(ty.Underlying())
+}
+
+func unwrapTyOne(ty types.Type, kind typegraph.EdgeKind) types.Type {
+	switch kind {
+	case typegraph.EdgeKindAlias:
+		return ty.(*types.Alias).Rhs()
+	case typegraph.EdgeKindArray:
+		return ty.(*types.Array).Elem()
+	case typegraph.EdgeKindMap:
+		return ty.(*types.Map).Elem()
+	case typegraph.EdgeKindPointer:
+		return ty.(*types.Pointer).Elem()
+	case typegraph.EdgeKindSlice:
+		return ty.(*types.Slice).Elem()
+	}
+	return ty
 }
 
 func unwrapFieldAlongPath(
-	fromExpr, toExpr ast.Expr,
+	fromTy, toTy types.Type,
+	qualifier types.Qualifier,
 	stack []typegraph.EdgeRouteNode,
 	skip int,
-) (unwrapped ast.Expr, unwrapper func(wrappee func(string) string) string) {
-	if fromExpr == nil || toExpr == nil {
-		return toExpr, nil
+) (unwrapped types.Type, unwrapper func(wrappee func(string) string) string) {
+	if fromTy == nil || toTy == nil {
+		return toTy, nil
 	}
-	input := codegen.PrintAstExprPanicking(fromExpr)
-	output := codegen.PrintAstExprPanicking(toExpr)
+	input := types.TypeString(fromTy, qualifier)
+	output := types.TypeString(toTy, qualifier)
 
 	s := stack[skip:]
+
+	s = slices.Collect(
+		xiter.Filter(
+			func(n typegraph.EdgeRouteNode) bool { return n.Kind != typegraph.EdgeKindAlias },
+			slices.Values(s),
+		),
+	)
 	if len(s) == 0 {
-		return toExpr, nil
+		return toTy, nil
 	}
 
-	initializer := func(expr ast.Expr, kind typegraph.EdgeKind, variable string) (s string) {
+	initializer := func(ty types.Type, kind typegraph.EdgeKind, variable string) (s string) {
 		defer func() {
 			if s == "" {
 				return
@@ -459,17 +535,17 @@ func unwrapFieldAlongPath(
 		default: // case typegraph.EdgeKindArray, typegraph.EdgeKindPointer:
 			return ""
 		case typegraph.EdgeKindSlice:
-			return fmt.Sprintf("make(%s, len(v), cap(v))", codegen.PrintAstExprPanicking(expr))
+			return fmt.Sprintf("make(%s, len(v), cap(v))", types.TypeString(ty, qualifier))
 		case typegraph.EdgeKindMap:
-			return fmt.Sprintf("make(%s, len(v))", codegen.PrintAstExprPanicking(expr))
+			return fmt.Sprintf("make(%s, len(v))", types.TypeString(ty, qualifier))
 		}
 	}
 
 	var wrappers []func(string) string
-	unwrapped = toExpr
+	unwrapped = toTy
 	for p := range hiter.Window(s, 2) {
-		unwrapped = unwrapExprOne(unwrapped, p[0].Kind)
-		tyExpr := codegen.PrintAstExprPanicking(unwrapped)
+		unwrapped = unwrapTyOne(types.Unalias(unwrapped), p[0].Kind)
+		tyExpr := types.TypeString(unwrapped, qualifier)
 		initializerExpr := initializer(unwrapped, p[1].Kind, "inner")
 		switch p[0].Kind {
 		case typegraph.EdgeKindPointer:
@@ -526,7 +602,7 @@ func unwrapFieldAlongPath(
 		})
 	}
 
-	unwrapped = unwrapExprOne(unwrapped, s[len(s)-1].Kind)
+	unwrapped = unwrapTyOne(types.Unalias(unwrapped), s[len(s)-1].Kind)
 	return unwrapped, func(wrappee func(string) string) string {
 		wrappers = slices.Insert(wrappers, 0, func(expr string) string {
 			return fmt.Sprintf(
@@ -541,7 +617,7 @@ func unwrapFieldAlongPath(
 
 					return out
 				}`,
-				input, output, initializer(toExpr, s[0].Kind, "out"), expr)
+				input, output, initializer(toTy, s[0].Kind, "out"), expr)
 		})
 		expr := wrappee("v")
 		for _, wrapper := range slices.Backward(wrappers) {

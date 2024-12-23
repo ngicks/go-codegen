@@ -2,10 +2,13 @@ package imports
 
 import (
 	"go/token"
+	"maps"
+	"strings"
 	"testing"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
+	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 	"gotest.tools/v3/assert"
 )
@@ -276,4 +279,68 @@ func TestImports(t *testing.T) {
 	assertAddMissingImports()
 	im.AddMissingImports(df)
 	assertAddMissingImports()
+}
+
+func TestImports_fallback(t *testing.T) {
+	var pkg1 *packages.Package
+	for _, pkg := range testdataPkgs {
+		if pkg.Name == "pkg1" {
+			pkg1 = pkg
+		}
+	}
+	p := NewParserPackages(testdataPkgs)
+	p.AppendExtra(undExtra...)
+	p.AppendExtra(
+		TargetImport{
+			Import: Import{
+				Path: "foo1",
+				Name: "foo",
+			},
+		},
+		TargetImport{
+			Import: Import{
+				Path: "foo2",
+				Name: "foo",
+			},
+		},
+		TargetImport{
+			Import: Import{
+				Path: "foo3",
+				Name: "foo",
+			},
+		},
+		TargetImport{
+			Import: Import{
+				Path: "foo4",
+				Name: "foo",
+			},
+		},
+		TargetImport{
+			Import: Import{
+				Path: "foo5",
+				Name: "foo",
+			},
+		},
+	)
+	im, err := p.Parse(pkg1.Syntax[0].Imports)
+	assert.NilError(t, err)
+
+	assert.DeepEqual(
+		t,
+		map[string]TargetImport{
+			"foo":   {Import: Import{Path: "foo1", Name: "foo"}},
+			"foo_1": {Import: Import{Path: "foo2", Name: "foo"}, Ident: "foo_1"},
+			"foo_2": {Import: Import{Path: "foo3", Name: "foo"}, Ident: "foo_2"},
+			"foo_3": {Import: Import{Path: "foo4", Name: "foo"}, Ident: "foo_3"},
+			"foo_4": {Import: Import{Path: "foo5", Name: "foo"}, Ident: "foo_4"},
+		},
+		maps.Collect(
+			xiter.Filter2(
+				func(k string, _ TargetImport) bool {
+					return strings.HasPrefix(k, "foo")
+				},
+				maps.All(im.ident),
+			),
+		),
+	)
 }

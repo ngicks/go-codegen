@@ -75,7 +75,7 @@ func runCommand(
 	}
 }
 
-func commonFlags(fset *pflag.FlagSet, multiplePkg bool) {
+func commonFlags(cmd *cobra.Command, fset *pflag.FlagSet, multiplePkg bool) {
 	fset.StringP(
 		"dir",
 		"d",
@@ -85,11 +85,14 @@ The path specified by --pkg flag is evaluated under this directory.
 If empty cwd will be used.`,
 	)
 	fset.StringSlice("build-flags", nil, " a comma separated list of command-line flags to be passed through to the build system's query tool.")
+
 	if multiplePkg {
-		fset.StringArrayP("pkg", "p", nil, "target package pattern. relative to dir. must start with `./`. can be `./...`")
+		fset.StringArrayP("pkg", "p", nil, "[required] target package pattern. relative to dir. must start with \"./\". can be `./...`")
 	} else {
-		fset.StringP("pkg", "p", "", "target package name. relative to dir. specifying 2 or more packages is not allowed")
+		fset.StringP("pkg", "p", "", "[required] target package name. relative to dir. specifying 2 or more packages is not allowed")
 	}
+	_ = cmd.MarkFlagRequired("pkg")
+
 	fset.BoolP("verbose", "v", false, "verbose logs")
 	fset.Bool(
 		"ignore-generated",
@@ -98,8 +101,7 @@ If empty cwd will be used.`,
 If set, the type checker ignores ast nodes with comment //codegen:generated attached. 
 Useful for internal debugging. `,
 	)
-	fset.Bool("dry", false, "enables dry run mode. any files will be removed nor generated.")
-	_ = undgenPatchCmd.MarkFlagRequired("pkg")
+	fset.Bool("dry", false, "enables dry run mode. any files will not be removed nor generated.")
 }
 
 func commonOpts(fset *pflag.FlagSet, multiplePkg bool) (dir string, buildFlags []string, pkg []string, verbose bool, ignoreGenerated bool, dry bool, err error) {
