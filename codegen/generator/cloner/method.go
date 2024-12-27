@@ -3,7 +3,6 @@ package cloner
 import (
 	"errors"
 	"fmt"
-	"go/ast"
 	"go/types"
 	"io"
 	"slices"
@@ -35,14 +34,12 @@ func generateMethod(
 	node *typegraph.Node,
 	replacer *typegraph.ReplaceData,
 ) (err error) {
-	ats := node.Ts
-
 	buf := bufpool.GetBuf()
 	defer bufpool.PutBuf(buf)
 
 	printf, flush := codegen.BufPrintf(buf)
 
-	err = generateCloner(c, printf, g, replacer.ImportMap, node, ats)
+	err = generateCloner(c, printf, g, replacer.ImportMap, node)
 	if err != nil {
 		return err
 	}
@@ -63,7 +60,6 @@ func generateCloner(
 	g *typegraph.Graph,
 	importMap imports.ImportMap,
 	node *typegraph.Node,
-	ats *ast.TypeSpec,
 ) (err error) {
 	typeName := node.Ts.Name.Name + codegen.PrintTypeParamsAst(node.Ts)
 
@@ -94,17 +90,14 @@ func generateCloner(
 
 	edges := node.ChildEdgeMap(c.MatcherConfig.MatchEdge)
 
-	switch node.Type.Underlying().(type) {
+	switch x := node.Type.Underlying().(type) {
 	default:
 		return errNotHandled
 	case *types.Struct:
-		aStruct := ats.Type.(*ast.StructType)
 		printf("return %s{\n", typeName)
 		defer printf("}\n")
 		var handled int
-		for af := range codegen.FieldAst(aStruct) {
-			i := af.Pos
-
+		for i, f := range pkgsutil.EnumerateFields(x) {
 			edge, _, _, _ := edges.ByFieldPos(i)
 
 			_, _, handleKind, _ := c.matcherConfig().handleField(
@@ -140,12 +133,12 @@ func generateCloner(
 
 			printf(
 				"%s:",
-				af.Name,
+				f.Name(),
 			)
 			if callable {
-				printf(strings.ReplaceAll(clonerExpr("v."+af.Name)+"("+"v."+af.Name+")", "%", "%%"))
+				printf(strings.ReplaceAll(clonerExpr("v."+f.Name())+"("+"v."+f.Name()+")", "%", "%%"))
 			} else {
-				printf(strings.ReplaceAll(clonerExpr("v."+af.Name), "%", "%%"))
+				printf(strings.ReplaceAll(clonerExpr("v."+f.Name()), "%", "%%"))
 			}
 			printf(",\n")
 		}
