@@ -35,6 +35,8 @@ func FieldAst(st *ast.StructType) iter.Seq[FieldDescAst] {
 					case *ast.Ident:
 						name = x.Name
 						break UNWRAP
+					case *ast.StarExpr:
+						unwrapped = x.X
 					case *ast.SelectorExpr:
 						unwrapped = x.Sel
 					case *ast.IndexExpr: // type param

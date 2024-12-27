@@ -489,18 +489,6 @@ func handleSig(c *MatcherConfig, logger *slog.Logger) option.Option[handleKind] 
 	return option.Some(handleKindIgnore)
 }
 
-func asSignature(ty types.Type) *types.Signature {
-	if sig, ok := ty.(*types.Signature); ok {
-		return sig
-	}
-	if named, ok := ty.(*types.Named); ok {
-		if sig, ok := named.Underlying().(*types.Signature); ok {
-			return sig
-		}
-	}
-	return nil
-}
-
 func handleInterface(c *MatcherConfig, logger *slog.Logger) option.Option[handleKind] {
 	switch c.InterfaceHandle {
 	case CopyHandleIgnore:
