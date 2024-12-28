@@ -113,7 +113,7 @@ func listDist() ([]goToolDistListJson, error) {
 // SuffixFilename suffixes f by suffix.
 // It moves implicit build constraints from original filename to suffix.
 //
-// For example, assuming passing "suf" to suffix:
+// For example, assuming passing ".suf" to suffix:
 //   - foo_linux.go -> foo.suf_linux.go
 //   - foo_amd64_test.go -> foo.suf_amd64_test.go
 //   - foo_bar.go -> foo_bar.suf.go
