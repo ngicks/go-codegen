@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	listSuffixOnce                       sync.Once
-	suffixCombined, suffixOs, suffixArch map[string]bool
+	listSuffixOnce       sync.Once
+	suffixOs, suffixArch map[string]bool
 )
 
 type goToolDistListJson struct {
@@ -80,19 +80,17 @@ var preCachedList = []goToolDistListJson{
 // *_GOOS
 // *_GOARCH
 // *_GOOS_GOARCH
-func listSuffix() (combined, os, arch map[string]bool) {
+func listSuffix() (os, arch map[string]bool) {
 	lines, err := listDist()
 	if err != nil {
 		slog.Warn("go tool dist list failed. Falling back to pre-cached list", slog.Any("err", err))
 		lines = preCachedList[:]
 	}
 
-	combined = make(map[string]bool, len(lines))
 	os = make(map[string]bool, len(lines)/2)
 	arch = make(map[string]bool, len(lines)/2)
 
 	for _, line := range lines {
-		combined["_"+line.GOOS+"_"+line.GOARCH] = true
 		os["_"+line.GOOS] = true
 		arch["_"+line.GOARCH] = true
 	}
@@ -112,27 +110,45 @@ func listDist() ([]goToolDistListJson, error) {
 	return out, err
 }
 
-func suffixFilename(f, suffix string) string {
-	ext := filepath.Ext(filepath.Base(f))
+// SuffixFilename suffixes f by suffix.
+// It moves implicit build constraints from original filename to suffix.
+//
+// For example, assuming passing "suf" to suffix:
+//   - foo_linux.go -> foo.suf_linux.go
+//   - foo_amd64_test.go -> foo.suf_amd64_test.go
+//   - foo_bar.go -> foo_bar.suf.go
+//
+// Basically SuffixFilename is intended to be used for ".go" files but actually can be used for any file extension,
+// even no file extension is allowed.
+func SuffixFilename(f, suffix string) string {
+	base, sufFormer, sufLatter, sufTest, ext := stripBuildConstrains(f)
+	return base + suffix + sufFormer + sufLatter + sufTest + ext
+}
+
+// IsSuffixed tests f is suffixed with suffix.
+// The test ignores file extension and implicit build constraints suffix in f.
+func IsSuffixed(f, suffix string) bool {
+	base, _, _, _, _ := stripBuildConstrains(f)
+	return strings.HasSuffix(base, suffix)
+}
+
+func stripBuildConstrains(f string) (base, sufFormer, sufLatter, sufTest, ext string) {
+	ext = filepath.Ext(f)
 	f, _ = strings.CutSuffix(f, ext)
 
 	base, hadTestSuffix := strings.CutSuffix(f, "_test")
-	sufTest := "_test"
+	sufTest = "_test"
 	if !hadTestSuffix {
 		sufTest = ""
 	}
 
 	listSuffixOnce.Do(func() {
-		suffixCombined, suffixOs, suffixArch = listSuffix()
+		suffixOs, suffixArch = listSuffix()
 	})
 
-	var (
-		sufFormer, sufLatter string
-		suffixedWithArch     bool
-	)
+	var suffixedWithOs, suffixedWithArch bool
 	if idx := strings.LastIndex(base, "_"); idx >= 0 {
 		suf := base[idx:]
-		suffixedWithOs := false
 		switch {
 		case suffixOs[suf]:
 			suffixedWithOs = true
@@ -152,5 +168,5 @@ func suffixFilename(f, suffix string) string {
 		}
 	}
 
-	return base + suffix + sufFormer + sufLatter + sufTest + ext
+	return
 }

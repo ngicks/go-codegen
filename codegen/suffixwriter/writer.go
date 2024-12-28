@@ -106,7 +106,7 @@ func (p *Writer) suffixFilename(name string) (string, error) {
 		return "", fmt.Errorf("generated target file is not under cwd: %s", rel)
 	}
 
-	return suffixFilename(name, p.suffix), nil
+	return SuffixFilename(name, p.suffix), nil
 }
 
 // openFile opens name suffixed with p.suffix.
