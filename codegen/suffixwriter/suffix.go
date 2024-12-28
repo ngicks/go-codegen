@@ -1,70 +1,77 @@
 package suffixwriter
 
 import (
+	"encoding/json"
 	"log/slog"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
-
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
 
 var (
-	listSuffixOnce = sync.OnceValue(listSuffix)
-	preCachedList  = [...]string{
-		"aix/ppc64",
-		"android/386",
-		"android/amd64",
-		"android/arm",
-		"android/arm64",
-		"darwin/amd64",
-		"darwin/arm64",
-		"dragonfly/amd64",
-		"freebsd/386",
-		"freebsd/amd64",
-		"freebsd/arm",
-		"freebsd/arm64",
-		"freebsd/riscv64",
-		"illumos/amd64",
-		"ios/amd64",
-		"ios/arm64",
-		"js/wasm",
-		"linux/386",
-		"linux/amd64",
-		"linux/arm",
-		"linux/arm64",
-		"linux/loong64",
-		"linux/mips",
-		"linux/mips64",
-		"linux/mips64le",
-		"linux/mipsle",
-		"linux/ppc64",
-		"linux/ppc64le",
-		"linux/riscv64",
-		"linux/s390x",
-		"netbsd/386",
-		"netbsd/amd64",
-		"netbsd/arm",
-		"netbsd/arm64",
-		"openbsd/386",
-		"openbsd/amd64",
-		"openbsd/arm",
-		"openbsd/arm64",
-		"openbsd/ppc64",
-		"openbsd/riscv64",
-		"plan9/386",
-		"plan9/amd64",
-		"plan9/arm",
-		"solaris/amd64",
-		"wasip1/wasm",
-		"windows/386",
-		"windows/amd64",
-		"windows/arm",
-		"windows/arm64",
-	}
+	listSuffixOnce                       sync.Once
+	suffixCombined, suffixOs, suffixArch map[string]bool
 )
+
+type goToolDistListJson struct {
+	GOOS         string
+	GOARCH       string
+	CgoSupported bool
+	FirstClass   bool
+}
+
+var preCachedList = []goToolDistListJson{
+	{"aix", "ppc64", true, false},
+	{"android", "386", true, false},
+	{"android", "amd64", true, false},
+	{"android", "arm", true, false},
+	{"android", "arm64", true, false},
+	{"darwin", "amd64", true, true},
+	{"darwin", "arm64", true, true},
+	{"dragonfly", "amd64", true, false},
+	{"freebsd", "386", true, false},
+	{"freebsd", "amd64", true, false},
+	{"freebsd", "arm", true, false},
+	{"freebsd", "arm64", true, false},
+	{"freebsd", "riscv64", true, false},
+	{"illumos", "amd64", true, false},
+	{"ios", "amd64", true, false},
+	{"ios", "arm64", true, false},
+	{"js", "wasm", false, false},
+	{"linux", "386", true, true},
+	{"linux", "amd64", true, true},
+	{"linux", "arm", true, true},
+	{"linux", "arm64", true, true},
+	{"linux", "loong64", true, false},
+	{"linux", "mips", true, false},
+	{"linux", "mips64", true, false},
+	{"linux", "mips64le", true, false},
+	{"linux", "mipsle", true, false},
+	{"linux", "ppc64", false, false},
+	{"linux", "ppc64le", true, false},
+	{"linux", "riscv64", true, false},
+	{"linux", "s390x", true, false},
+	{"netbsd", "386", true, false},
+	{"netbsd", "amd64", true, false},
+	{"netbsd", "arm", true, false},
+	{"netbsd", "arm64", true, false},
+	{"openbsd", "386", true, false},
+	{"openbsd", "amd64", true, false},
+	{"openbsd", "arm", true, false},
+	{"openbsd", "arm64", true, false},
+	{"openbsd", "ppc64", false, false},
+	{"openbsd", "riscv64", true, false},
+	{"plan9", "386", false, false},
+	{"plan9", "amd64", false, false},
+	{"plan9", "arm", false, false},
+	{"solaris", "amd64", true, false},
+	{"wasip1", "wasm", false, false},
+	{"windows", "386", true, true},
+	{"windows", "amd64", true, true},
+	{"windows", "arm", false, false},
+	{"windows", "arm64", true, false},
+}
 
 // as per https://pkg.go.dev/cmd/go#hdr-Build_constraints
 //
@@ -73,37 +80,36 @@ var (
 // *_GOOS
 // *_GOARCH
 // *_GOOS_GOARCH
-func listSuffix() map[string]bool {
+func listSuffix() (combined, os, arch map[string]bool) {
 	lines, err := listDist()
 	if err != nil {
 		slog.Warn("go tool dist list failed. Falling back to pre-cached list", slog.Any("err", err))
 		lines = preCachedList[:]
 	}
-	allSuffix := make(map[string]bool)
+
+	combined = make(map[string]bool, len(lines))
+	os = make(map[string]bool, len(lines)/2)
+	arch = make(map[string]bool, len(lines)/2)
+
 	for _, line := range lines {
-		os, arch, _ := strings.Cut(line, "/")
-		allSuffix["_"+os+"_"+arch] = true
-		allSuffix["_"+os] = true
-		allSuffix["_"+arch] = true
+		combined["_"+line.GOOS+"_"+line.GOARCH] = true
+		os["_"+line.GOOS] = true
+		arch["_"+line.GOARCH] = true
 	}
-	return allSuffix
+
+	return
 }
 
-func listDist() ([]string, error) {
-	out, err := exec.Command("go", "tool", "dist", "list").Output()
+func listDist() ([]goToolDistListJson, error) {
+	bin, err := exec.Command("go", "tool", "dist", "list", "-json").Output()
 	if err != nil {
 		return nil, err
 	}
-	lines := strings.Split(string(out), "\n")
-	return slices.Collect(
-		xiter.Filter(
-			func(s string) bool { return s != "" },
-			xiter.Map(
-				strings.TrimSpace,
-				slices.Values(lines),
-			),
-		),
-	), nil
+
+	var out []goToolDistListJson
+	err = json.Unmarshal(bin, &out)
+
+	return out, err
 }
 
 func suffixFilename(f, suffix string) string {
@@ -116,36 +122,34 @@ func suffixFilename(f, suffix string) string {
 		sufTest = ""
 	}
 
-	var sufFormer, sufLatter string
+	listSuffixOnce.Do(func() {
+		suffixCombined, suffixOs, suffixArch = listSuffix()
+	})
+
+	var (
+		sufFormer, sufLatter string
+		suffixedWithArch     bool
+	)
 	if idx := strings.LastIndex(base, "_"); idx >= 0 {
-		sufLatter = base[idx:]
-		base = base[:idx]
-	}
-	if idx := strings.LastIndex(base, "_"); idx >= 0 {
-		sufFormer = base[idx:]
-		base = base[:idx]
+		suf := base[idx:]
+		suffixedWithOs := false
+		switch {
+		case suffixOs[suf]:
+			suffixedWithOs = true
+		case suffixArch[suf]:
+			suffixedWithArch = true
+		}
+		if suffixedWithOs || suffixedWithArch {
+			sufLatter = base[idx:]
+			base = base[:idx]
+		}
 	}
 
-	allSuffix := listSuffixOnce()
-	switch {
-	case sufFormer != "" && sufLatter != "":
-		if allSuffix[sufFormer+sufLatter] {
-			break
+	if suffixedWithArch {
+		if idx := strings.LastIndex(base, "_"); idx >= 0 && suffixOs[base[idx:]] {
+			sufFormer = base[idx:]
+			base = base[:idx]
 		}
-		if allSuffix[sufLatter] {
-			base += sufFormer
-			sufFormer = ""
-			break
-		}
-		base += sufFormer + sufLatter
-		sufFormer = ""
-		sufLatter = ""
-	case sufLatter != "":
-		if allSuffix[sufLatter] {
-			break
-		}
-		base += sufLatter
-		sufLatter = ""
 	}
 
 	return base + suffix + sufFormer + sufLatter + sufTest + ext
