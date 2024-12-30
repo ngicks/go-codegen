@@ -100,7 +100,7 @@ func generateCloner(
 		for i, f := range pkgsutil.EnumerateFields(x) {
 			edge, _, _, _ := edges.ByFieldPos(i)
 
-			_, _, handleKind, _ := c.matcherConfig().handleField(
+			_, _, handleKind, _ := c.MatcherConfig.handleField(
 				i,
 				node,
 				edge.ChildNode,
@@ -149,7 +149,7 @@ func generateCloner(
 		_, edge, _ := edges.First()
 
 		ty := node.Type.Underlying()
-		_, _, handleKind, _ := c.matcherConfig().handleField(
+		_, _, handleKind, _ := c.MatcherConfig.handleField(
 			-1,
 			node,
 			edge.ChildNode,
@@ -215,7 +215,7 @@ func cloneTy(
 	ty types.Type,
 	cloneCallbacks [][2]string,
 ) (clonerExpr func(s string) string, callable bool, err error) {
-	unwrapped, stack, handleKind, idx := c.matcherConfig().handleField(
+	unwrapped, stack, handleKind, idx := c.MatcherConfig.handleField(
 		pos,
 		parent,
 		child,
@@ -337,13 +337,15 @@ func cloneTy(
 			return s + builder.String()
 		}
 	case handleKindUseCustomHandler:
-		cloneExpr, callable = c.matcherConfig().
+		cloneExpr, callable = c.MatcherConfig.
 			CustomHandlers[idx].
-			Expr(CustomHandlerExprData{
-				ImportMap: importMap,
-				PkgPath:   pkgPath,
-				Ty:        unwrapped,
-			})
+			Expr(
+				CustomHandlerExprData{
+					ImportMap: importMap,
+					PkgPath:   pkgPath,
+					Ty:        unwrapped,
+				},
+			)
 	case handleKindStructLiteral:
 		callable = true
 		cloneExpr, err = handleStruct(c, pkgPath, importMap, g, cloneCallbacks, false, unwrapped)

@@ -76,11 +76,39 @@ func FieldDst(st *dst.StructType) iter.Seq[FieldDescDst] {
 		for i := 0; i < len(st.Fields.List); i++ {
 			f := st.Fields.List[i]
 			names := f.Names
-			for _, name := range names {
-				if !yield(FieldDescDst{pos, name.Name, f}) {
+			if len(names) == 0 {
+				// embedded field
+				unwrapped := f.Type
+				var name string
+			UNWRAP:
+				for {
+					switch x := unwrapped.(type) {
+					default:
+						panic(fmt.Errorf("unknown type in an anonymous field: %T in %v", unwrapped, f.Type))
+					case *dst.Ident:
+						name = x.Name
+						break UNWRAP
+					case *dst.StarExpr:
+						unwrapped = x.X
+					case *dst.SelectorExpr:
+						unwrapped = x.Sel
+					case *dst.IndexExpr: // type param
+						unwrapped = x.X
+					case *dst.IndexListExpr:
+						unwrapped = x.X
+					}
+				}
+				if !yield(FieldDescDst{pos, name, f}) {
 					return
 				}
 				pos++
+			} else {
+				for _, name := range names {
+					if !yield(FieldDescDst{pos, name.Name, f}) {
+						return
+					}
+					pos++
+				}
 			}
 		}
 	}

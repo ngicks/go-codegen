@@ -24,7 +24,22 @@ import (
 
 type Config struct {
 	MatcherConfig *MatcherConfig
+	Overlay       *ClonerOverlay
 	Logger        *slog.Logger
+}
+
+func (c *Config) cloneAndApplyOverlay() *Config {
+	if c == nil {
+		return nil
+	}
+
+	cc := *c
+
+	cc.MatcherConfig = cc.matcherConfig()
+	if cc.Overlay != nil {
+		// TODO: apply overlay
+	}
+	return &cc
 }
 
 func (c *Config) matcherConfig() *MatcherConfig {
@@ -54,12 +69,21 @@ func (c *Config) Generate(
 	sourcePrinter *suffixwriter.Writer,
 	pkgs []*packages.Package,
 ) error {
+	cc := c.cloneAndApplyOverlay()
+	return cc.generate(ctx, sourcePrinter, pkgs)
+}
+
+func (c *Config) generate(
+	ctx context.Context,
+	sourcePrinter *suffixwriter.Writer,
+	pkgs []*packages.Package,
+) error {
 	parser := imports.NewParserPackages(pkgs)
-	parser.AppendExtra(c.matcherConfig().CustomHandlers.Imports()...)
+	parser.AppendExtra(c.MatcherConfig.CustomHandlers.Imports()...)
 
 	graph, err := typegraph.New(
 		pkgs,
-		c.matcherConfig().MatchType,
+		c.MatcherConfig.MatchType,
 		codegen.ExcludeIgnoredGenDecl,
 		codegen.ExcludeIgnoredTypeSpec,
 		typegraph.WithPrivParser(parseNode),
@@ -68,12 +92,12 @@ func (c *Config) Generate(
 		return err
 	}
 
-	graph.MarkDependant(c.matcherConfig().MatchEdge)
+	graph.MarkDependant(c.MatcherConfig.MatchEdge)
 
 	replacerData, err := graph.GatherReplaceData(
 		parser,
 		func(g *typegraph.Graph) iter.Seq2[typegraph.Ident, *typegraph.Node] {
-			return g.IterUpward(true, c.matcherConfig().MatchEdge)
+			return g.IterUpward(true, c.MatcherConfig.MatchEdge)
 		},
 	)
 	if err != nil {

@@ -1,12 +1,14 @@
 package cloner
 
 import (
+	"fmt"
 	"go/types"
 	"log/slog"
 	"slices"
 	"strconv"
 
 	"github.com/ngicks/go-codegen/codegen/matcher"
+	"github.com/ngicks/go-codegen/codegen/msg"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -19,18 +21,18 @@ var (
 	}
 )
 
-type CopyHandle uint64
+type CopyHandle string
 
 const (
-	copyHandleInvalid CopyHandle = 0
+	copyHandleInvalid CopyHandle = ""
 	// ignore nocopy object
-	CopyHandleIgnore CopyHandle = 1 << iota
+	CopyHandleIgnore CopyHandle = "ignore"
 	// disallow nocopy object
-	CopyHandleDisallow
-	CopyHandleCopyPointer
+	CopyHandleDisallow    CopyHandle = "disallow"
+	CopyHandleCopyPointer CopyHandle = "copyptr"
 	_
 	// Only for channel. make a new channel.
-	CopyHandleMake
+	CopyHandleMake CopyHandle = "make"
 )
 
 type MatcherConfig struct {
@@ -85,7 +87,7 @@ func (c *MatcherConfig) MatchEdge(e typegraph.Edge) bool {
 	if len(s) > 0 && s[0].Kind == typegraph.EdgeKindStruct {
 		s = s[1:]
 	}
-	if option.Assert[clonerPriv](e.ParentNode.Priv).IsSomeAnd(func(cp clonerPriv) bool { return cp.disallowed }) {
+	if option.Assert[TypeOverlay](e.ParentNode.Priv).IsSomeAnd(func(cp TypeOverlay) bool { return cp.Ignored }) {
 		return false
 	}
 	return !slices.ContainsFunc(
@@ -96,25 +98,18 @@ func (c *MatcherConfig) MatchEdge(e typegraph.Edge) bool {
 	)
 }
 
-func qualifiedName(ty *types.Named) string {
-	pkgPath, name := matcher.Name(ty)
-	if pkgPath != "" {
-		pkgPath = strconv.Quote(pkgPath) + "."
-	}
-
-	return pkgPath + name
-}
-
 func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool, err error) {
+	// TODO: get overlay option from c. apply it.
+
 	logger := c.logger
 
-	logger.Debug("matching", slog.String("name", qualifiedName(node.Type)))
+	logger.Debug("matching", slog.String("name", msg.PkgPathPrefixedName(node.Type)))
 
-	priv := option.Assert[clonerPriv](node.Priv).Or(option.Some(clonerPriv{}))
+	priv := option.Assert[TypeOverlay](node.Priv).Or(option.Some(TypeOverlay{}))
 	defer func() {
 		// below priv might be changed
 		v := priv.Value()
-		if v.disallowed {
+		if v.Ignored {
 			logger.Debug("disallowed")
 		}
 		node.Priv = v
@@ -129,16 +124,17 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 		return false, nil
 	case *types.Struct:
 		for i, f := range pkgsutil.EnumerateFields(x) {
-			conf := *c
-			if priv.IsSomeAnd(func(cp clonerPriv) bool { _, ok := cp.lines[i]; return ok }) {
-				direction := priv.Value().lines[i]
+			conf := c.fallback()
+			if priv.IsSomeAnd(func(cp TypeOverlay) bool { _, ok := cp.Fields[f.Name()]; return ok }) {
+				direction := priv.Value().Fields[f.Name()]
 				logger.Debug("match conf overridden", slog.Any("directive", direction))
-				conf = direction.override(conf)
+				// TODO: overlay the overlay option instead of assigning.
+				conf = direction.overlay(conf)
 			}
 			logger := logger.With(slog.Int("at", i), slog.String("fieldName", f.Name()))
 			unwrapped, _, kind, _, fieldOk := conf.matchTy(f.Type(), nil, nil, logger)
 			if !fieldOk {
-				priv = priv.Map(func(v clonerPriv) clonerPriv { v.disallowed = true; return v })
+				priv = priv.Map(func(v TypeOverlay) TypeOverlay { v.Ignored = true; return v })
 				logger.Debug("not matched")
 				return false, nil
 			}
@@ -171,7 +167,7 @@ func (c *MatcherConfig) MatchType(node *typegraph.Node, external bool) (ok bool,
 		if fieldOk {
 			logger.Debug("matched: type ok")
 		} else {
-			priv = priv.Map(func(v clonerPriv) clonerPriv { v.disallowed = true; return v })
+			priv = priv.Map(func(v TypeOverlay) TypeOverlay { v.Ignored = true; return v })
 		}
 		return fieldOk, nil
 	}
@@ -223,11 +219,13 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 			) {
 				logger.Debug(
 					"disallowed route edge node: struct literal or interface literal",
+					// struct literal should be handled by recursion. never appears here.
 					slog.Any("stack", stack),
 				)
 				ok = false
 				return nil
 			}
+
 			if i := slices.IndexFunc(
 				stack,
 				func(p typegraph.EdgeRouteNode) bool {
@@ -237,16 +235,16 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 				switch c.ChannelHandle {
 				case CopyHandleIgnore:
 					logger.Debug("ignoring field since it contains channel: if it should be copied place " +
-						"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+						"//" + DirectivePrefix + string(InPlaceOptionKindCopyPtr) +
 						" as field doc comment",
 					)
 					k = handleKindIgnore
 				case CopyHandleDisallow:
 					logger.Debug(
 						"ignoring type since it contains channel: if this is mistake change MatchConfig or place " +
-							"//" + DirectivePrefix + DirectiveCommentIgnore +
+							"//" + DirectivePrefix + string(InPlaceOptionKindIgnore) +
 							" or " +
-							"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+							"//" + DirectivePrefix + string(InPlaceOptionKindCopyPtr) +
 							" as field doc comment",
 					)
 					ok = false
@@ -283,7 +281,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 					switch c.NoCopyHandle {
 					case CopyHandleIgnore:
 						logger.Debug("ignoring field since it contains no copy object: if it should be copied place " +
-							"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+							"//" + DirectivePrefix + string(InPlaceOptionKindCopyPtr) +
 							" as field doc comment",
 						)
 						k = handleKindIgnore
@@ -291,9 +289,9 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 					case CopyHandleDisallow:
 						logger.Debug(
 							"ignoring type since it contains no copy object: if this is mistake change MatchConfig or place " +
-								"//" + DirectivePrefix + DirectiveCommentIgnore +
+								"//" + DirectivePrefix + string(InPlaceOptionKindIgnore) +
 								" or " +
-								"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+								"//" + DirectivePrefix + string(InPlaceOptionKindCopyPtr) +
 								" as field doc comment",
 						)
 					case CopyHandleCopyPointer:
@@ -326,7 +324,12 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 					visited[typegraph.IdentFromTypesObject(x.Obj())] = true
 					switch x2 := x.Underlying().(type) {
 					default:
-						t, _, k2, _, ok2 := c.matchTy(x.Underlying(), graph, visited, logger.WithGroup(qualifiedName(x)))
+						t, _, k2, _, ok2 := c.matchTy(
+							x.Underlying(),
+							graph,
+							visited,
+							logger.WithGroup(msg.PkgPathPrefixedName(x)),
+						)
 						if !ok2 {
 							ok = false
 							return nil
@@ -350,7 +353,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 								f.Type(),
 								graph,
 								visited,
-								logger.WithGroup(qualifiedName(x)).With(
+								logger.WithGroup(msg.PkgPathPrefixedName(x)).With(
 									slog.String("for", "structLiteral"),
 									slog.Int("fieldIndex", i),
 									slog.String("fieldName", f.Name()),
@@ -468,16 +471,16 @@ func handleSig(c *MatcherConfig, logger *slog.Logger) option.Option[handleKind] 
 	switch c.FuncHandle {
 	case CopyHandleIgnore:
 		logger.Debug("ignoring field since it contains function: if it should be copied place " +
-			"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+			"//" + DirectivePrefix + string(InPlaceOptionKindCopyPtr) +
 			" as field doc comment",
 		)
 		return option.Some(handleKindIgnore)
 	case CopyHandleDisallow:
 		logger.Debug(
 			"ignoring type since it contains function: if this is mistake change MatchConfig or place " +
-				"//" + DirectivePrefix + DirectiveCommentIgnore +
+				"//" + DirectivePrefix + string(InPlaceOptionKindIgnore) +
 				" or " +
-				"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+				"//" + DirectivePrefix + string(InPlaceOptionKindCopyPtr) +
 				" as field doc comment",
 		)
 		return option.None[handleKind]()
@@ -485,7 +488,7 @@ func handleSig(c *MatcherConfig, logger *slog.Logger) option.Option[handleKind] 
 		// func itself is a pointer type.
 		return option.Some(handleKindAssign)
 	}
-	logger.Debug("unknown kind", slog.Int("kind", int(c.FuncHandle)))
+	logger.Debug("unknown kind", slog.String("kind", string(c.FuncHandle)))
 	return option.Some(handleKindIgnore)
 }
 
@@ -493,7 +496,7 @@ func handleInterface(c *MatcherConfig, logger *slog.Logger) option.Option[handle
 	switch c.InterfaceHandle {
 	case CopyHandleIgnore:
 		logger.Debug("ignoring field since it contains function: if it should be copied place " +
-			"//" + DirectivePrefix + DirectiveCommentCopyPtr +
+			"//" + DirectivePrefix + string(InPlaceOptionKindCopyPtr) +
 			" as field doc comment",
 		)
 		return option.Some(handleKindIgnore)
@@ -501,7 +504,7 @@ func handleInterface(c *MatcherConfig, logger *slog.Logger) option.Option[handle
 		// func itself is a pointer type.
 		return option.Some(handleKindAssign)
 	}
-	logger.Debug("unknown kind", slog.Int("kind", int(c.FuncHandle)))
+	logger.Debug("unknown kind", slog.String("kind", string(c.FuncHandle)))
 	return option.Some(handleKindIgnore)
 }
 
@@ -512,13 +515,16 @@ func (c *MatcherConfig) handleField(
 	graph *typegraph.Graph,
 	ty types.Type,
 ) (unwrapped types.Type, stack []typegraph.EdgeRouteNode, k handleKind, customHandlerIndex int) {
-	conf := *c
+	// TODO: get overlay option from c. apply it.
+	conf := c.fallback()
 	if parent != nil && pos >= 0 {
-		priv, ok := parent.Priv.(clonerPriv)
+		priv, ok := parent.Priv.(TypeOverlay)
 		if ok {
-			direction, ok := priv.lines[pos]
+			name := asUnderlying[*types.Struct](parent.Type).Field(pos).Name()
+			direction, ok := priv.Fields[name]
+			// TODO: overlay the overlay option instead of just assigning
 			if ok {
-				conf = direction.override(conf)
+				conf = direction.overlay(conf)
 			}
 		}
 	}
@@ -552,6 +558,25 @@ func (c *MatcherConfig) handleField(
 func as[T types.Type](ty types.Type) T {
 	t, _ := ty.(T)
 	return t
+}
+
+func isPointerKind(ty types.Type) bool {
+	const maxDepth = 100
+	for i := 0; ; i++ {
+		if i >= maxDepth {
+			panic(fmt.Errorf("type is too deep: %s", msg.PkgPathPrefixedName(ty)))
+		}
+		ty = types.Unalias(ty)
+		switch ty.(type) {
+		case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice:
+			return true
+		}
+		if named, ok := ty.(*types.Named); ok {
+			ty = named.Underlying()
+		} else {
+			return false
+		}
+	}
 }
 
 func asUnderlying[T types.Type](ty types.Type) T {
