@@ -150,21 +150,25 @@ func parseNode(n *typegraph.Node) (any, error) {
 var (
 	decMap         sync.Map
 	parseResultMap sync.Map
-	parseLock      sync.Mutex
 )
+
+type parserResult struct {
+	once sync.Once
+	df   *dst.File
+	err  error
+}
 
 func loadOrParseFile(fset *token.FileSet, file *ast.File) (*decorator.Decorator, *dst.File, error) {
 	dec := loadOrStoreDec(fset)
 	v, ok := parseResultMap.Load(file)
 	if !ok {
-		parseLock.Lock()
-		defer parseLock.Unlock()
-		dfile, err := dec.DecorateFile(file)
-		v = hiter.KeyValue[*dst.File, error]{K: dfile, V: err}
-		parseResultMap.Store(file, v)
+		v, _ = parseResultMap.LoadOrStore(file, &parserResult{})
 	}
-	kv := v.(hiter.KeyValue[*dst.File, error])
-	return dec, kv.K, kv.V
+	r := v.(*parserResult)
+	r.once.Do(func() {
+		r.df, r.err = dec.DecorateFile(file)
+	})
+	return dec, r.df, r.err
 }
 
 func loadOrStoreDec(fset *token.FileSet) *decorator.Decorator {
