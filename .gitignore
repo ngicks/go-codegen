@@ -19,3 +19,13 @@
 
 # Go workspace file
 go.work
+
+.coverinfo
+.coverinfo.html
+
+/bin
+
+.claude
+.serena
+
+.mcp.json

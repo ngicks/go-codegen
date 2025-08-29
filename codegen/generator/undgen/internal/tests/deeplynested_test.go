@@ -20,6 +20,11 @@ var (
 			return *i == *j
 		})
 	})
+	compareUndImplementorString = gocmp.Comparer(func(i, j und.Und[implementor.Implementor[string]]) bool {
+		return i.EqualFunc(j, func(i, j implementor.Implementor[string]) bool {
+			return i == j
+		})
+	})
 )
 
 var (
@@ -178,6 +183,7 @@ func Test_deeplynested_UndPlain(t *testing.T) {
 		d,
 		r,
 		compareOptionPointerImplementorString,
+		compareUndImplementorString,
 	)
 }
 

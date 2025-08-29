@@ -54,7 +54,7 @@ func GenerateValidator(
 
 	for _, data := range xiter.Filter2(
 		func(f *ast.File, data *typegraph.ReplaceData) bool { return f != nil && data != nil },
-		hiter.MapKeys(replacerData, pkgsutil.EnumerateFile(pkgs)),
+		hiter.MapsKeys(replacerData, pkgsutil.EnumerateFile(pkgs)),
 	) {
 		buf.Reset()
 

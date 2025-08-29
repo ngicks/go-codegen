@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	gocmp "github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/ngicks/go-codegen/codegen/generator/undgen/internal/testtargets/patchtarget"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/elastic"
@@ -40,6 +41,9 @@ func Test_patcher_ApplyPatch(t *testing.T) {
 			SliceElastic: sliceelastic.FromValue("hahahh"),
 		},
 		patchtarget.AllPatch{Foo: sliceund.Null[string]()}.ApplyPatch(all),
+		compareOptionString, compareUndString, compareElasticString,
+		compareOptionStruct, compareOptionOptions, compareSliceUndString, compareSliceElasticString,
+		cmpopts.EquateComparable(),
 	)
 	assert.DeepEqual(
 		t,
@@ -55,6 +59,9 @@ func Test_patcher_ApplyPatch(t *testing.T) {
 			SliceElastic: sliceelastic.FromValue("hahahh"),
 		},
 		patchtarget.AllPatch{Baz: sliceund.Defined[*struct{}](nil)}.ApplyPatch(all),
+		compareOptionString, compareUndString, compareElasticString,
+		compareOptionStruct, compareOptionOptions, compareSliceUndString, compareSliceElasticString,
+		cmpopts.EquateComparable(),
 	)
 	assert.DeepEqual(
 		t,
@@ -75,8 +82,12 @@ func Test_patcher_ApplyPatch(t *testing.T) {
 			SliceUnd:     sliceund.Null[string](),
 			SliceElastic: sliceelastic.Null[string](),
 		}.ApplyPatch(all),
+		compareOptionString, compareUndString, compareElasticString,
+		compareOptionStruct, compareOptionOptions, compareSliceUndString, compareSliceElasticString,
+		cmpopts.EquateComparable(),
 	)
 }
+
 func Test_patcher_Merge(t *testing.T) {
 	var p patchtarget.AllPatch
 	p.FromValue(patchtarget.All{
@@ -95,6 +106,9 @@ func Test_patcher_Merge(t *testing.T) {
 		assert.DeepEqual(
 			t,
 			i, j,
+			compareOptionString, compareUndString, compareElasticString,
+			compareOptionStruct, compareSliceUndString, compareSliceElasticString,
+			cmpopts.EquateComparable(),
 			gocmp.Comparer(
 				func(i, j sliceund.Und[[]string]) bool {
 					return i.EqualFunc(j, slices.Equal[[]string])

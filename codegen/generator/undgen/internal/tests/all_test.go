@@ -3,6 +3,7 @@ package tests
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/ngicks/go-codegen/codegen/generator/undgen/internal/testtargets/all"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/conversion"
@@ -137,7 +138,6 @@ func Test_all_UndValidate(t *testing.T) {
 			assert.ErrorContains(t, patched.UndValidate(), "validation failed at ."+tc.errorContains+":")
 		})
 	}
-
 }
 
 func Test_all_UndPlain(t *testing.T) {
@@ -201,7 +201,10 @@ func Test_all_UndPlain(t *testing.T) {
 		assert.DeepEqual(
 			t,
 			i, j,
+			compareOptionInt, compareOptionString, compareUndInt, compareUndString, compareElasticString,
 			compareOptionStringSlice, compareOptionOptionStringSlice, compareUndStringSlice,
+			compareOptionEmpty, compareOptionStruct, compareUndOptionArray, compareOptionOptionArray, compareOptionStringArray3,
+			cmpopts.EquateComparable(),
 		)
 	}
 
@@ -317,6 +320,10 @@ func Test_all_UndPlain(t *testing.T) {
 			ElaEqEqNonNullNull:       elastic.FromOptions(option.Some("ElaEqEqNonNullNull"), option.Some(""), option.Some("ElaEqEqNonNullNull")),
 		},
 		p.UndRaw(),
+		compareOptionInt, compareOptionString, compareUndInt, compareUndString, compareElasticString,
+		compareOptionStringSlice, compareOptionOptionStringSlice, compareUndStringSlice,
+		compareOptionEmpty, compareOptionStruct, compareUndOptionArray, compareOptionOptionArray, compareOptionStringArray3,
+		cmpopts.EquateComparable(),
 	)
 
 	a := all.All{
@@ -327,10 +334,13 @@ func Test_all_UndPlain(t *testing.T) {
 		[]option.Option[string]{option.Some("foo"), option.None[string]()},
 		a.UndPlain().ElaGr,
 		compareOptionStringSlice,
+		cmpopts.EquateComparable(),
 	)
 	assert.DeepEqual(
 		t,
 		elastic.FromOptions(option.Some("foo"), option.None[string]()),
 		a.UndPlain().UndRaw().ElaGr,
+		compareElasticString,
+		cmpopts.EquateComparable(),
 	)
 }

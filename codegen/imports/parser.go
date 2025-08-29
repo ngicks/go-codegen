@@ -180,7 +180,7 @@ func (p *ImportParser) Parse(importSpecs []*ast.ImportSpec) (ImportMap, error) {
 			func(s string, _ TargetImport) bool {
 				return !pkgPaths[s]
 			},
-			hiter.MapSorted(im.extra),
+			hiter.MapsSorted(im.extra),
 		),
 	)
 

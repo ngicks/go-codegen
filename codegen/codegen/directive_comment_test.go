@@ -250,5 +250,5 @@ L:
 	assert.DeepEqual(t, []string{"/* 10 */"}, clip1(b.Decs.End))
 
 	assert.DeepEqual(t, []string{"// 11"}, afterLastEmptyLine(c.Decs.Start))
-	assert.DeepEqual(t, []string{"\n"}, clip1(c.Decs.End))
+	assert.DeepEqual(t, []string(nil), clip1(c.Decs.End))
 }

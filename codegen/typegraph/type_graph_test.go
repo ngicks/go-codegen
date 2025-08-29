@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	gocmp "github.com/google/go-cmp/cmp"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"github.com/ngicks/und/option"
@@ -126,7 +127,10 @@ func Test_edges(t *testing.T) {
 	assert.Equal(t, types.String, arg0.Org.(*types.Basic).Kind())
 
 	arg1 := child.TypeArgs[1]
-	assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindPointer}}, arg1.Route)
+	optionIntCmp := gocmp.Comparer(func(a, b option.Option[int]) bool {
+		return option.Equal(a, b)
+	})
+	assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindPointer}}, arg1.Route, optionIntCmp)
 	assert.Assert(t, arg1.Node == graph.types[testdataIdent("edges", "MereChan")])
 	assert.Equal(t, testdataIdent("edges", "MereChan"), IdentFromTypesObject(arg1.Ty.Obj()))
 	assert.Equal(t, testdataIdent("edges", "MereChan"), IdentFromTypesObject(arg1.Org.(*types.Pointer).Elem().(*types.Named).Obj()))
@@ -140,25 +144,25 @@ func Test_edges(t *testing.T) {
 		{
 			name: "MereArray",
 			assert: func(tn *Node) {
-				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindArray}}, firstElem(tn.Children)[0].Stack)
+				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindArray}}, firstElem(tn.Children)[0].Stack, optionIntCmp)
 			},
 		},
 		{
 			name: "MereSlice",
 			assert: func(tn *Node) {
-				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindSlice}}, firstElem(tn.Children)[0].Stack)
+				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindSlice}}, firstElem(tn.Children)[0].Stack, optionIntCmp)
 			},
 		},
 		{
 			name: "MereMap",
 			assert: func(tn *Node) {
-				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindMap}}, firstElem(tn.Children)[0].Stack)
+				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindMap}}, firstElem(tn.Children)[0].Stack, optionIntCmp)
 			},
 		},
 		{
 			name: "MereChan",
 			assert: func(tn *Node) {
-				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindChan}}, firstElem(tn.Children)[0].Stack)
+				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindChan}}, firstElem(tn.Children)[0].Stack, optionIntCmp)
 			},
 		},
 		{
@@ -166,8 +170,8 @@ func Test_edges(t *testing.T) {
 			assert: func(tn *Node) {
 				a := tn.Children[testdataIdent("faketarget", "FakeTarget")][0].Stack
 				b := tn.Children[testdataIdent("faketarget", "FakeTarget2")][0].Stack
-				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindStruct, Pos: option.Some(0)}, {Kind: EdgeKindPointer}}, a)
-				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindStruct, Pos: option.Some(1)}}, b)
+				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindStruct, Pos: option.Some(0)}, {Kind: EdgeKindPointer}}, a, optionIntCmp)
+				assert.DeepEqual(t, []EdgeRouteNode{{Kind: EdgeKindStruct, Pos: option.Some(1)}}, b, optionIntCmp)
 			},
 		},
 		{
@@ -185,6 +189,7 @@ func Test_edges(t *testing.T) {
 						{Kind: EdgeKindMap},
 					},
 					tn.Children[testdataIdent("edges", "MereArray")][0].Stack,
+					optionIntCmp,
 				)
 			},
 		},

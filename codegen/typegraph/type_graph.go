@@ -697,7 +697,7 @@ func (g *Graph) EnumerateTypes() iter.Seq2[Ident, *Node] {
 		}
 		return cmp.Compare(g.types[i].Pos, g.types[j].Pos)
 	})
-	return hiter.MapKeys(g.types, slices.Values(keys))
+	return hiter.MapsKeys(g.types, slices.Values(keys))
 }
 
 func (g *Graph) Get(i Ident) (*Node, bool) {
@@ -718,7 +718,7 @@ func (g *Graph) GetByType(ty types.Type) (*Node, bool) {
 }
 
 func (g *Graph) EnumerateTypesKeys(keys iter.Seq[Ident]) iter.Seq2[Ident, *Node] {
-	return hiter.MapKeys(g.types, keys)
+	return hiter.MapsKeys(g.types, keys)
 }
 
 type EdgeMap struct {
