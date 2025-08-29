@@ -61,3 +61,4 @@ go install golang.org/x/tools/cmd/goimports@latest
 - File suffixes: `.clone.go`, `.und_patch.go`, `.und_plain.go`, `.und_validator.go`
 
 - ask back the user if you can't determine the things.
+- run go generate ./... before running test.

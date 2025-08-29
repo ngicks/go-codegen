@@ -2,7 +2,7 @@
 package cloner
 
 import (
-	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 )
 
 var stdCloneByAssign = map[imports.TargetType]struct{}{

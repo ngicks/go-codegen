@@ -406,7 +406,7 @@ type CreateProductDTO struct {
 }
 
 // Generate validator
-//go:generate codegen undgen validator --pkg ./
+//go:generate go run github.com/ngicks/go-codegen/codegen undgen validator --pkg ./
 
 // Use in handler
 func CreateProduct(dto CreateProductDTO) error {
@@ -429,7 +429,7 @@ type User struct {
 }
 
 // Generate patch type
-//go:generate codegen undgen patch --pkg ./
+//go:generate go run github.com/ngicks/go-codegen/codegen undgen patch --pkg ./
 
 // Use for updates
 func UpdateUser(id string, patch UserPatch) error {
@@ -453,7 +453,7 @@ type GameState struct {
 }
 
 // Generate clone method
-//go:generate codegen cloner --pkg ./
+//go:generate go run github.com/ngicks/go-codegen/codegen cloner --pkg ./
 
 // Use for snapshots
 func (g *GameState) Snapshot() GameState {
@@ -472,7 +472,7 @@ type APIRequest struct {
 }
 
 // Generate plain type
-//go:generate codegen undgen plain --pkg ./
+//go:generate go run github.com/ngicks/go-codegen/codegen undgen plain --pkg ./
 
 // Conversion pipeline
 func ProcessRequest(req APIRequest) error {
@@ -522,10 +522,10 @@ type Model struct {
 }
 
 // Generate all
-//go:generate codegen undgen patch --pkg ./
-//go:generate codegen undgen plain --pkg ./
-//go:generate codegen undgen validator --pkg ./
-//go:generate codegen cloner --pkg ./
+//go:generate go run github.com/ngicks/go-codegen/codegen undgen patch --pkg ./
+//go:generate go run github.com/ngicks/go-codegen/codegen undgen plain --pkg ./
+//go:generate go run github.com/ngicks/go-codegen/codegen undgen validator --pkg ./
+//go:generate go run github.com/ngicks/go-codegen/codegen cloner --pkg ./
 
 // Now you have:
 // - ModelPatch for updates
