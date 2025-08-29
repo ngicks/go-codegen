@@ -6,8 +6,8 @@ import (
 	"slices"
 
 	"github.com/dave/dst"
-	"github.com/ngicks/go-codegen/codegen/imports"
-	"github.com/ngicks/go-codegen/codegen/structtag"
+	"github.com/ngicks/go-codegen/codegen/pkg/imports"
+	"github.com/ngicks/go-codegen/codegen/pkg/structtag"
 	"github.com/ngicks/go-iterator-helper/hiter"
 )
 

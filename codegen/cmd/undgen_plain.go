@@ -5,7 +5,7 @@ package cmd
 
 import (
 	"github.com/ngicks/go-codegen/codegen/generator/undgen"
-	"github.com/ngicks/go-codegen/codegen/suffixwriter"
+	"github.com/ngicks/go-codegen/codegen/pkg/suffixwriter"
 	"github.com/spf13/cobra"
 	"golang.org/x/tools/go/packages"
 )

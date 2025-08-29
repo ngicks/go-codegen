@@ -1,6 +1,6 @@
 package edges
 
-import "github.com/ngicks/go-codegen/codegen/typegraph/testdata/faketarget"
+import "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/faketarget"
 
 type (
 	MereArray  [5]faketarget.FakeTarget2[string, *MereChan]

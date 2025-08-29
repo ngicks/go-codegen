@@ -1,6 +1,6 @@
 package filteredge
 
-import "github.com/ngicks/go-codegen/codegen/typegraph/testdata/faketarget"
+import "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/faketarget"
 
 // direct
 type A struct {

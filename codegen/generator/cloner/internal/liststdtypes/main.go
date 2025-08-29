@@ -16,8 +16,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/ngicks/go-codegen/codegen/imports"
-	"github.com/ngicks/go-codegen/codegen/matcher"
+	"github.com/ngicks/go-codegen/codegen/pkg/imports"
+	"github.com/ngicks/go-codegen/codegen/pkg/matcher"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"golang.org/x/tools/go/packages"
 )

@@ -40,7 +40,7 @@ import (
 	"testing"
 
 	"github.com/ngicks/go-codegen/codegen/generator/cloner"
-	"github.com/ngicks/go-codegen/codegen/suffixwriter"
+	"github.com/ngicks/go-codegen/codegen/pkg/suffixwriter"
 	"gotest.tools/v3/assert"
 )
 

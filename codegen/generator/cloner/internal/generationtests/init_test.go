@@ -4,7 +4,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/ngicks/go-codegen/codegen/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
 	"golang.org/x/tools/go/packages"
 )
 

@@ -4,9 +4,9 @@ import (
 	"go/ast"
 	"iter"
 
-	"github.com/ngicks/go-codegen/codegen/codegen"
-	"github.com/ngicks/go-codegen/codegen/imports"
-	"github.com/ngicks/go-codegen/codegen/typegraph"
+	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/imports"
+	"github.com/ngicks/go-codegen/codegen/pkg/typegraph"
 	"golang.org/x/tools/go/packages"
 )
 

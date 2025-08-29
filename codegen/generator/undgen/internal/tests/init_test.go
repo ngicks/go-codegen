@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	gocmp "github.com/google/go-cmp/cmp"
-	"github.com/ngicks/go-codegen/codegen/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
 	"github.com/ngicks/und"
 	"github.com/ngicks/und/conversion"
 	"github.com/ngicks/und/elastic"

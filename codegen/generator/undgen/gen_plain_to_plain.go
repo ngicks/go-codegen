@@ -3,7 +3,7 @@ package undgen
 import (
 	"fmt"
 
-	"github.com/ngicks/go-codegen/codegen/imports"
+	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/und/undtag"
 )
 

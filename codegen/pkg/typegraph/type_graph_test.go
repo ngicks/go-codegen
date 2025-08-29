@@ -60,7 +60,7 @@ func isFakeTargetType(n *types.Named) bool {
 	if pkg == nil {
 		return false
 	}
-	return pkg.Path() == "github.com/ngicks/go-codegen/codegen/typegraph/testdata/faketarget" &&
+	return pkg.Path() == "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/faketarget" &&
 		(n.Obj().Name() == "FakeTarget" || n.Obj().Name() == "FakeTarget2")
 }
 
@@ -108,7 +108,7 @@ func Test_edges(t *testing.T) {
 	assert.NilError(t, err)
 
 	testdataIdent := func(pkgName string, name string) Ident {
-		return Ident{"github.com/ngicks/go-codegen/codegen/typegraph/testdata/" + pkgName, name}
+		return Ident{"github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/" + pkgName, name}
 	}
 
 	node := graph.types[testdataIdent("edges", "MereArray")]
@@ -194,7 +194,7 @@ func Test_edges(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.assert(graph.types[Ident{"github.com/ngicks/go-codegen/codegen/typegraph/testdata/edges", tc.name}])
+			tc.assert(graph.types[Ident{"github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/edges", tc.name}])
 		})
 	}
 }
@@ -221,11 +221,11 @@ func Test_filterast(t *testing.T) {
 		t,
 		[]Ident{
 			{
-				PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filterast",
+				PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filterast",
 				TypeName: "Decl2",
 			},
 			{
-				PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filterast",
+				PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filterast",
 				TypeName: "Decl5",
 			},
 		},
@@ -250,7 +250,7 @@ func Test_filteredge(t *testing.T) {
 		if pkg == nil {
 			return false
 		}
-		return pkg.Path() == "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge" && n.Obj().Name() == "MatchedStruct"
+		return pkg.Path() == "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge" && n.Obj().Name() == "MatchedStruct"
 	}
 
 	type testCase struct {
@@ -269,15 +269,15 @@ func Test_filteredge(t *testing.T) {
 			},
 			expected: []Ident{
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "A",
 				},
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "D",
 				},
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "MatchedStruct",
 				},
 			},
@@ -292,15 +292,15 @@ func Test_filteredge(t *testing.T) {
 			},
 			expected: []Ident{
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "B",
 				},
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "D",
 				},
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "MatchedStruct",
 				},
 			},
@@ -315,27 +315,27 @@ func Test_filteredge(t *testing.T) {
 			},
 			expected: []Ident{
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "B",
 				},
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "C",
 				},
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "D",
 				},
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "F",
 				},
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "G",
 				},
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "MatchedStruct",
 				},
 			},
@@ -348,19 +348,19 @@ func Test_filteredge(t *testing.T) {
 			},
 			expected: []Ident{
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "A",
 				},
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "B",
 				},
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "D",
 				},
 				{
-					PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/filteredge",
+					PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/filteredge",
 					TypeName: "MatchedStruct",
 				},
 			},
@@ -403,19 +403,19 @@ func Test_loop(t *testing.T) {
 
 	allTypes := []Ident{
 		{
-			PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/loop",
+			PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/loop",
 			TypeName: "LoopEmbedded",
 		},
 		{
-			PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/loop",
+			PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/loop",
 			TypeName: "Tree",
 		},
 		{
-			PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/loop",
+			PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/loop",
 			TypeName: "recursion1",
 		},
 		{
-			PkgPath:  "github.com/ngicks/go-codegen/codegen/typegraph/testdata/loop",
+			PkgPath:  "github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/loop",
 			TypeName: "recursion2",
 		},
 	}

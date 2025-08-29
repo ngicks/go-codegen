@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/ngicks/go-codegen/codegen/matcher"
-	"github.com/ngicks/go-codegen/codegen/pkgsutil"
-	"github.com/ngicks/go-codegen/codegen/typegraph"
+	"github.com/ngicks/go-codegen/codegen/pkg/matcher"
+	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
+	"github.com/ngicks/go-codegen/codegen/pkg/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/option"
 )

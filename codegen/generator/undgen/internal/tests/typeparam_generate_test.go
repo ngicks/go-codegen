@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/ngicks/go-codegen/codegen/suffixwriter"
+	"github.com/ngicks/go-codegen/codegen/pkg/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/generator/undgen"
 	"gotest.tools/v3/assert"
 )

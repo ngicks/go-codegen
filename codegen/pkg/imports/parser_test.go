@@ -159,30 +159,30 @@ func TestImports(t *testing.T) {
 	assert.DeepEqual(
 		t,
 		map[string]TargetImport{
-			"github.com/ngicks/go-codegen/codegen/imports/internal/pkg1": {
+			"github.com/ngicks/go-codegen/codegen/pkg/imports/internal/pkg1": {
 				Import: Import{
-					Path: "github.com/ngicks/go-codegen/codegen/imports/internal/pkg1",
+					Path: "github.com/ngicks/go-codegen/codegen/pkg/imports/internal/pkg1",
 					Name: "pkg1",
 				},
 				Types: []string{"Pkg1"},
 			},
-			"github.com/ngicks/go-codegen/codegen/imports/internal/pkg2": {
+			"github.com/ngicks/go-codegen/codegen/pkg/imports/internal/pkg2": {
 				Import: Import{
-					Path: "github.com/ngicks/go-codegen/codegen/imports/internal/pkg2",
+					Path: "github.com/ngicks/go-codegen/codegen/pkg/imports/internal/pkg2",
 					Name: "pkg2",
 				},
 				Types: []string{"Pkg2"},
 			},
-			"github.com/ngicks/go-codegen/codegen/imports/internal/pkg2/pkg2-2": {
+			"github.com/ngicks/go-codegen/codegen/pkg/imports/internal/pkg2/pkg2-2": {
 				Import: Import{
-					Path: "github.com/ngicks/go-codegen/codegen/imports/internal/pkg2/pkg2-2",
+					Path: "github.com/ngicks/go-codegen/codegen/pkg/imports/internal/pkg2/pkg2-2",
 					Name: "pkg22",
 				},
 				Types: []string{"Pkg2_2"},
 			},
-			"github.com/ngicks/go-codegen/codegen/imports/internal/pkg3": {
+			"github.com/ngicks/go-codegen/codegen/pkg/imports/internal/pkg3": {
 				Import: Import{
-					Path: "github.com/ngicks/go-codegen/codegen/imports/internal/pkg3",
+					Path: "github.com/ngicks/go-codegen/codegen/pkg/imports/internal/pkg3",
 					Name: "pkg3diff",
 				},
 				Types: []string{"Pkg3"},
@@ -191,14 +191,14 @@ func TestImports(t *testing.T) {
 		im.dependencies,
 	)
 
-	ident, ti, ok := im.getIdent("github.com/ngicks/go-codegen/codegen/imports/internal/pkg2/pkg2-2", "Pkg2_2")
+	ident, ti, ok := im.getIdent("github.com/ngicks/go-codegen/codegen/pkg/imports/internal/pkg2/pkg2-2", "Pkg2_2")
 	assert.Assert(t, ok)
 	assert.Equal(t, "pkg22", ident)
 	assert.DeepEqual(
 		t,
 		TargetImport{
 			Import: Import{
-				Path: "github.com/ngicks/go-codegen/codegen/imports/internal/pkg2/pkg2-2",
+				Path: "github.com/ngicks/go-codegen/codegen/pkg/imports/internal/pkg2/pkg2-2",
 				Name: "pkg22",
 			},
 			Types: []string{"Pkg2_2"},
@@ -220,7 +220,7 @@ func TestImports(t *testing.T) {
 			},
 			"pkg22": {
 				Import: Import{
-					Path: "github.com/ngicks/go-codegen/codegen/imports/internal/pkg2/pkg2-2",
+					Path: "github.com/ngicks/go-codegen/codegen/pkg/imports/internal/pkg2/pkg2-2",
 					Name: "pkg22",
 				},
 				Types: []string{"Pkg2_2"},
@@ -259,7 +259,7 @@ func TestImports(t *testing.T) {
 					Name: dst.NewIdent("pkg22"),
 					Path: &dst.BasicLit{
 						Kind:  token.STRING,
-						Value: `"github.com/ngicks/go-codegen/codegen/imports/internal/pkg2/pkg2-2"`,
+						Value: `"github.com/ngicks/go-codegen/codegen/pkg/imports/internal/pkg2/pkg2-2"`,
 					},
 				},
 				{

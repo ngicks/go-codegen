@@ -1,6 +1,6 @@
 package cloner
 
-import "github.com/ngicks/go-codegen/codegen/imports"
+import "github.com/ngicks/go-codegen/codegen/pkg/imports"
 
 // Roughly checked std: from archive to maphash.
 // TODO: check rest of them

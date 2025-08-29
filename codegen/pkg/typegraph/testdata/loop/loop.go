@@ -4,7 +4,7 @@ package loop
 import (
 	"iter"
 
-	"github.com/ngicks/go-codegen/codegen/typegraph/testdata/faketarget"
+	"github.com/ngicks/go-codegen/codegen/pkg/typegraph/testdata/faketarget"
 )
 
 type Tree struct {

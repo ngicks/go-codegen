@@ -12,9 +12,9 @@ import (
 	"reflect"
 	"slices"
 
-	"github.com/ngicks/go-codegen/codegen/codegen"
-	"github.com/ngicks/go-codegen/codegen/imports"
-	"github.com/ngicks/go-codegen/codegen/pkgsutil"
+	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/imports"
+	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/option"
 	"golang.org/x/tools/go/packages"
