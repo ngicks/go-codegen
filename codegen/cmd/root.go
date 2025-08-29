@@ -223,7 +223,7 @@ func loadPkgs(
 		return targetPkgs, fmt.Errorf("package not loaded: wrong import pattern?")
 	}
 	if !multiplePkg && len(targetPkgs) >= 2 {
-		return targetPkgs, fmt.Errorf("loaded more than a package: must be single.")
+		return targetPkgs, fmt.Errorf("loaded more than a package: must be single")
 	}
 
 	return targetPkgs, nil
