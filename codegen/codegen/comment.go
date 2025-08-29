@@ -8,7 +8,7 @@ import (
 	"slices"
 
 	"github.com/dave/dst"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
+	"github.com/ngicks/go-iterator-helper/hiter"
 )
 
 func TrimPackageComment(f *dst.File) {
@@ -17,7 +17,7 @@ func TrimPackageComment(f *dst.File) {
 	// but we still leave comments as long as it is easy to implement.
 	f.Decs.Start = slices.AppendSeq(
 		dst.Decorations{},
-		xiter.Filter(
+		hiter.Filter(
 			func(s string) bool { return constraint.IsGoBuild(s) || constraint.IsPlusBuild(s) },
 			slices.Values(f.Decs.Start),
 		),

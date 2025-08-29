@@ -18,7 +18,7 @@ import (
 
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/matcher"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -77,7 +77,7 @@ func main() {
 	var cloneByAssignType []imports.TargetType
 	for _, pkg := range pkgs {
 		cloneByAssignType = append(cloneByAssignType, slices.Collect(
-			xiter.Map(
+			hiter.Map(
 				func(obj types.Object) imports.TargetType {
 
 					return imports.TargetType{
@@ -85,7 +85,7 @@ func main() {
 						Name:       obj.Name(),
 					}
 				},
-				xiter.Filter(
+				hiter.Filter(
 					func(obj types.Object) bool {
 						_, ok1 := obj.Type().(*types.Named)
 						_, ok2 := obj.Type().(*types.Alias)
@@ -95,7 +95,7 @@ func main() {
 							!matcher.IsNoCopy(obj.Type()) &&
 							matcher.IsCloneByAssign(obj.Type(), func(n *types.Named) bool { return true })
 					},
-					xiter.Map(
+					hiter.Map(
 						func(s string) types.Object {
 							return pkg.Types.Scope().Lookup(s)
 						},

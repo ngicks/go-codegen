@@ -18,7 +18,6 @@ import (
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -83,7 +82,7 @@ func (c *Config) Generate(
 	buf := bufpool.GetBuf()
 	defer bufpool.PutBuf(buf)
 
-	for _, data := range xiter.Filter2(
+	for _, data := range hiter.Filter2(
 		func(f *ast.File, data *typegraph.ReplaceData) bool { return f != nil && data != nil },
 		hiter.MapsKeys(replacerData, pkgsutil.EnumerateFile(pkgs)),
 	) {

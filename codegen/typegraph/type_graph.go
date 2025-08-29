@@ -16,7 +16,6 @@ import (
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"github.com/ngicks/und/option"
 	"golang.org/x/tools/go/packages"
 )
@@ -744,10 +743,10 @@ func (n *Node) ChildEdgeMap(edgeFilter func(edge Edge) bool) EdgeMap {
 	}
 
 	edgeMap := maps.Collect(
-		xiter.Filter2(
+		hiter.Filter2(
 			func(_ Ident, edges []Edge) bool {
 				if isStruct {
-					for pos, edge := range xiter.Map2(
+					for pos, edge := range hiter.Map2(
 						func(_ int, edge Edge) (int, Edge) {
 							return edge.Stack[0].Pos.Value(), edge
 						},
@@ -759,9 +758,9 @@ func (n *Node) ChildEdgeMap(edgeFilter func(edge Edge) bool) EdgeMap {
 				}
 				return len(edges) > 0
 			},
-			xiter.Map2(
+			hiter.Map2(
 				func(i Ident, edges []Edge) (Ident, []Edge) {
-					return i, slices.Collect(xiter.Filter(edgeFilter, slices.Values(edges)))
+					return i, slices.Collect(hiter.Filter(edgeFilter, slices.Values(edges)))
 				},
 				maps.All(n.Children),
 			),
@@ -801,7 +800,7 @@ func (em EdgeMap) Fields() iter.Seq2[int, Edge] {
 // FieldsName is like [EdgeMap.Fields] but the key of the pair is field name.
 func (em EdgeMap) FieldsName() iter.Seq2[string, Edge] {
 	structTy := em.node.Type.Underlying().(*types.Struct) // panic if not
-	return xiter.Map2(
+	return hiter.Map2(
 		func(i int, edge Edge) (string, Edge) {
 			return structTy.Field(i).Name(), edge
 		},

@@ -17,7 +17,6 @@ import (
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/hiter/stringsiter"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
 
 var (
@@ -77,7 +76,7 @@ func generateCloner(
 			typeName,
 			stringsiter.Join(
 				", ",
-				xiter.Map(
+				hiter.Map(
 					func(s [2]string) string {
 						return fmt.Sprintf("%[1]s func(%[2]s) %[2]s", s[0], s[1])
 					},
@@ -190,7 +189,7 @@ func generateCloner(
 
 func gatherCloneCallback(tyParams *types.TypeParamList) [][2]string {
 	return slices.Collect(
-		xiter.Map(
+		hiter.Map(
 			func(p *types.TypeParam) [2]string {
 				name := p.Obj().Name()
 				first, size := utf8.DecodeRuneInString(name)
@@ -508,7 +507,7 @@ func unwrapFieldAlongPath(
 	s := stack[skip:]
 
 	s = slices.Collect(
-		xiter.Filter(
+		hiter.Filter(
 			func(n typegraph.EdgeRouteNode) bool { return n.Kind != typegraph.EdgeKindAlias },
 			slices.Values(s),
 		),

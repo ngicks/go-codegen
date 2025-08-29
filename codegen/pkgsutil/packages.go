@@ -11,7 +11,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -151,7 +151,7 @@ func LoadError(pkg *packages.Package) error {
 		return fmt.Errorf(
 			"*packages.Package load error: "+format+"\n",
 			slices.Collect(
-				xiter.Map(
+				hiter.Map(
 					func(e packages.Error) any { return e },
 					slices.Values(pkg.Errors),
 				),

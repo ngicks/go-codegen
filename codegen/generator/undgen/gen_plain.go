@@ -21,7 +21,6 @@ import (
 	"github.com/ngicks/go-codegen/codegen/suffixwriter"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -48,7 +47,7 @@ func GeneratePlain(
 	buf := bufpool.GetBuf()
 	defer bufpool.PutBuf(buf)
 
-	for _, data := range xiter.Filter2(
+	for _, data := range hiter.Filter2(
 		func(f *ast.File, data *typegraph.ReplaceData) bool { return f != nil && data != nil },
 		hiter.MapsKeys(replacerData, pkgsutil.EnumerateFile(pkgs)),
 	) {
@@ -59,7 +58,7 @@ func GeneratePlain(
 			slog.String("filename", data.Filename),
 		)
 
-		modified := hiter.Collect2(xiter.Filter2(
+		modified := hiter.Collect2(hiter.Filter2(
 			func(node *typegraph.Node, exprMap map[string]fieldDstExprSet) bool {
 				return node != nil && exprMap != nil
 			},
@@ -100,7 +99,7 @@ func GeneratePlain(
 			ats := res.Ast.Nodes[dts].(*ast.TypeSpec)
 
 			astExprMap := maps.Collect(
-				xiter.Map2(
+				hiter.Map2(
 					func(s string, expr fieldDstExprSet) (string, fieldAstExprSet) {
 						return s, fieldAstExprSet{
 							Wrapped:   res.Ast.Nodes[expr.Wrapped].(ast.Expr),

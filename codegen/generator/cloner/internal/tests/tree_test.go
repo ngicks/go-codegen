@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/ngicks/go-codegen/codegen/generator/cloner/internal/testtargets/tree"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"gotest.tools/v3/assert"
 )
 
@@ -28,5 +28,5 @@ func TestTree(t *testing.T) {
 	additional := []int{5, 7, 9, 3}
 	cloned.Push(additional...)
 	assert.DeepEqual(t, sorted, slices.Collect(org.All()))
-	assert.DeepEqual(t, slices.Sorted(xiter.Concat(slices.Values(dataSet), slices.Values(additional))), slices.Collect(cloned.All()))
+	assert.DeepEqual(t, slices.Sorted(hiter.Concat(slices.Values(dataSet), slices.Values(additional))), slices.Collect(cloned.All()))
 }

@@ -16,7 +16,6 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/dstutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -53,17 +52,17 @@ func NewParserPackages(pkgs []*packages.Package) *ImportParser {
 
 func typesFromPkg(pkg *types.Package) []string {
 	return slices.Collect(
-		xiter.Map(
+		hiter.Map(
 			func(obj types.Object) string {
 				return obj.Name()
 			},
-			xiter.Filter(
+			hiter.Filter(
 				func(obj types.Object) bool {
 					_, ok1 := obj.Type().(*types.Named)
 					_, ok2 := obj.Type().(*types.Alias)
 					return ok1 || ok2
 				},
-				xiter.Map(
+				hiter.Map(
 					func(s string) types.Object {
 						return pkg.Scope().Lookup(s)
 					},
@@ -176,7 +175,7 @@ func (p *ImportParser) Parse(importSpecs []*ast.ImportSpec) (ImportMap, error) {
 		func(pkgPath string, _ TargetImport) {
 			_, _, _ = im.getIdent(pkgPath, "")
 		},
-		xiter.Filter2(
+		hiter.Filter2(
 			func(s string, _ TargetImport) bool {
 				return !pkgPaths[s]
 			},
@@ -309,7 +308,7 @@ func (im *ImportMap) Ident(path string) (string, bool) {
 func (im ImportMap) MissingImports() iter.Seq2[string, string] {
 	sorted := slices.SortedFunc(
 		hiter.ToKeyValue(
-			xiter.Map2(
+			hiter.Map2(
 				func(_ string, ti TargetImport) (string, string) {
 					// it's ok that Ident is empty.
 					if ti.Ident == "" && ti.Import.Name != importPathToIdent(ti.Import.Path) {

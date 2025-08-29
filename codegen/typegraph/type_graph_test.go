@@ -13,7 +13,6 @@ import (
 
 	gocmp "github.com/google/go-cmp/cmp"
 	"github.com/ngicks/go-iterator-helper/hiter"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"github.com/ngicks/und/option"
 	"golang.org/x/tools/go/packages"
 	"gotest.tools/v3/assert"
@@ -71,7 +70,7 @@ func collectIter(
 ) []Ident {
 	return slices.SortedFunc(
 		hiter.OmitL(
-			xiter.Filter2(
+			hiter.Filter2(
 				func(ident Ident, node *Node) bool {
 					if filter == nil {
 						return true

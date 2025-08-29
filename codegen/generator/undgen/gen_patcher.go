@@ -26,7 +26,6 @@ import (
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/go-iterator-helper/hiter/stringsiter"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -60,7 +59,7 @@ func GeneratePatcher(
 				return g.EnumerateTypes()
 			}
 			return g.EnumerateTypesKeys(
-				xiter.Map(func(s string) typegraph.Ident {
+				hiter.Map(func(s string) typegraph.Ident {
 					return typegraph.Ident{PkgPath: pkg.PkgPath, TypeName: s}
 				},
 					slices.Values(targetTypeNames),
@@ -75,7 +74,7 @@ func GeneratePatcher(
 	buf := bufpool.GetBuf()
 	defer bufpool.PutBuf(buf)
 
-	for _, data := range xiter.Filter2(
+	for _, data := range hiter.Filter2(
 		func(f *ast.File, data *typegraph.ReplaceData) bool { return f != nil && data != nil },
 		hiter.MapsKeys(replacerData, slices.Values(pkg.Syntax)),
 	) {
@@ -89,7 +88,7 @@ func GeneratePatcher(
 				slog.String("filename", data.Filename),
 				slog.Any(
 					"typesNames",
-					slices.Collect(xiter.Map(
+					slices.Collect(hiter.Map(
 						func(n *typegraph.Node) string { return n.Type.Obj().Name() },
 						slices.Values(data.TargetNodes),
 					)),
@@ -293,7 +292,7 @@ func patcherEdgeFilter(edge typegraph.Edge) bool {
 func concatFieldNames(field *dst.Field) string {
 	return stringsiter.Join(
 		", ",
-		xiter.Map(
+		hiter.Map(
 			func(i *dst.Ident) string { return strconv.Quote(i.Name) },
 			slices.Values(field.Names),
 		),

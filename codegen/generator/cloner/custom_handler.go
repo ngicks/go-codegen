@@ -8,7 +8,6 @@ import (
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-codegen/codegen/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
 
 type CustomHandlers []CustomHandler
@@ -25,7 +24,7 @@ func (h CustomHandlers) Match(ty types.Type) int {
 func (h CustomHandlers) Imports() []imports.TargetImport {
 	return slices.Collect(
 		hiter.Flatten(
-			xiter.Map(
+			hiter.Map(
 				func(h CustomHandler) []imports.TargetImport {
 					return h.Imports
 				},

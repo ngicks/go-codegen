@@ -8,7 +8,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"golang.org/x/tools/go/packages"
 	"gotest.tools/v3/assert"
 )
@@ -335,7 +335,7 @@ func TestImports_fallback(t *testing.T) {
 			"foo_4": {Import: Import{Path: "foo5", Name: "foo"}, Ident: "foo_4"},
 		},
 		maps.Collect(
-			xiter.Filter2(
+			hiter.Filter2(
 				func(k string, _ TargetImport) bool {
 					return strings.HasPrefix(k, "foo")
 				},

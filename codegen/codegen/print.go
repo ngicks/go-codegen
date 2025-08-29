@@ -17,7 +17,6 @@ import (
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
 
 func BufPrintf(w io.Writer) (func(format string, args ...any), func() error) {
@@ -126,7 +125,7 @@ func TypeToDst(ty types.Type, pkgPath string, importMap imports.ImportMap) dst.E
 		return &dst.IndexListExpr{
 			X: exp,
 			Indices: slices.Collect(
-				xiter.Map(
+				hiter.Map(
 					func(ty types.Type) dst.Expr {
 						return TypeToDst(ty, pkgPath, importMap)
 					},
@@ -237,7 +236,7 @@ func TypeToAst(ty types.Type, pkgPath string, importMap imports.ImportMap) ast.E
 		return &ast.IndexListExpr{
 			X: exp,
 			Indices: slices.Collect(
-				xiter.Map(
+				hiter.Map(
 					func(ty types.Type) ast.Expr {
 						return TypeToAst(ty, pkgPath, importMap)
 					},

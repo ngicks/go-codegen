@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
+	"github.com/ngicks/go-iterator-helper/hiter"
 )
 
 const (
@@ -64,7 +64,7 @@ func ParseFieldDirectiveCommentDst[T any](
 	parser func(s []string) (T, error),
 ) (T, bool, error) {
 	lines := directiveComments(
-		xiter.Concat(
+		hiter.Concat(
 			slices.Values(afterLastEmptyLine(comments.Start)),
 			slices.Values(clip1(comments.End)),
 		),

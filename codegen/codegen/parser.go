@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
+	"github.com/ngicks/go-iterator-helper/hiter"
 	"golang.org/x/tools/imports"
 )
 
@@ -48,7 +48,7 @@ func (p *Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*a
 	var removedNodeRanges []tokenRange
 	f.Decls = slices.AppendSeq(
 		f.Decls[:0],
-		xiter.Filter(
+		hiter.Filter(
 			func(decl ast.Decl) (pass bool) {
 				var tokRange tokenRange
 				defer func() {
@@ -75,7 +75,7 @@ func (p *Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*a
 					}
 					x.Specs = slices.AppendSeq(
 						x.Specs[:0],
-						xiter.Filter(
+						hiter.Filter(
 							func(spec ast.Spec) (pass bool) {
 								var tokRange tokenRange
 								defer func() {
@@ -125,7 +125,7 @@ func (p *Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*a
 
 	f.Comments = slices.AppendSeq(
 		f.Comments[:0],
-		xiter.Filter(
+		hiter.Filter(
 			func(cg *ast.CommentGroup) bool {
 				return !slices.ContainsFunc(
 					removedNodeRanges,
@@ -164,7 +164,7 @@ type tokenRange []token.Pos
 func (r tokenRange) filter() tokenRange {
 	return slices.AppendSeq(
 		r[:0],
-		xiter.Filter(
+		hiter.Filter(
 			func(pos token.Pos) bool { return pos != 0 },
 			slices.Values(r)),
 	)

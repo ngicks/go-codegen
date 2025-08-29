@@ -11,7 +11,6 @@ import (
 	"github.com/ngicks/go-codegen/codegen/codegen"
 	"github.com/ngicks/go-codegen/codegen/imports"
 	"github.com/ngicks/go-iterator-helper/hiter"
-	"github.com/ngicks/go-iterator-helper/x/exp/xiter"
 )
 
 // ReplaceData is used to replace types in each file.
@@ -69,11 +68,11 @@ func (g *Graph) GatherReplaceData(
 			return accum
 		},
 		nil,
-		xiter.Map2(
+		hiter.Map2(
 			func(_ Ident, n *Node) (*ast.File, *Node) {
 				return n.File, n
 			},
-			xiter.Filter2(
+			hiter.Filter2(
 				func(_ Ident, n *Node) bool {
 					return n != nil
 				},
