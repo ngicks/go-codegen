@@ -1,13 +1,9 @@
 package pkgsutil
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
-	"io/fs"
 	"iter"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -63,82 +59,6 @@ func EnumerateFile(pkgs []*packages.Package) iter.Seq[*ast.File] {
 			for _, f := range pkg.Syntax {
 				if !yield(f) {
 					return
-				}
-			}
-		}
-	}
-}
-
-func RemoveSuffixedFiles(pkgs []*packages.Package, cwd, suffix string, dry bool) iter.Seq2[string, error] {
-	return func(yield func(string, error) bool) {
-		if cwd == "" {
-			var err error
-			cwd, err = os.Getwd()
-			if err != nil {
-				yield("", fmt.Errorf("getwd: %w", err))
-				return
-			}
-		}
-		var err error
-		cwd, err = filepath.Abs(cwd)
-		if err != nil {
-			yield("", fmt.Errorf("filepath.Abs: %w", err))
-			return
-		}
-		for pkg, seq := range EnumeratePackages(pkgs) {
-			if err := LoadError(pkg); err != nil {
-				if !yield("", err) {
-					return
-				}
-				continue
-			}
-			for file := range seq {
-				filename := pkg.Fset.Position(file.FileStart).Filename
-
-				rel, err := filepath.Rel(cwd, filename)
-				if err != nil {
-					yield("", fmt.Errorf("cwd = %q, filename = %q: %w", cwd, filename, err))
-					return
-				}
-
-				if strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
-					yield(filename, fmt.Errorf("not under cwd: %q", rel))
-					return
-				}
-
-				s, err := os.Lstat(filename)
-				if err != nil {
-					if !yield(filename, fmt.Errorf("stat %q: %w", filename, err)) {
-						return
-					}
-					continue
-				}
-
-				if !s.Mode().IsRegular() {
-					if !yield(filename, fmt.Errorf("ignoring non regular file: %q", filename)) {
-						return
-					}
-					continue
-				}
-
-				withoutExt, _ := strings.CutSuffix(filename, filepath.Ext(filename))
-				if strings.HasSuffix(withoutExt, suffix) {
-					if dry {
-						if !yield(filename, nil) {
-							return
-						}
-					} else {
-						err = os.Remove(filename)
-						if errors.Is(err, fs.ErrNotExist) {
-							err = nil
-						}
-						if err != nil {
-							err = fmt.Errorf("remove %q: %w", filename, err)
-						}
-						if !yield(filename, err) {
-							return
-						}
-					}
 				}
 			}
 		}
