@@ -13,12 +13,14 @@ import (
 	"strings"
 
 	"github.com/dave/dst"
-	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
+	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
 )
 
+// BufPrintf wraps w and returns it in a function which works as like printf.
+// Call second return value to retrieve io error in case it happens.
 func BufPrintf(w io.Writer) (func(format string, args ...any), func() error) {
 	bufw := bufio.NewWriter(w)
 	return func(format string, args ...any) {
@@ -315,3 +317,4 @@ func printImport(w io.Writer, af *ast.File, fset *token.FileSet) error {
 
 	return nil
 }
+

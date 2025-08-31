@@ -8,6 +8,8 @@ import (
 	"github.com/ngicks/go-iterator-helper/hiter"
 )
 
+// TrimPackageComment removes all package comment lines
+// except build constratints.
 func TrimPackageComment(f *dst.File) {
 	// we only support Go 1.21+ since the package "maps" is first introduced in that version.
 	// The "// +build" is no longer supported after Go 1.18

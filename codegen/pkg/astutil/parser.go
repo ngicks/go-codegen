@@ -16,6 +16,8 @@ import (
 	"golang.org/x/tools/imports"
 )
 
+// Parser is as much similar as `go/parser`
+// but ignores specific nodes in file.
 type Parser struct {
 	// Parser applies its modified behavior only for files under dir.
 	dir  string
@@ -184,3 +186,4 @@ func getCommentGroupPos(cg *ast.CommentGroup) token.Pos {
 	}
 	return cg.Pos()
 }
+

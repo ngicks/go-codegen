@@ -9,7 +9,9 @@ import (
 )
 
 type FieldDescAst struct {
-	Pos   int
+	// Pos indicates ith field of the type.
+	Pos int
+	// Name is field name.
 	Name  string
 	Field *ast.Field
 }
@@ -85,3 +87,4 @@ func FieldDst(st *dst.StructType) iter.Seq[FieldDescDst] {
 		}
 	}
 }
+

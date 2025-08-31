@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"slices"
 
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
-	"github.com/ngicks/go-codegen/codegen/pkg/msg"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -179,7 +179,7 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 				if err != nil {
 					return false, fmt.Errorf(
 						"parsing und tag failed: %s: %w",
-						msg.PrintFieldDesc(named.Obj().Name(), i, f), err,
+						astutil.PrintFieldDesc(named.Obj().Name(), i, f), err,
 					)
 				}
 				// tagged. If type is other than und types, it's an error.
@@ -201,7 +201,7 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 				if !found {
 					return false, fmt.Errorf(
 						"und tag is set for non und field: %s",
-						msg.PrintFieldDesc(named.Obj().Name(), i, f),
+						astutil.PrintFieldDesc(named.Obj().Name(), i, f),
 					)
 				}
 				if err := matchUndType(
@@ -219,7 +219,7 @@ func _isUndTarget(named *types.Named, external bool, implementorOf func(named *t
 				); err != nil {
 					return false, fmt.Errorf(
 						"%w: %s",
-						err, msg.PrintFieldDesc(named.Obj().Name(), i, f),
+						err, astutil.PrintFieldDesc(named.Obj().Name(), i, f),
 					)
 				}
 				atLeastOne = true

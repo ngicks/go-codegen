@@ -1,3 +1,4 @@
+// Package bufpool defines buf pools
 package bufpool
 
 import (
