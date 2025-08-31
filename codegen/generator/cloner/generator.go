@@ -11,7 +11,7 @@ import (
 	"slices"
 
 	"github.com/dave/dst/decorator"
-	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
@@ -59,8 +59,8 @@ func (c *Config) Generate(
 	graph, err := typegraph.New(
 		pkgs,
 		c.matcherConfig().MatchType,
-		codegen.ExcludeIgnoredGenDecl,
-		codegen.ExcludeIgnoredTypeSpec,
+		astutil.ExcludeIgnoredGenDecl,
+		astutil.ExcludeIgnoredTypeSpec,
 		typegraph.WithPrivParser(parseNode),
 	)
 	if err != nil {
@@ -99,7 +99,7 @@ func (c *Config) Generate(
 			return fmt.Errorf("converting dst to ast for %q: %w", data.Filename, err)
 		}
 
-		if err := codegen.PrintFileHeader(buf, af, res.Fset); err != nil {
+		if err := astutil.PrintFileHeader(buf, af, res.Fset); err != nil {
 			return fmt.Errorf("%q: %w", data.Filename, err)
 		}
 

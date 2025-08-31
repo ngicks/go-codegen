@@ -1,4 +1,4 @@
-package codegen
+package astutil
 
 import (
 	"go/parser"
@@ -136,8 +136,7 @@ codegen:generated
 /*
 codegen:ignore
 */
-type J struct{}
-`
+type J struct{}`
 	testDstCommentsParseResult = []directiveCommentParseResult{
 		{Direction: Direction{ignore: true}},    // 0
 		{Direction: Direction{generated: true}}, // 1

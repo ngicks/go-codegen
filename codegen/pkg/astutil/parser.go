@@ -1,5 +1,5 @@
-// codegen defines general utilities for codegen.
-package codegen
+// parser defines general utilities for codegen.
+package astutil
 
 import (
 	"go/ast"

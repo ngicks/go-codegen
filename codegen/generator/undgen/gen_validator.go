@@ -14,7 +14,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
-	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
@@ -71,7 +71,7 @@ func GenerateValidator(
 			return fmt.Errorf("converting dst to ast for %q: %w", data.Filename, err)
 		}
 
-		if err := codegen.PrintFileHeader(buf, af, res.Fset); err != nil {
+		if err := astutil.PrintFileHeader(buf, af, res.Fset); err != nil {
 			return fmt.Errorf("%q: %w", data.Filename, err)
 		}
 
@@ -117,7 +117,7 @@ func generateUndValidate(
 	node *typegraph.Node,
 	imports imports.ImportMap,
 ) (written bool, err error) {
-	typeName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
+	typeName := ts.Name.Name + astutil.PrintTypeParamsDst(ts)
 	undtagImportIdent, _ := imports.Ident(UndPathUndTag)
 	validateImportIdent, _ := imports.Ident(UndPathValidate)
 
@@ -134,7 +134,7 @@ func generateUndValidate(
 		_, err = w.Write(buf.Bytes())
 	}()
 
-	printf, flush := codegen.BufPrintf(buf)
+	printf, flush := astutil.BufPrintf(buf)
 	defer func() {
 		fErr := flush()
 		if err != nil {
@@ -143,7 +143,7 @@ func generateUndValidate(
 		err = fErr
 	}()
 
-	printf("//%s%s\n", codegen.DirectivePrefix, codegen.DirectiveCommentGenerated)
+	printf("//%s%s\n", astutil.DirectivePrefix, astutil.DirectiveCommentGenerated)
 	printf("func (v %s) UndValidate() (err error) {\n", typeName)
 	defer printf(`return
 	}

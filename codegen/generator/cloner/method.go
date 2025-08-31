@@ -10,7 +10,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
@@ -36,7 +36,7 @@ func generateMethod(
 	buf := bufpool.GetBuf()
 	defer bufpool.PutBuf(buf)
 
-	printf, flush := codegen.BufPrintf(buf)
+	printf, flush := astutil.BufPrintf(buf)
 
 	err = generateCloner(c, printf, g, replacer.ImportMap, node)
 	if err != nil {
@@ -60,11 +60,11 @@ func generateCloner(
 	importMap imports.ImportMap,
 	node *typegraph.Node,
 ) (err error) {
-	typeName := node.Ts.Name.Name + codegen.PrintTypeParamsAst(node.Ts)
+	typeName := node.Ts.Name.Name + astutil.PrintTypeParamsAst(node.Ts)
 
 	var cloneCallbacks [][2]string
 
-	printf("//" + codegen.DirectivePrefix + codegen.DirectiveCommentGenerated + "\n")
+	printf("//" + astutil.DirectivePrefix + astutil.DirectiveCommentGenerated + "\n")
 	if node.Type.TypeParams().Len() == 0 {
 		printf("func (v %[1]s) Clone() %[1]s {\n", typeName)
 	} else {
@@ -323,7 +323,7 @@ func cloneTy(
 							`func (v %[1]s) %[1]s {
 								return %[2]s
 							}`,
-							codegen.PrintAstExprPanicking(codegen.TypeToAst(x, pkgPath, importMap)), expr("v"),
+							astutil.PrintAstExprPanicking(astutil.TypeToAst(x, pkgPath, importMap)), expr("v"),
 						),
 					)
 				}
@@ -395,7 +395,7 @@ func handleStruct(
 	unwrapped types.Type,
 ) (cloneExpr func(s string) string, err error) {
 	builder := strings.Builder{}
-	printf, flush := codegen.BufPrintf(&builder)
+	printf, flush := astutil.BufPrintf(&builder)
 	printf(
 		`func (v %[1]s) %[1]s {
 	return %[1]s{

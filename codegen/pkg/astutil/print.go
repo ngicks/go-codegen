@@ -1,4 +1,4 @@
-package codegen
+package astutil
 
 import (
 	"bufio"

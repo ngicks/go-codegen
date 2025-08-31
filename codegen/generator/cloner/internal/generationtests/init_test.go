@@ -4,7 +4,7 @@ import (
 	"os"
 	"slices"
 
-	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -24,7 +24,7 @@ func init() {
 			packages.NeedTypesInfo |
 			packages.NeedTypesSizes,
 		Dir:       "../testtargets",
-		ParseFile: codegen.NewParser("../testtargets").ParseFile,
+		ParseFile: astutil.NewParser("../testtargets").ParseFile,
 	}
 	var err error
 	dirents, err := os.ReadDir("../testtargets")

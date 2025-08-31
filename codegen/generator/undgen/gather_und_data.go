@@ -4,7 +4,7 @@ import (
 	"go/ast"
 	"iter"
 
-	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/pkg/typegraph"
 	"golang.org/x/tools/go/packages"
@@ -19,8 +19,8 @@ func gatherPlainUndTypes(
 	graph, err := typegraph.New(
 		pkgs,
 		isUndPlainTarget,
-		codegen.ExcludeIgnoredGenDecl,
-		codegen.ExcludeIgnoredTypeSpec,
+		astutil.ExcludeIgnoredGenDecl,
+		astutil.ExcludeIgnoredTypeSpec,
 	)
 	if err != nil {
 		return nil, err
@@ -40,8 +40,8 @@ func gatherValidatableUndTypes(
 	graph, err := typegraph.New(
 		pkgs,
 		isUndValidatorTarget,
-		codegen.ExcludeIgnoredGenDecl,
-		codegen.ExcludeIgnoredTypeSpec,
+		astutil.ExcludeIgnoredGenDecl,
+		astutil.ExcludeIgnoredTypeSpec,
 	)
 	if err != nil {
 		return nil, err

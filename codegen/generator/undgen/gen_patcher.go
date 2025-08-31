@@ -18,7 +18,7 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/dave/dst/dstutil"
-	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkg/structtag"
@@ -103,7 +103,7 @@ func GeneratePatcher(
 			return fmt.Errorf("converting dst to ast for %q: %w", data.Filename, err)
 		}
 
-		if err := codegen.PrintFileHeader(buf, af, res.Fset); err != nil {
+		if err := astutil.PrintFileHeader(buf, af, res.Fset); err != nil {
 			return fmt.Errorf("%q: %w", data.Filename, err)
 		}
 
@@ -114,7 +114,7 @@ func GeneratePatcher(
 			// But we are not printing gen decl itself since
 			// it could have multiple specs inside it (type (spec1; spec2;...))
 			// surely at least a spec of them is converted but we can't tell all of them were.
-			buf.WriteString("//" + codegen.DirectivePrefix + codegen.DirectiveCommentGenerated + "\n")
+			buf.WriteString("//" + astutil.DirectivePrefix + astutil.DirectiveCommentGenerated + "\n")
 			buf.WriteString(token.TYPE.String())
 			buf.WriteByte(' ')
 			err = printer.Fprint(buf, res.Fset, ts)
@@ -324,10 +324,10 @@ func typeObjectFieldsIter(typeInfo types.Type) iter.Seq2[int, *types.Var] {
 func generateFromValue(
 	w io.Writer, ts *dst.TypeSpec, node *typegraph.Node, imports imports.ImportMap, typeSuffix string,
 ) (err error) {
-	patchTypeName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
-	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + codegen.PrintTypeParamsDst(ts)
+	patchTypeName := ts.Name.Name + astutil.PrintTypeParamsDst(ts)
+	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + astutil.PrintTypeParamsDst(ts)
 
-	printf, flush := codegen.BufPrintf(w)
+	printf, flush := astutil.BufPrintf(w)
 	defer func() {
 		err = flush()
 	}()
@@ -335,7 +335,7 @@ func generateFromValue(
 	printf(
 		`//%s%s
 `,
-		codegen.DirectivePrefix, codegen.DirectiveCommentGenerated,
+		astutil.DirectivePrefix, astutil.DirectiveCommentGenerated,
 	)
 	printf(
 		`func (p *%s) FromValue(v %s) {
@@ -420,10 +420,10 @@ func generateFromValue(
 func generateToValue(
 	w io.Writer, ts *dst.TypeSpec, node *typegraph.Node, imports imports.ImportMap, typeSuffix string,
 ) (err error) {
-	patchTypeName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
-	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + codegen.PrintTypeParamsDst(ts)
+	patchTypeName := ts.Name.Name + astutil.PrintTypeParamsDst(ts)
+	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + astutil.PrintTypeParamsDst(ts)
 
-	printf, flush := codegen.BufPrintf(w)
+	printf, flush := astutil.BufPrintf(w)
 	defer func() {
 		err = flush()
 	}()
@@ -431,7 +431,7 @@ func generateToValue(
 	printf(
 		`//%s%s
 `,
-		codegen.DirectivePrefix, codegen.DirectiveCommentGenerated,
+		astutil.DirectivePrefix, astutil.DirectiveCommentGenerated,
 	)
 	printf(
 		`func (p %s) ToValue() %s {
@@ -511,16 +511,16 @@ func generateToValue(
 func generateMerge(
 	w io.Writer, ts *dst.TypeSpec, node *typegraph.Node, imports imports.ImportMap, _ string,
 ) (err error) {
-	patchTypeName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
+	patchTypeName := ts.Name.Name + astutil.PrintTypeParamsDst(ts)
 
-	printf, flush := codegen.BufPrintf(w)
+	printf, flush := astutil.BufPrintf(w)
 	defer func() {
 		err = flush()
 	}()
 
 	printf(`//%s%s
 `,
-		codegen.DirectivePrefix, codegen.DirectiveCommentGenerated,
+		astutil.DirectivePrefix, astutil.DirectiveCommentGenerated,
 	)
 	printf(`func (p %[1]s) Merge(r %[1]s) %[1]s {
 `,
@@ -596,10 +596,10 @@ func generateMerge(
 func generateApplyPatch(
 	w io.Writer, ts *dst.TypeSpec, _ *typegraph.Node, _ imports.ImportMap, typeSuffix string,
 ) (err error) {
-	patchTypeName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
-	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + codegen.PrintTypeParamsDst(ts)
+	patchTypeName := ts.Name.Name + astutil.PrintTypeParamsDst(ts)
+	orgTypeName := strings.TrimSuffix(ts.Name.Name, typeSuffix) + astutil.PrintTypeParamsDst(ts)
 
-	printf, flush := codegen.BufPrintf(w)
+	printf, flush := astutil.BufPrintf(w)
 	defer func() {
 		err = flush()
 	}()
@@ -607,7 +607,7 @@ func generateApplyPatch(
 	printf(
 		`//%s%s
 `,
-		codegen.DirectivePrefix, codegen.DirectiveCommentGenerated,
+		astutil.DirectivePrefix, astutil.DirectiveCommentGenerated,
 	) // note this is generated method.
 	printf(
 		`func (p %[1]s) ApplyPatch(v %[2]s) %[2]s {

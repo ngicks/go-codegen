@@ -12,7 +12,7 @@ import (
 	"reflect"
 	"slices"
 
-	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -142,8 +142,8 @@ func (e Edge) LastPointer() option.Option[EdgeRouteNode] {
 }
 
 func (e Edge) PrintChildType(importMap imports.ImportMap) string {
-	return codegen.PrintAstExprPanicking(
-		codegen.TypeToAst(
+	return astutil.PrintAstExprPanicking(
+		astutil.TypeToAst(
 			e.ChildType,
 			e.ParentNode.Type.Obj().Pkg().Path(),
 			importMap,
@@ -152,8 +152,8 @@ func (e Edge) PrintChildType(importMap imports.ImportMap) string {
 }
 
 func (e Edge) PrintChildArg(i int, importMap imports.ImportMap) string {
-	return codegen.PrintAstExprPanicking(
-		codegen.TypeToAst(
+	return astutil.PrintAstExprPanicking(
+		astutil.TypeToAst(
 			e.TypeArgs[i].Org,
 			e.ParentNode.Type.Obj().Pkg().Path(),
 			importMap,
@@ -182,7 +182,7 @@ func (e Edge) PrintChildArgConverted(converter func(ty *types.Named, isMatched b
 		plainParam = e.TypeArgs[0].Org
 	}
 
-	return codegen.PrintAstExprPanicking(codegen.TypeToAst(
+	return astutil.PrintAstExprPanicking(astutil.TypeToAst(
 		plainParam,
 		e.ParentNode.Type.Obj().Pkg().Path(),
 		importMap,

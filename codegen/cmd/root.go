@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/suffixwriter"
 	"github.com/spf13/cobra"
@@ -197,7 +197,7 @@ func loadPkgs(
 		}
 	}
 	if ignoreGenerated {
-		cfg.ParseFile = codegen.NewParser(cfg.Dir).ParseFile
+		cfg.ParseFile = astutil.NewParser(cfg.Dir).ParseFile
 	}
 
 	targetPkgs, err := packages.Load(cfg, pkg...)

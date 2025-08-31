@@ -14,7 +14,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
-	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
@@ -90,7 +90,7 @@ func GeneratePlain(
 			return fmt.Errorf("converting dst to ast for %q: %w", data.Filename, err)
 		}
 
-		if err := codegen.PrintFileHeader(buf, af, res.Fset); err != nil {
+		if err := astutil.PrintFileHeader(buf, af, res.Fset); err != nil {
 			return fmt.Errorf("%q: %w", data.Filename, err)
 		}
 
@@ -110,7 +110,7 @@ func GeneratePlain(
 				),
 			)
 
-			buf.WriteString("//" + codegen.DirectivePrefix + codegen.DirectiveCommentGenerated + "\n")
+			buf.WriteString("//" + astutil.DirectivePrefix + astutil.DirectiveCommentGenerated + "\n")
 			buf.WriteString(token.TYPE.String())
 			buf.WriteByte(' ')
 			err = printer.Fprint(buf, res.Fset, ats)

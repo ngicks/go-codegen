@@ -11,7 +11,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/dstutil"
-	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/pkg/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -41,8 +41,8 @@ func unwrapFieldAlongPath(
 	if fromExpr == nil || toExpr == nil {
 		return nil
 	}
-	input := codegen.PrintAstExprPanicking(fromExpr)
-	output := codegen.PrintAstExprPanicking(toExpr)
+	input := astutil.PrintAstExprPanicking(fromExpr)
+	output := astutil.PrintAstExprPanicking(toExpr)
 
 	s := edge.Stack[skip:]
 	if len(s) > 0 && s[len(s)-1].Kind == typegraph.EdgeKindPointer {
@@ -55,9 +55,9 @@ func unwrapFieldAlongPath(
 	initializer := func(expr ast.Expr, kind typegraph.EdgeKind) string {
 		switch kind {
 		case typegraph.EdgeKindArray:
-			return fmt.Sprintf("%s{}", codegen.PrintAstExprPanicking(expr))
+			return fmt.Sprintf("%s{}", astutil.PrintAstExprPanicking(expr))
 		default:
-			return fmt.Sprintf("make(%s, len(v))", codegen.PrintAstExprPanicking(expr))
+			return fmt.Sprintf("make(%s, len(v))", astutil.PrintAstExprPanicking(expr))
 		}
 	}
 
@@ -110,11 +110,11 @@ func unwrapFieldAlongPath(
 
 func generateConversionMethod(w io.Writer, data *typegraph.ReplaceData, node *typegraph.Node, exprMap map[string]fieldAstExprSet) (err error) {
 	ts := data.Dec.Dst.Nodes[node.Ts].(*dst.TypeSpec)
-	plainTyName := ts.Name.Name + codegen.PrintTypeParamsDst(ts)
+	plainTyName := ts.Name.Name + astutil.PrintTypeParamsDst(ts)
 	rawTyName, _ := strings.CutSuffix(ts.Name.Name, "Plain")
-	rawTyName += codegen.PrintTypeParamsDst(ts)
+	rawTyName += astutil.PrintTypeParamsDst(ts)
 
-	printf, flush := codegen.BufPrintf(w)
+	printf, flush := astutil.BufPrintf(w)
 	defer func() {
 		if err == nil {
 			err = flush()
@@ -136,7 +136,7 @@ func generateToRawOrToPlain(
 	node *typegraph.Node,
 	exprMap map[string]fieldAstExprSet,
 ) {
-	printf("//%s%s\n", codegen.DirectivePrefix, codegen.DirectiveCommentGenerated)
+	printf("//%s%s\n", astutil.DirectivePrefix, astutil.DirectiveCommentGenerated)
 	printf(`func (v %s) %s() %s {
 `,
 		or(
@@ -175,7 +175,7 @@ func generateConversionMethodElemTypes(
 ) {
 	_, edge := typegraph.FirstTypeIdent(node.Children) // must be only one.
 
-	rawExpr := codegen.TypeToAst(
+	rawExpr := astutil.TypeToAst(
 		edge.ParentNode.Type.Underlying(),
 		edge.ParentNode.Type.Obj().Pkg().Path(),
 		importMap,
@@ -225,7 +225,7 @@ func generateConversionMethodElemTypes(
 				toPlain,
 				isPointer,
 				prefixPointer(isPointer, edge.PrintChildType(importMap)),
-				codegen.PrintAstExprPanicking(plainExprUnwrapped),
+				astutil.PrintAstExprPanicking(plainExprUnwrapped),
 			),
 			"v"),
 		)
@@ -306,7 +306,7 @@ func generateConversionMethodStructFields(
 						toPlain,
 						isPointer,
 						prefixPointer(isPointer, edge.PrintChildType(importMap)),
-						codegen.PrintAstExprPanicking(plainExpr.Unwrapped),
+						astutil.PrintAstExprPanicking(plainExpr.Unwrapped),
 					)
 					needsArg = true
 				} else if ok, isPointer := edge.HasSingleNamedTypeArg(nil); ok && isUndType(edge.ChildType) {
@@ -324,7 +324,7 @@ func generateConversionMethodStructFields(
 					}
 				}
 
-				rawExpr := codegen.TypeToAst(
+				rawExpr := astutil.TypeToAst(
 					edge.ParentNode.Type.Underlying().(*types.Struct).Field(edge.Stack[0].Pos.Value()).Type(),
 					edge.ParentNode.Type.Obj().Pkg().Path(),
 					importMap,

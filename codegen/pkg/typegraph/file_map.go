@@ -8,7 +8,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
-	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-iterator-helper/hiter"
 )
@@ -56,7 +56,7 @@ func (g *Graph) GatherReplaceData(
 				if err != nil {
 					panic(&wrapped{err})
 				}
-				codegen.TrimPackageComment(df)
+				astutil.TrimPackageComment(df)
 				accum = &ReplaceData{
 					Filename:  current.Pkg.Fset.Position(current.File.FileStart).Filename,
 					Dec:       dec,

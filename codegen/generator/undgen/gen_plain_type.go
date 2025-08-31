@@ -7,7 +7,7 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/dstutil"
-	"github.com/ngicks/go-codegen/codegen/pkg/codegen"
+	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/pkg/typegraph"
 	"github.com/ngicks/und/undtag"
@@ -64,7 +64,7 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *typegraph.Node, importMap imports.I
 		unwrapped := unwrapExprAlongPath(elem, edge, 1)
 		index := (*unwrapped).(*dst.IndexExpr)
 		converted, _ := plainConverter(edge.TypeArgs[0].Ty, edge.IsTypeArgMatched())
-		index.Index = codegen.TypeToDst(
+		index.Index = astutil.TypeToDst(
 			converted,
 			node.Type.Obj().Pkg().Path(),
 			importMap,
@@ -74,7 +74,7 @@ func unwrapElemTypes(ts *dst.TypeSpec, node *typegraph.Node, importMap imports.I
 		// implementor
 		unwrapped := unwrapExprAlongPath(elem, edge, 1)
 		converted, _ := plainConverter(edge.ChildType, edge.IsChildMatched())
-		*unwrapped = codegen.TypeToDst(
+		*unwrapped = astutil.TypeToDst(
 			converted,
 			node.Type.Obj().Pkg().Path(),
 			importMap,
@@ -136,7 +136,7 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.Node, importMap import
 					}) {
 						ty = types.NewPointer(ty)
 					}
-					*unwrapped = codegen.TypeToDst(
+					*unwrapped = astutil.TypeToDst(
 						ty,
 						edge.ParentNode.Type.Obj().Pkg().Path(),
 						importMap,
@@ -159,7 +159,7 @@ func unwrapStructFields(ts *dst.TypeSpec, node *typegraph.Node, importMap import
 					if isPointer {
 						ty = types.NewPointer(ty)
 					}
-					(*unwrapped).(*dst.IndexExpr).Index = codegen.TypeToDst(
+					(*unwrapped).(*dst.IndexExpr).Index = astutil.TypeToDst(
 						ty,
 						edge.ParentNode.Type.Obj().Pkg().Path(),
 						importMap,
@@ -203,7 +203,7 @@ func unwrapUndType(fieldTy *dst.IndexExpr, edge typegraph.Edge, undOpt undtag.Un
 			if isPointer {
 				ty = types.NewPointer(ty)
 			}
-			fieldTy.Index = codegen.TypeToDst(
+			fieldTy.Index = astutil.TypeToDst(
 				ty,
 				edge.ParentNode.Type.Obj().Pkg().Path(),
 				importMap,
