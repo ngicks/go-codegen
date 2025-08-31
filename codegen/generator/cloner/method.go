@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
+	"github.com/ngicks/go-codegen/codegen/pkg/directive"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
@@ -64,7 +65,7 @@ func generateCloner(
 
 	var cloneCallbacks [][2]string
 
-	printf("//" + astutil.DirectivePrefix + astutil.DirectiveCommentGenerated + "\n")
+	printf("//" + directive.DirectivePrefix + directive.DirectiveCommentGenerated + "\n")
 	if node.Type.TypeParams().Len() == 0 {
 		printf("func (v %[1]s) Clone() %[1]s {\n", typeName)
 	} else {

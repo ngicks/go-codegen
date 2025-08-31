@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
+	"github.com/ngicks/go-codegen/codegen/pkg/directive"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"golang.org/x/tools/imports"
 )
@@ -59,18 +60,18 @@ func (p *Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*a
 				}()
 
 				var (
-					direction Direction
+					direction directive.Direction
 					ok        bool
 					err       error
 				)
 				switch x := decl.(type) {
 				case *ast.FuncDecl:
-					direction, ok, err = ParseDirectiveComment(x.Doc)
+					direction, ok, err = directive.ParseDirectiveComment(x.Doc)
 					tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 				case *ast.GenDecl:
-					direction, ok, err = ParseDirectiveComment(x.Doc)
+					direction, ok, err = directive.ParseDirectiveComment(x.Doc)
 					tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
-					if direction.generated {
+					if direction.IsGenerated() {
 						return false
 					}
 					x.Specs = slices.AppendSeq(
@@ -86,7 +87,7 @@ func (p *Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*a
 								}()
 
 								var (
-									direction Direction
+									direction directive.Direction
 									ok        bool
 									err       error
 								)
@@ -94,17 +95,17 @@ func (p *Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*a
 								default:
 									return true
 								case *ast.ValueSpec:
-									direction, ok, err = ParseDirectiveComment(x.Comment)
+									direction, ok, err = directive.ParseDirectiveComment(x.Comment)
 									tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 								case *ast.TypeSpec:
-									direction, ok, err = ParseDirectiveComment(x.Comment)
+									direction, ok, err = directive.ParseDirectiveComment(x.Comment)
 									tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 								}
 								if !ok || err != nil {
 									// no error at this moment
 									return true
 								}
-								return !direction.generated
+								return !direction.IsGenerated()
 							},
 							slices.Values(x.Specs)),
 					)
@@ -113,7 +114,7 @@ func (p *Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*a
 					// no error at this moment
 					return true
 				}
-				return !direction.generated
+				return !direction.IsGenerated()
 			},
 			slices.Values(f.Decls),
 		),

@@ -15,6 +15,7 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
+	"github.com/ngicks/go-codegen/codegen/pkg/directive"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
@@ -110,7 +111,7 @@ func GeneratePlain(
 				),
 			)
 
-			buf.WriteString("//" + astutil.DirectivePrefix + astutil.DirectiveCommentGenerated + "\n")
+			buf.WriteString("//" + directive.DirectivePrefix + directive.DirectiveCommentGenerated + "\n")
 			buf.WriteString(token.TYPE.String())
 			buf.WriteByte(' ')
 			err = printer.Fprint(buf, res.Fset, ats)

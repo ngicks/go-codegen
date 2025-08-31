@@ -1,4 +1,4 @@
-package astutil
+package directive
 
 import (
 	"fmt"
@@ -27,6 +27,23 @@ type Direction struct {
 
 func (d Direction) MustIgnore() bool {
 	return d.ignore || d.generated
+}
+
+func (d Direction) IsGenerated() bool {
+	return d.generated
+}
+
+func EnumerateCommentGroup(comments *ast.CommentGroup) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		if comments == nil || len(comments.List) == 0 {
+			return
+		}
+		for _, c := range comments.List {
+			if !yield(c.Text) {
+				return
+			}
+		}
+	}
 }
 
 func ParseDirectiveComment(comments *ast.CommentGroup) (Direction, bool, error) {

@@ -19,6 +19,7 @@ import (
 	"github.com/dave/dst/decorator"
 	"github.com/dave/dst/dstutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
+	"github.com/ngicks/go-codegen/codegen/pkg/directive"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkg/structtag"
@@ -114,7 +115,7 @@ func GeneratePatcher(
 			// But we are not printing gen decl itself since
 			// it could have multiple specs inside it (type (spec1; spec2;...))
 			// surely at least a spec of them is converted but we can't tell all of them were.
-			buf.WriteString("//" + astutil.DirectivePrefix + astutil.DirectiveCommentGenerated + "\n")
+			buf.WriteString("//" + directive.DirectivePrefix + directive.DirectiveCommentGenerated + "\n")
 			buf.WriteString(token.TYPE.String())
 			buf.WriteByte(' ')
 			err = printer.Fprint(buf, res.Fset, ts)
@@ -335,7 +336,7 @@ func generateFromValue(
 	printf(
 		`//%s%s
 `,
-		astutil.DirectivePrefix, astutil.DirectiveCommentGenerated,
+		directive.DirectivePrefix, directive.DirectiveCommentGenerated,
 	)
 	printf(
 		`func (p *%s) FromValue(v %s) {
@@ -431,7 +432,7 @@ func generateToValue(
 	printf(
 		`//%s%s
 `,
-		astutil.DirectivePrefix, astutil.DirectiveCommentGenerated,
+		directive.DirectivePrefix, directive.DirectiveCommentGenerated,
 	)
 	printf(
 		`func (p %s) ToValue() %s {
@@ -520,7 +521,7 @@ func generateMerge(
 
 	printf(`//%s%s
 `,
-		astutil.DirectivePrefix, astutil.DirectiveCommentGenerated,
+		directive.DirectivePrefix, directive.DirectiveCommentGenerated,
 	)
 	printf(`func (p %[1]s) Merge(r %[1]s) %[1]s {
 `,
@@ -607,7 +608,7 @@ func generateApplyPatch(
 	printf(
 		`//%s%s
 `,
-		astutil.DirectivePrefix, astutil.DirectiveCommentGenerated,
+		directive.DirectivePrefix, directive.DirectiveCommentGenerated,
 	) // note this is generated method.
 	printf(
 		`func (p %[1]s) ApplyPatch(v %[2]s) %[2]s {

@@ -8,6 +8,7 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
+	"github.com/ngicks/go-codegen/codegen/pkg/directive"
 	"github.com/ngicks/go-codegen/codegen/pkg/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
 )
@@ -72,7 +73,7 @@ func parseNode(n *typegraph.Node) (any, error) {
 	}
 	lines := make(map[int]direction)
 	for i, f := range hiter.Enumerate(astutil.FieldDst(st)) {
-		lineDirective, ok, err := astutil.ParseFieldDirectiveCommentDst(
+		lineDirective, ok, err := directive.ParseFieldDirectiveCommentDst(
 			DirectivePrefix,
 			f.Field.Decs,
 			func(lines []string) (direction, error) {

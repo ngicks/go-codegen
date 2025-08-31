@@ -15,6 +15,7 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
+	"github.com/ngicks/go-codegen/codegen/pkg/directive"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
@@ -143,7 +144,7 @@ func generateUndValidate(
 		err = fErr
 	}()
 
-	printf("//%s%s\n", astutil.DirectivePrefix, astutil.DirectiveCommentGenerated)
+	printf("//%s%s\n", directive.DirectivePrefix, directive.DirectiveCommentGenerated)
 	printf("func (v %s) UndValidate() (err error) {\n", typeName)
 	defer printf(`return
 	}

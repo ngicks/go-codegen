@@ -1,4 +1,4 @@
-package astutil
+package directive
 
 import (
 	"go/parser"

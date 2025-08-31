@@ -12,6 +12,7 @@ import (
 
 	"github.com/dave/dst/decorator"
 	"github.com/ngicks/go-codegen/codegen/pkg/astutil"
+	"github.com/ngicks/go-codegen/codegen/pkg/directive"
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
@@ -59,8 +60,8 @@ func (c *Config) Generate(
 	graph, err := typegraph.New(
 		pkgs,
 		c.matcherConfig().MatchType,
-		astutil.ExcludeIgnoredGenDecl,
-		astutil.ExcludeIgnoredTypeSpec,
+		directive.ExcludeIgnoredGenDecl,
+		directive.ExcludeIgnoredTypeSpec,
 		typegraph.WithPrivParser(parseNode),
 	)
 	if err != nil {
