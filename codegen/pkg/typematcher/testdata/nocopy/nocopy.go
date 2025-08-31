@@ -17,7 +17,7 @@ func init() {
 
 	d := D{}
 	d2 := d
-	// assignment copies lock value to d2: github.com/ngicks/go-codegen/codegen/matcher.D
+	// assignment copies lock value to d2: github.com/ngicks/go-codegen/codegen/typematcher.D
 	// contains sync/atomic.Int64 contains sync/atomic.noCopycopylocksdefault
 
 	e := E{}

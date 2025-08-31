@@ -1,4 +1,4 @@
-package matcher
+package typematcher
 
 import (
 	"go/types"

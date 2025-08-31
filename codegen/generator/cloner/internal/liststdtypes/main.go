@@ -17,7 +17,7 @@ import (
 	"syscall"
 
 	"github.com/ngicks/go-codegen/codegen/pkg/imports"
-	"github.com/ngicks/go-codegen/codegen/pkg/matcher"
+	"github.com/ngicks/go-codegen/codegen/pkg/typematcher"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"golang.org/x/tools/go/packages"
 )
@@ -92,8 +92,8 @@ func main() {
 						return (ok1 || ok2) &&
 							obj.Exported() &&
 							asBasic(obj.Type()) == nil &&
-							!matcher.IsNoCopy(obj.Type()) &&
-							matcher.IsCloneByAssign(obj.Type(), func(n *types.Named) bool { return true })
+							!typematcher.IsNoCopy(obj.Type()) &&
+							typematcher.IsCloneByAssign(obj.Type(), func(n *types.Named) bool { return true })
 					},
 					hiter.Map(
 						func(s string) types.Object {

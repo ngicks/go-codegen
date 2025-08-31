@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/ngicks/go-codegen/codegen/pkg/matcher"
+	"github.com/ngicks/go-codegen/codegen/pkg/typematcher"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/typegraph"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	clonerMatcher = matcher.ClonerMethod{
+	clonerMatcher = typematcher.ClonerMethod{
 		Name: "Clone",
 	}
 )
@@ -97,7 +97,7 @@ func (c *MatcherConfig) MatchEdge(e typegraph.Edge) bool {
 }
 
 func qualifiedName(ty *types.Named) string {
-	pkgPath, name := matcher.Name(ty)
+	pkgPath, name := typematcher.Name(ty)
 	if pkgPath != "" {
 		pkgPath = strconv.Quote(pkgPath) + "."
 	}
@@ -279,7 +279,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 					k = handleKindCallCloneFunc
 				case clonerMatcher.IsImplementor(unwrapped_):
 					k = handleKindCallClone
-				case matcher.IsNoCopy(x):
+				case typematcher.IsNoCopy(x):
 					switch c.NoCopyHandle {
 					case CopyHandleIgnore:
 						logger.Debug("ignoring field since it contains no copy object: if it should be copied place " +
@@ -310,7 +310,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 					}
 					ok = false
 					return nil
-				case matcher.IsCloneByAssign(unwrapped_, cloneByAssignNamedTypeMatcher(graph)):
+				case typematcher.IsCloneByAssign(unwrapped_, cloneByAssignNamedTypeMatcher(graph)):
 					k = handleKindAssign
 				case asUnderlying[*types.Signature](unwrapped_) != nil:
 					k = handleSig(c, logger).Or(option.Some(k)).Value()
@@ -374,7 +374,7 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 			case *types.Signature:
 				k = handleSig(c, logger).Or(option.Some(k)).Value()
 			case *types.Struct: // struct literal.
-				if matcher.IsCloneByAssign(x, cloneByAssignNamedTypeMatcher(graph)) {
+				if typematcher.IsCloneByAssign(x, cloneByAssignNamedTypeMatcher(graph)) {
 					k = handleKindAssign
 				} else {
 					atLeastOne := false
@@ -414,10 +414,10 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 			}
 
 			// Only *types.Named or *types.Alias. Check implementors of HasTypeParam interface.
-			param, assertOk := unwrapped_.(matcher.HasTypeParam)
+			param, assertOk := unwrapped_.(typematcher.HasTypeParam)
 			if assertOk && param.TypeArgs().Len() > 0 {
 				for i, arg := range hiter.AtterAll(param.TypeArgs()) {
-					pkgPath, name := matcher.Name(unwrapped_)
+					pkgPath, name := typematcher.Name(unwrapped_)
 					if pkgPath != "" {
 						pkgPath = strconv.Quote(pkgPath) + "."
 					}
