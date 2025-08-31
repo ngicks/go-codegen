@@ -78,12 +78,21 @@ func enumeratePkg(pkg *types.Package) iter.Seq[*types.Package] {
 		if !yield(pkg) {
 			return
 		}
-		for _, i := range pkg.Imports() {
-			for pkg := range enumeratePkg(i) {
-				if !yield(pkg) {
-					return
+		childrenNotVisited := []*types.Package{pkg}
+		var nextLayer []*types.Package
+		for len(childrenNotVisited) != 0 {
+			for _, parent := range childrenNotVisited {
+				if i := parent.Imports(); len(i) > 0 {
+					nextLayer = append(nextLayer, i...)
+					for _, ii := range i {
+						if !yield(ii) {
+							return
+						}
+					}
 				}
 			}
+			childrenNotVisited = nextLayer
+			nextLayer = []*types.Package{}
 		}
 	}
 }
