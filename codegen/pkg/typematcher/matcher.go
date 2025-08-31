@@ -1,3 +1,4 @@
+// Package typematcher defines matcher for types (e.g. NoLOck)
 package typematcher
 
 import (
@@ -7,7 +8,7 @@ import (
 )
 
 // IsNoCopy returns true given type ty has Lock() method,
-// or the ty contains direct (not indirect by pointer, map, slice, channel) dependency to no-lock object.
+// or the ty contains direct (not indirected by pointer, map, slice, channel) dependency to no-lock object.
 func IsNoCopy(ty types.Type) bool {
 	sel := findMethod(ty, "Lock")
 	if sel != nil {
