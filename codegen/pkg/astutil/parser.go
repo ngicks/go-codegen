@@ -2,6 +2,7 @@
 package astutil
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/printer"
@@ -10,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ngicks/go-codegen/codegen/generator/common"
 	"github.com/ngicks/go-codegen/codegen/internal/bufpool"
 	"github.com/ngicks/go-codegen/codegen/pkg/directive"
 	"github.com/ngicks/go-iterator-helper/hiter"
@@ -62,16 +64,16 @@ func (p *Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*a
 				}()
 
 				var (
-					direction directive.Direction
+					direction common.Direction
 					ok        bool
 					err       error
 				)
 				switch x := decl.(type) {
 				case *ast.FuncDecl:
-					direction, ok, err = directive.ParseDirectiveComment(x.Doc)
+					direction, ok, err = parseDirectiveHelper(x.Doc)
 					tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 				case *ast.GenDecl:
-					direction, ok, err = directive.ParseDirectiveComment(x.Doc)
+					direction, ok, err = parseDirectiveHelper(x.Doc)
 					tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 					if direction.IsGenerated() {
 						return false
@@ -89,7 +91,7 @@ func (p *Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*a
 								}()
 
 								var (
-									direction directive.Direction
+									direction common.Direction
 									ok        bool
 									err       error
 								)
@@ -97,10 +99,10 @@ func (p *Parser) ParseFile(fset *token.FileSet, filename string, src []byte) (*a
 								default:
 									return true
 								case *ast.ValueSpec:
-									direction, ok, err = directive.ParseDirectiveComment(x.Comment)
+									direction, ok, err = parseDirectiveHelper(x.Comment)
 									tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 								case *ast.TypeSpec:
-									direction, ok, err = directive.ParseDirectiveComment(x.Comment)
+									direction, ok, err = parseDirectiveHelper(x.Comment)
 									tokRange = append(tokRange, getCommentGroupPos(x.Doc), x.Pos(), x.End())
 								}
 								if !ok || err != nil {
@@ -185,5 +187,27 @@ func getCommentGroupPos(cg *ast.CommentGroup) token.Pos {
 		return 0
 	}
 	return cg.Pos()
+}
+
+// parseDirectiveHelper is a helper function to parse directive comments and return Direction
+func parseDirectiveHelper(comments *ast.CommentGroup) (common.Direction, bool, error) {
+	parsed, found := directive.ParseAst(comments, common.DirectivePrefix)
+	if !found {
+		return common.Direction{}, false, nil
+	}
+	
+	var dir common.Direction
+	if err := parsed.Unmarshal(&dir); err != nil {
+		return common.Direction{}, false, err
+	}
+	
+	// Check for unknown directives
+	for key := range parsed {
+		if key != common.DirectiveCommentIgnore && key != common.DirectiveCommentGenerated {
+			return dir, true, fmt.Errorf("unknown: %v", key)
+		}
+	}
+	
+	return dir, true, nil
 }
 

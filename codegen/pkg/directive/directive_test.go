@@ -1,8 +1,11 @@
 package directive
 
 import (
+	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -10,6 +13,50 @@ import (
 	"github.com/dave/dst/decorator"
 	"gotest.tools/v3/assert"
 )
+
+// Test utility function for parsing directive comments with Direction struct
+func parseDirective(comments *ast.CommentGroup) (Direction, bool, error) {
+	parsed, found := ParseAst(comments, DirectivePrefix)
+	if !found {
+		return Direction{}, false, nil
+	}
+
+	var dir Direction
+	if err := parsed.Unmarshal(&dir); err != nil {
+		return Direction{}, false, err
+	}
+
+	// Check for unknown directives
+	for key := range parsed {
+		if key != DirectiveCommentIgnore && key != DirectiveCommentGenerated {
+			return dir, true, fmt.Errorf("unknown: %v", key)
+		}
+	}
+
+	return dir, true, nil
+}
+
+// Test utility function for parsing DST directive comments with Direction struct
+func parseDirectiveDst(comments dst.NodeDecs) (Direction, bool, error) {
+	parsed, found := Parse(slices.Values(afterLastEmptyLine(comments.Start)), DirectivePrefix)
+	if !found {
+		return Direction{}, false, nil
+	}
+
+	var dir Direction
+	if err := parsed.Unmarshal(&dir); err != nil {
+		return Direction{}, false, err
+	}
+
+	// Check for unknown directives
+	for key := range parsed {
+		if key != DirectiveCommentIgnore && key != DirectiveCommentGenerated {
+			return dir, true, fmt.Errorf("unknown: %v", key)
+		}
+	}
+
+	return dir, true, nil
+}
 
 type directiveCommentParseResult struct {
 	Err       bool
@@ -48,13 +95,13 @@ codegen:generated
 // codegen:generateddawa
 `
 	testCommentsParseResult = []directiveCommentParseResult{
-		{Direction: Direction{ignore: true}},
-		{Direction: Direction{generated: true}},
-		{Direction: Direction{ignore: true}},
-		{Direction: Direction{generated: true}},
-		{Direction: Direction{ignore: true}},
-		{Direction: Direction{ignore: true}},
-		{Direction: Direction{generated: true}},
+		{Direction: Direction{Ignore: true}},
+		{Direction: Direction{Generated: true}},
+		{Direction: Direction{Ignore: true}},
+		{Direction: Direction{Generated: true}},
+		{Direction: Direction{Ignore: true}},
+		{Direction: Direction{Ignore: true}},
+		{Direction: Direction{Generated: true}},
 		{NotFound: true},
 		{Err: true},
 	}
@@ -68,7 +115,7 @@ func TestDirective_ast(t *testing.T) {
 	}
 
 	for i, cg := range f.Comments {
-		d, found, err := ParseDirectiveComment(cg)
+		d, found, err := parseDirective(cg)
 
 		expected := testCommentsParseResult[i]
 		if expected.Err {
@@ -138,17 +185,17 @@ codegen:ignore
 */
 type J struct{}`
 	testDstCommentsParseResult = []directiveCommentParseResult{
-		{Direction: Direction{ignore: true}},    // 0
-		{Direction: Direction{generated: true}}, // 1
-		{Direction: Direction{ignore: true}},    // 2
-		{Direction: Direction{generated: true}}, // 3
-		{Direction: Direction{ignore: true}},    // 4
-		{Direction: Direction{ignore: true}},    // 5
-		{Direction: Direction{generated: true}}, // 6
+		{Direction: Direction{Ignore: true}},    // 0
+		{Direction: Direction{Generated: true}}, // 1
+		{Direction: Direction{Ignore: true}},    // 2
+		{Direction: Direction{Generated: true}}, // 3
+		{Direction: Direction{Ignore: true}},    // 4
+		{Direction: Direction{Ignore: true}},    // 5
+		{Direction: Direction{Generated: true}}, // 6
 		{NotFound: true},                        // 7
 		{Err: true},                             // 8
-		{Direction: Direction{generated: true}}, // 9
-		{Direction: Direction{ignore: true}},    // 10
+		{Direction: Direction{Generated: true}}, // 9
+		{Direction: Direction{Ignore: true}},    // 10
 	}
 )
 
@@ -166,7 +213,7 @@ func TestDirective_dst(t *testing.T) {
 
 	for i, decl := range df.Decls[1:] {
 		t.Run(strconv.FormatInt(int64(i), 10), func(t *testing.T) {
-			d, found, err := ParseDirectiveCommentDst(*decl.Decorations())
+			d, found, err := parseDirectiveDst(*decl.Decorations())
 
 			expected := testDstCommentsParseResult[i]
 			if expected.Err {

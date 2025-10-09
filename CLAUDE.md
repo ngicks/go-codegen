@@ -15,6 +15,7 @@ Project documentation is stored in the `./doc` directory. Key documentation file
 ### Task Management
 
 Always check and update `doc/todo.md` when:
+
 - Starting new work on this project
 - Completing tasks
 - Discovering new issues or requirements
@@ -24,7 +25,10 @@ Always check and update `doc/todo.md` when:
 
 This project has been onboarded with the Serena MCP tool. Use `mcp__serena__` commands to access and store project information. The serena memories complement the documentation in the `./doc` directory.
 
-You'll have to read/update serena memory where relevant, and ensure consistency between serena memories and doc directory contents.
+- You must use serena tools where possible.
+- You'll have to read/update serena memory.
+- You must not use built-in read / write tool
+- You must not use bash to search lines, symbols. Just update serena memory and use serena tools.
 
 ## Critical Project-Specific Information
 
@@ -62,3 +66,4 @@ go install golang.org/x/tools/cmd/goimports@latest
 
 - ask back the user if you can't determine the things.
 - run go generate ./... before running test.
+

@@ -6,18 +6,16 @@ import (
 	"slices"
 	"strconv"
 
-	"github.com/ngicks/go-codegen/codegen/pkg/typematcher"
 	"github.com/ngicks/go-codegen/codegen/pkg/pkgsutil"
 	"github.com/ngicks/go-codegen/codegen/pkg/typegraph"
+	"github.com/ngicks/go-codegen/codegen/pkg/typematcher"
 	"github.com/ngicks/go-iterator-helper/hiter"
 	"github.com/ngicks/und/option"
 )
 
-var (
-	clonerMatcher = typematcher.ClonerMethod{
-		Name: "Clone",
-	}
-)
+var clonerMatcher = typematcher.ClonerMethod{
+	Name: "Clone",
+}
 
 type CopyHandle uint64
 
@@ -413,8 +411,8 @@ func (c *MatcherConfig) matchTy(ty types.Type, graph *typegraph.Graph, visited m
 				return nil
 			}
 
-			// Only *types.Named or *types.Alias. Check implementors of HasTypeParam interface.
-			param, assertOk := unwrapped_.(typematcher.HasTypeParam)
+			// Only *types.Named or *types.Alias. Check implementors of hasTypeParam interface.
+			param, assertOk := unwrapped_.(hasTypeParam)
 			if assertOk && param.TypeArgs().Len() > 0 {
 				for i, arg := range hiter.AtterAll(param.TypeArgs()) {
 					pkgPath, name := typematcher.Name(unwrapped_)
@@ -547,6 +545,12 @@ func (c *MatcherConfig) handleField(
 	}
 
 	return
+}
+
+// *types.Alias, *types.Named
+type hasTypeParam interface {
+	TypeParams() *types.TypeParamList
+	TypeArgs() *types.TypeList
 }
 
 func as[T types.Type](ty types.Type) T {
