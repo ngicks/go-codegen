@@ -57,8 +57,17 @@ func init() {
 // clonerCmd represents the cloner command
 var clonerCmd = &cobra.Command{
 	Use:   "cloner [flags] --pkg ./",
-	Short: "cloner generates clone methods on target types.",
-	Long: `cloner generates clone methods on target types. 
+	Short: "[DEPRECATED] cloner generates clone methods on target types.",
+	Long: `⚠️  DEPRECATED: This command is deprecated and will be removed in a future version.
+Please use the new two-phase workflow instead:
+  1. codegen automark ./... -g cloner
+  2. codegen autoimpl ./...
+
+For more information, run: codegen automark --help
+
+---
+
+cloner generates clone methods on target types. 
 
 cloner command generates 2 kinds of clone methods
 
