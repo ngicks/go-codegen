@@ -77,6 +77,9 @@ func searchNamedSpecsByPath(specs []NamedSpec, pkgPath string) (NamedSpec, bool)
 		specs,
 		pkgPath,
 		func(ns NamedSpec, path string) int {
+			if ns.Ident == "." || ns.Ident == "_" {
+				return 1
+			}
 			return cmp.Compare(ns.Spec.Package.Path, path)
 		},
 	)
