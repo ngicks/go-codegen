@@ -2,8 +2,6 @@ package importmap
 
 import (
 	"go/types"
-	"path"
-	"strings"
 )
 
 // Specs is set of import spec.
@@ -43,8 +41,8 @@ func packageFromTypesPackage(pkg *types.Package) Package {
 }
 
 type QualifiedType struct {
-	ImportPath string
-	TypeName   string
+	PackagePath string
+	TypeName    string
 }
 
 func (t QualifiedType) Is(ty types.Type) bool {
@@ -58,21 +56,8 @@ func (t QualifiedType) Is(ty types.Type) bool {
 	pkg := named.Obj().Pkg()
 	var pkgPath string
 	if pkg != nil {
+		// pkg is nil for built in types, e.g. error
 		pkgPath = pkg.Path()
 	}
-	return t.ImportPath == pkgPath && t.TypeName == named.Obj().Name()
-}
-
-// converts import path to ident accessing import spec.
-// If path is suffixed with major version (`v`%d), then base name of path prefix is returned.
-func importPathToIdent(pkgPath string) string {
-	pkgBase := path.Base(pkgPath)
-	if strings.HasPrefix(pkgBase, "v") && len(strings.TrimFunc(pkgBase[1:], isAsciiNum)) == 0 {
-		pkgBase = path.Base(path.Dir(pkgPath))
-	}
-	return pkgBase
-}
-
-func isAsciiNum(r rune) bool {
-	return '0' <= r && r <= '9'
+	return t.PackagePath == pkgPath && t.TypeName == named.Obj().Name()
 }

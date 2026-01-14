@@ -40,6 +40,10 @@ func inferPackageName(path string) string {
 	return pkgBase
 }
 
+func isAsciiNum(r rune) bool {
+	return '0' <= r && r <= '9'
+}
+
 func compareNamedSpec(l, r NamedSpec) int {
 	if c := cmp.Compare(l.Spec.Package.Path, r.Spec.Package.Path); c != 0 {
 		return c
@@ -134,7 +138,7 @@ func (m *Map) Ident(pkgPath string) (string, bool) {
 // AstExpr returns an *ast.SelectorExpr for accessing a type from the given qualified type.
 // Returns nil if the package is not found.
 func (m *Map) AstExpr(ty QualifiedType) *ast.SelectorExpr {
-	ident, ok := m.Ident(ty.ImportPath)
+	ident, ok := m.Ident(ty.PackagePath)
 	if !ok {
 		return nil
 	}
@@ -152,7 +156,7 @@ func (m *Map) AstExpr(ty QualifiedType) *ast.SelectorExpr {
 // DstExpr returns a *dst.SelectorExpr for accessing a type from the given qualified type.
 // Returns nil if the package is not found.
 func (m *Map) DstExpr(ty QualifiedType) *dst.SelectorExpr {
-	ident, ok := m.Ident(ty.ImportPath)
+	ident, ok := m.Ident(ty.PackagePath)
 	if !ok {
 		return nil
 	}

@@ -7,26 +7,12 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
+	"github.com/ngicks/go-codegen/graft/internal/loader"
 	"golang.org/x/tools/go/packages"
 	"gotest.tools/v3/assert"
 )
 
-var (
-	cfg = &packages.Config{
-		Mode: packages.NeedName | packages.NeedSyntax | packages.NeedTypes |
-			packages.NeedTypesInfo | packages.NeedTypesSizes | packages.NeedDeps |
-			packages.NeedImports,
-	}
-	testdataPkgs []*packages.Package
-)
-
-func init() {
-	var err error
-	testdataPkgs, err = packages.Load(cfg, "./internal/...")
-	if err != nil {
-		panic(err)
-	}
-}
+var testdataPkgs = loader.LoadPackagesPanicking("./internal/...")
 
 var undExtra = []NamedSpec{
 	{
@@ -260,12 +246,12 @@ func TestParser_AstExpr(t *testing.T) {
 	m, err := p.ParseAst(pkg1.Syntax[0].Imports)
 	assert.NilError(t, err)
 
-	expr := m.AstExpr(QualifiedType{ImportPath: "github.com/ngicks/und", TypeName: "Und"})
+	expr := m.AstExpr(QualifiedType{PackagePath: "github.com/ngicks/und", TypeName: "Und"})
 	assert.Assert(t, expr != nil)
 	assert.Equal(t, "und", expr.X.(*ast.Ident).Name)
 	assert.Equal(t, "Und", expr.Sel.Name)
 
-	expr = m.AstExpr(QualifiedType{ImportPath: "unknown/package", TypeName: "Type"})
+	expr = m.AstExpr(QualifiedType{PackagePath: "unknown/package", TypeName: "Type"})
 	assert.Assert(t, expr == nil)
 }
 
@@ -281,12 +267,12 @@ func TestParser_DstExpr(t *testing.T) {
 	m, err := p.ParseAst(pkg1.Syntax[0].Imports)
 	assert.NilError(t, err)
 
-	expr := m.DstExpr(QualifiedType{ImportPath: "github.com/ngicks/und", TypeName: "Und"})
+	expr := m.DstExpr(QualifiedType{PackagePath: "github.com/ngicks/und", TypeName: "Und"})
 	assert.Assert(t, expr != nil)
 	assert.Equal(t, "und", expr.X.(*dst.Ident).Name)
 	assert.Equal(t, "Und", expr.Sel.Name)
 
-	expr = m.DstExpr(QualifiedType{ImportPath: "unknown/package", TypeName: "Type"})
+	expr = m.DstExpr(QualifiedType{PackagePath: "unknown/package", TypeName: "Type"})
 	assert.Assert(t, expr == nil)
 }
 

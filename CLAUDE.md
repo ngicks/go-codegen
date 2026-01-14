@@ -62,3 +62,10 @@ go install golang.org/x/tools/cmd/goimports@latest
 
 - ask back the user if you can't determine the things.
 - run go generate ./... before running test.
+
+## Test Writing Guidelines
+
+- Write simple, explicit tests. Don't use `len()` where the content of a sequence should be tested.
+- Prefer `assert.DeepEqual` to verify actual content instead of just checking lengths.
+- If `assert.DeepEqual` is too verbose, create small test helpers and use them consistently.
+- Tests should be "dumb" - make assertions obvious and explicit rather than clever.
