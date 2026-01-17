@@ -26,7 +26,7 @@ func LoadPackagesPanicking(patterns ...string) []*packages.Package {
 	return pkgs
 }
 
-func LoadTestPackages(t *testing.T, patterns ...string) []*packages.Package {
+func LoadPackagesTest(t *testing.T, patterns ...string) []*packages.Package {
 	t.Helper()
 	pkgs, err := packages.Load(cfg, patterns...)
 	if err != nil {

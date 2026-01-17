@@ -68,7 +68,7 @@ func compareEdgeRoutes(a, b *EdgeRoute) int {
 }
 
 func TestNew_Basic(t *testing.T) {
-	pkgs := loader.LoadTestPackages(t, "./testdata/basic")
+	pkgs := loader.LoadPackagesTest(t, "./testdata/basic")
 
 	g, err := New(pkgs, nil, nil)
 	assert.NilError(t, err)
@@ -122,7 +122,7 @@ func TestNew_Basic(t *testing.T) {
 }
 
 func TestNew_Edges(t *testing.T) {
-	pkgs := loader.LoadTestPackages(t, "./testdata/edges")
+	pkgs := loader.LoadPackagesTest(t, "./testdata/edges")
 
 	g, err := New(pkgs, nil, nil)
 	assert.NilError(t, err)
@@ -191,7 +191,7 @@ func TestNew_Edges(t *testing.T) {
 }
 
 func TestNew_WithFilters(t *testing.T) {
-	pkgs := loader.LoadTestPackages(t, "./testdata/basic")
+	pkgs := loader.LoadPackagesTest(t, "./testdata/basic")
 
 	// Filter to only include TypeA and TypeB
 	typeSpecFilter := func(ts *ast.TypeSpec, obj types.Object) (bool, error) {
@@ -227,7 +227,7 @@ func TestNew_WithFilters(t *testing.T) {
 }
 
 func TestTrim_MatchAll(t *testing.T) {
-	pkgs := loader.LoadTestPackages(t, "./testdata/basic")
+	pkgs := loader.LoadPackagesTest(t, "./testdata/basic")
 
 	g, err := New(pkgs, nil, nil)
 	assert.NilError(t, err)
@@ -270,7 +270,7 @@ func TestTrim_MatchAll(t *testing.T) {
 }
 
 func TestTrim_MatchLeaf(t *testing.T) {
-	pkgs := loader.LoadTestPackages(t, "./testdata/basic")
+	pkgs := loader.LoadPackagesTest(t, "./testdata/basic")
 
 	g, err := New(pkgs, nil, nil)
 	assert.NilError(t, err)
@@ -317,7 +317,7 @@ func TestTrim_MatchLeaf(t *testing.T) {
 }
 
 func TestTrim_EdgeMatcher(t *testing.T) {
-	pkgs := loader.LoadTestPackages(t, "./testdata/basic")
+	pkgs := loader.LoadPackagesTest(t, "./testdata/basic")
 
 	g, err := New(pkgs, nil, nil)
 	assert.NilError(t, err)
@@ -374,7 +374,7 @@ func TestMatchKind(t *testing.T) {
 }
 
 func TestTraverseTypes(t *testing.T) {
-	pkgs := loader.LoadTestPackages(t, "./testdata/edges")
+	pkgs := loader.LoadPackagesTest(t, "./testdata/edges")
 
 	var edgesPkg *packages.Package
 	for _, pkg := range pkgs {
@@ -410,7 +410,7 @@ func TestTraverseTypes(t *testing.T) {
 }
 
 func TestTraverseTypes_InstantiatedGeneric(t *testing.T) {
-	pkgs := loader.LoadTestPackages(t, "./testdata/edges")
+	pkgs := loader.LoadPackagesTest(t, "./testdata/edges")
 
 	var edgesPkg *packages.Package
 	for _, pkg := range pkgs {
@@ -448,7 +448,7 @@ func TestTraverseTypes_InstantiatedGeneric(t *testing.T) {
 }
 
 func TestBidirectionalEdges(t *testing.T) {
-	pkgs := loader.LoadTestPackages(t, "./testdata/basic")
+	pkgs := loader.LoadPackagesTest(t, "./testdata/basic")
 
 	g, err := New(pkgs, nil, nil)
 	assert.NilError(t, err)
@@ -480,7 +480,7 @@ func TestBidirectionalEdges(t *testing.T) {
 }
 
 func TestNew_Edges_DetailedRoutes(t *testing.T) {
-	pkgs := loader.LoadTestPackages(t, "./testdata/edges")
+	pkgs := loader.LoadPackagesTest(t, "./testdata/edges")
 
 	g, err := New(pkgs, nil, nil)
 	assert.NilError(t, err)
@@ -655,7 +655,7 @@ func TestNew_Edges_DetailedRoutes(t *testing.T) {
 }
 
 func TestNew_Edges_TypeDetail(t *testing.T) {
-	pkgs := loader.LoadTestPackages(t, "./testdata/edges")
+	pkgs := loader.LoadPackagesTest(t, "./testdata/edges")
 
 	g, err := New(pkgs, nil, nil)
 	assert.NilError(t, err)
