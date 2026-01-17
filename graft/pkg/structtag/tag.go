@@ -461,3 +461,59 @@ func unescape(s string) (unescaped string, n int, err error) {
 	return "", 0, fmt.Errorf("invalid escaped string: single-quoted string missing terminating single-quote: %s", s)
 }
 
+// Unescape unescapes a single-quoted string used in struct tag values.
+//
+// Struct tag values can use single quotes to escape special characters:
+//
+//	json:"'name,with,commas',omitempty"
+//
+// This function takes such a single-quoted string (e.g., `'hello\'world'`)
+// and returns the unescaped content. The input must be a complete
+// single-quoted string with no trailing characters.
+//
+// Returns ErrSyntax if:
+//   - The input is not a valid single-quoted escaped string
+//   - The input contains trailing characters after the closing quote
+func Unescape(s string) (string, error) {
+	unescaped, n, err := unescape(s)
+	if err != nil {
+		return "", fmt.Errorf("%w: %w", ErrSyntax, err)
+	}
+	if n != len(s) {
+		return "", fmt.Errorf("%w: trailing characters after position %d", ErrSyntax, n)
+	}
+	return unescaped, nil
+}
+
+// Escape escapes a string with single quotes for use in struct tag values.
+//
+// Struct tag values can use single quotes to escape special characters:
+//
+//	json:"'name,with,commas',omitempty"
+//
+// This function takes a raw string and escapes it for use as a tag value name.
+// This is the reverse operation of [Unescape].
+//
+// Special characters handled:
+//   - Backslash (\) is escaped as \\
+//   - Single quote (') is escaped as \'
+//   - Double quote (") is escaped as \"
+func Escape(s string) string {
+	var buf strings.Builder
+	buf.Grow(len(s) + 2) // at minimum: quotes
+	buf.WriteByte('\'')
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			buf.WriteString("\\\\")
+		case '\'':
+			buf.WriteString("\\'")
+		case '"':
+			buf.WriteString("\\\"")
+		default:
+			buf.WriteByte(s[i])
+		}
+	}
+	buf.WriteByte('\'')
+	return buf.String()
+}

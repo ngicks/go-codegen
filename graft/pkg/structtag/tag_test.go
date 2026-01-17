@@ -240,3 +240,24 @@ func TestGet(t *testing.T) {
 	assert.Equal(t, "mah", escaped)
 	assert.Equal(t, "mah", unescaped)
 }
+
+func TestEscapeUnescapeRoundTrip(t *testing.T) {
+	inputs := [][2]string{
+		// escaped, unescaped
+		{`'hello'`, `hello`},
+		{`'hello\'world'`, `hello'world`},
+		{`',\"'`, `,"`},
+		{`'\\xde\\xad\\xbe\\xef'`, `\xde\xad\xbe\xef`},
+		{`''`, ``},
+	}
+
+	for _, input := range inputs {
+		t.Run(input[1], func(t *testing.T) {
+			unescaped, err := Unescape(input[0])
+			assert.NilError(t, err)
+			assert.Equal(t, input[1], unescaped)
+			escaped := Escape(unescaped)
+			assert.Equal(t, input[0], escaped)
+		})
+	}
+}
